@@ -1,4 +1,4 @@
-package basictracer_test
+package tracer_test
 
 import (
 	"bytes"
@@ -8,16 +8,16 @@ import (
 	"time"
 
 	"github.com/davecgh/go-spew/spew"
-	basictracer "github.com/opentracing/basictracer-go"
 	opentracing "github.com/opentracing/opentracing-go"
+	"github.com/undefinedlabs/go-agent/tracer"
 )
 
 type verbatimCarrier struct {
-	basictracer.SpanContext
+	tracer.SpanContext
 	b map[string]string
 }
 
-var _ basictracer.DelegatingCarrier = &verbatimCarrier{}
+var _ tracer.DelegatingCarrier = &verbatimCarrier{}
 
 func (vc *verbatimCarrier) SetBaggageItem(k, v string) {
 	vc.b[k] = v
@@ -30,7 +30,7 @@ func (vc *verbatimCarrier) GetBaggage(f func(string, string)) {
 }
 
 func (vc *verbatimCarrier) SetState(tID, sID uint64, sampled bool) {
-	vc.SpanContext = basictracer.SpanContext{TraceID: tID, SpanID: sID, Sampled: sampled}
+	vc.SpanContext = tracer.SpanContext{TraceID: tID, SpanID: sID, Sampled: sampled}
 }
 
 func (vc *verbatimCarrier) State() (traceID, spanID uint64, sampled bool) {
@@ -39,31 +39,31 @@ func (vc *verbatimCarrier) State() (traceID, spanID uint64, sampled bool) {
 
 func TestSpanPropagator(t *testing.T) {
 	const op = "test"
-	recorder := basictracer.NewInMemoryRecorder()
-	tracer := basictracer.New(recorder)
+	recorder := tracer.NewInMemoryRecorder()
+	tr := tracer.New(recorder)
 
-	sp := tracer.StartSpan(op)
+	sp := tr.StartSpan(op)
 	sp.SetBaggageItem("foo", "bar")
 
 	tmc := opentracing.HTTPHeadersCarrier(http.Header{})
 	tests := []struct {
 		typ, carrier interface{}
 	}{
-		{basictracer.Delegator, basictracer.DelegatingCarrier(&verbatimCarrier{b: map[string]string{}})},
+		{tracer.Delegator, tracer.DelegatingCarrier(&verbatimCarrier{b: map[string]string{}})},
 		{opentracing.Binary, &bytes.Buffer{}},
 		{opentracing.HTTPHeaders, tmc},
 		{opentracing.TextMap, tmc},
 	}
 
 	for i, test := range tests {
-		if err := tracer.Inject(sp.Context(), test.typ, test.carrier); err != nil {
+		if err := tr.Inject(sp.Context(), test.typ, test.carrier); err != nil {
 			t.Fatalf("%d: %v", i, err)
 		}
-		injectedContext, err := tracer.Extract(test.typ, test.carrier)
+		injectedContext, err := tr.Extract(test.typ, test.carrier)
 		if err != nil {
 			t.Fatalf("%d: %v", i, err)
 		}
-		child := tracer.StartSpan(
+		child := tr.StartSpan(
 			op,
 			opentracing.ChildOf(injectedContext))
 		child.Finish()

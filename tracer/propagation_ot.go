@@ -1,4 +1,4 @@
-package basictracer
+package tracer
 
 import (
 	"encoding/binary"
@@ -7,8 +7,8 @@ import (
 	"strings"
 
 	"github.com/gogo/protobuf/proto"
-	"github.com/opentracing/basictracer-go/wire"
 	opentracing "github.com/opentracing/opentracing-go"
+	"github.com/undefinedlabs/go-agent/tracer/wire"
 )
 
 type textMapPropagator struct {

@@ -1,4 +1,4 @@
-package basictracer
+package tracer
 
 import (
 	"sync/atomic"

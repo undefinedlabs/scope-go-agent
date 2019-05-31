@@ -1,4 +1,4 @@
-package basictracer
+package tracer
 
 import (
 	"bytes"
@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"testing"
 
-	opentracing "github.com/opentracing/opentracing-go"
+	"github.com/opentracing/opentracing-go"
 )
 
 var tags []string

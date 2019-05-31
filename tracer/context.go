@@ -1,4 +1,4 @@
-package basictracer
+package tracer
 
 // SpanContext holds the basic Span metadata.
 type SpanContext struct {
