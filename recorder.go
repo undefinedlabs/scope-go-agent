@@ -85,16 +85,9 @@ func (r *SpanRecorder) sendSpans() error {
 	}
 
 	payload := map[string]interface{}{
-		"metadata": map[string]interface{}{
-			"agent.id":      r.agent.id.String(),
-			"agent.type":    "go",
-			"agent.version": r.agent.version,
-			"service":       r.agent.service,
-			"repository":    r.agent.repository,
-			"commit":        r.agent.commit,
-		},
-		"spans":  spans,
-		"events": events,
+		"metadata": r.agent.metadata,
+		"spans":    spans,
+		"events":   events,
 	}
 
 	binaryPayload, err := msgpack.Marshal(payload)

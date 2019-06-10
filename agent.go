@@ -9,15 +9,10 @@ import (
 )
 
 type Agent struct {
-	id      uuid.UUID
-	version string
-
 	scopeEndpoint string
 	apiKey        string
-	service       string
-	repository    string
-	commit        string
-	sourceRoot    string
+	version       string
+	metadata      map[string]interface{}
 
 	recorder *SpanRecorder
 	tracer   opentracing.Tracer
@@ -38,24 +33,29 @@ func init() {
 
 func NewAgent() *Agent {
 	a := new(Agent)
-	agentId, err := uuid.NewRandom()
-	if err != nil {
-		panic(err)
-	}
-	a.id = agentId
-	a.version = version
 	a.scopeEndpoint = os.Getenv("SCOPE_API_ENDPOINT")
 	a.apiKey = os.Getenv("SCOPE_APIKEY")
+	a.version = version
 
-	a.repository = os.Getenv("SCOPE_REPOSITORY")
-	a.commit = os.Getenv("SCOPE_COMMIT_SHA")
-	a.sourceRoot = os.Getenv("SCOPE_SOURCE_ROOT")
+	a.metadata = make(map[string]interface{})
+	a.metadata[AgentID] = generateAgentID()
+	a.metadata[AgentVersion] = version
+	a.metadata[AgentType] = "go"
 
-	service, set := os.LookupEnv("SCOPE_SERVICE")
-	if set {
-		a.service = service
+	autodetectCI(a)
+	if repository, set := os.LookupEnv("SCOPE_REPOSITORY"); set {
+		a.metadata[Repository] = repository
+	}
+	if commit, set := os.LookupEnv("SCOPE_COMMIT_SHA"); set {
+		a.metadata[Commit] = commit
+	}
+	if sourceRoot, set := os.LookupEnv("SCOPE_SOURCE_ROOT"); set {
+		a.metadata[SourceRoot] = sourceRoot
+	}
+	if service, set := os.LookupEnv("SCOPE_SERVICE"); set {
+		a.metadata[Service] = service
 	} else {
-		a.service = "default"
+		a.metadata[Service] = "default"
 	}
 
 	a.recorder = NewSpanRecorder(a)
@@ -66,4 +66,24 @@ func NewAgent() *Agent {
 func (a *Agent) Stop() {
 	a.recorder.t.Kill(nil)
 	_ = a.recorder.t.Wait()
+}
+
+func generateAgentID() string {
+	agentId, err := uuid.NewRandom()
+	if err != nil {
+		panic(err)
+	}
+	return agentId.String()
+}
+
+func autodetectCI(agent *Agent) {
+	if _, set := os.LookupEnv("CIRCLECI"); set {
+		agent.metadata[CI] = true
+		agent.metadata[CIProvider] = "CircleCI"
+		agent.metadata[CIBuildNumber] = os.Getenv("CIRCLE_BUILD_NUM")
+		agent.metadata[CIBuildUrl] = os.Getenv("CIRCLE_BUILD_URL")
+		agent.metadata[Repository] = os.Getenv("CIRCLE_REPOSITORY_URL")
+		agent.metadata[Commit] = os.Getenv("CIRCLE_SHA1")
+		agent.metadata[SourceRoot] = os.Getenv("CIRCLE_WORKING_DIRECTORY")
+	}
 }
