@@ -56,6 +56,34 @@ func (r *SpanRecorder) loop() error {
 func (r *SpanRecorder) sendSpans() error {
 	r.Lock()
 	defer r.Unlock()
+
+	var spans []map[string]interface{}
+	var events []map[string]interface{}
+	for _, span := range r.spans {
+		spans = append(spans, map[string]interface{}{
+			"context": map[string]interface{}{
+				"trace_id": fmt.Sprintf("%x", span.Context.TraceID),
+				"span_id":  fmt.Sprintf("%x", span.Context.SpanID),
+				"baggage":  span.Context.Baggage,
+			},
+			"parent_span_id": span.ParentSpanID,
+			"operation":      span.Operation,
+			"start":          span.Start.Format(time.RFC3339),
+			"duration":       span.Duration.Nanoseconds(),
+			"tags":           span.Tags,
+		})
+		for _, event := range span.Logs {
+			var fields = make(map[string]interface{})
+			for _, field := range event.Fields {
+				fields[field.Key()] = field.Value()
+			}
+			events = append(events, map[string]interface{}{
+				"timestamp": event.Timestamp.Format(time.RFC3339),
+				"fields":    fields,
+			})
+		}
+	}
+
 	payload := map[string]interface{}{
 		"metadata": map[string]interface{}{
 			"agent.id":      r.agent.id.String(),
@@ -65,8 +93,8 @@ func (r *SpanRecorder) sendSpans() error {
 			"repository":    r.agent.repository,
 			"commit":        r.agent.commit,
 		},
-		"spans": []map[string]interface{}{},
-		"events": []map[string]interface{}{},
+		"spans":  spans,
+		"events": events,
 	}
 
 	binaryPayload, err := msgpack.Marshal(payload)
