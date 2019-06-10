@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"compress/gzip"
 	"fmt"
+	"github.com/google/uuid"
 	"github.com/undefinedlabs/go-agent/tracer"
 	"github.com/vmihailenco/msgpack"
 	"gopkg.in/tomb.v2"
@@ -77,7 +78,16 @@ func (r *SpanRecorder) sendSpans() error {
 			for _, field := range event.Fields {
 				fields[field.Key()] = field.Value()
 			}
+			eventId, err := uuid.NewRandom()
+			if err != nil {
+				panic(err)
+			}
 			events = append(events, map[string]interface{}{
+				"context": map[string]interface{}{
+					"trace_id": fmt.Sprintf("%x", span.Context.TraceID),
+					"span_id":  fmt.Sprintf("%x", span.Context.SpanID),
+					"event_id": eventId,
+				},
 				"timestamp": event.Timestamp.Format(time.RFC3339),
 				"fields":    fields,
 			})
