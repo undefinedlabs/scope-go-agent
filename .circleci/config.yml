@@ -1,0 +1,34 @@
+version: 2.1
+
+orbs:
+  docker-publish: circleci/docker-publish@0.1.4
+
+jobs:
+  test:
+    docker:
+      - image: golang:1.12.5
+    working_directory: /go/src/github.com/undefinedlabs/go-agent
+    steps:
+      - checkout
+      - run:
+          name: Fix CIRCLE_WORKING_DIRECTORY
+          command: echo 'CIRCLE_WORKING_DIRECTORY="${CIRCLE_WORKING_DIRECTORY/#\~/$HOME}"' >> $BASH_ENV
+      - run:
+          name: Install dependencies
+          command: go get -v -t -d ./...
+      - run:
+          name: Run tests
+          command: go test -v ./...
+      - run:
+          name: Run FOSSA check
+          command: |
+            curl -H 'Cache-Control: no-cache' https://raw.githubusercontent.com/fossas/fossa-cli/master/install.sh | bash
+            fossa analyze
+
+workflows:
+  build:
+    jobs:
+      - test:
+        filters:
+          tags:
+            only: /.*/
