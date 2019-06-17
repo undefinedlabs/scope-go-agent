@@ -1,6 +1,7 @@
 package scopeagent
 
 import (
+	"fmt"
 	"github.com/google/uuid"
 	"github.com/opentracing/opentracing-go"
 	"github.com/undefinedlabs/go-agent/tracer"
@@ -77,7 +78,23 @@ func generateAgentID() string {
 }
 
 func autodetectCI(agent *Agent) {
-	if _, set := os.LookupEnv("CIRCLECI"); set {
+	if _, set := os.LookupEnv("TRAVIS"); set {
+		agent.metadata[CI] = true
+		agent.metadata[CIProvider] = "Travis"
+		agent.metadata[CIBuildId] = os.Getenv("TRAVIS_BUILD_ID")
+		agent.metadata[CIBuildNumber] = os.Getenv("TRAVIS_BUILD_NUMBER")
+		agent.metadata[CIBuildUrl] = fmt.Sprintf(
+			"https://travis-ci.com/%s/builds/%s",
+			os.Getenv("TRAVIS_REPO_SLUG"),
+			os.Getenv("TRAVIS_BUILD_ID"),
+		)
+		agent.metadata[Repository] = fmt.Sprintf(
+			"https://github.com/%s.git",
+			os.Getenv("TRAVIS_REPO_SLUG"),
+		)
+		agent.metadata[Commit] = os.Getenv("TRAVIS_COMMIT")
+		agent.metadata[SourceRoot] = os.Getenv("TRAVIS_BUILD_DIR")
+	} else if _, set := os.LookupEnv("CIRCLECI"); set {
 		agent.metadata[CI] = true
 		agent.metadata[CIProvider] = "CircleCI"
 		agent.metadata[CIBuildNumber] = os.Getenv("CIRCLE_BUILD_NUM")
@@ -85,5 +102,22 @@ func autodetectCI(agent *Agent) {
 		agent.metadata[Repository] = os.Getenv("CIRCLE_REPOSITORY_URL")
 		agent.metadata[Commit] = os.Getenv("CIRCLE_SHA1")
 		agent.metadata[SourceRoot] = os.Getenv("CIRCLE_WORKING_DIRECTORY")
+	} else if _, set := os.LookupEnv("JENKINS_URL"); set {
+		agent.metadata[CI] = true
+		agent.metadata[CIProvider] = "Jenkins"
+		agent.metadata[CIBuildId] = os.Getenv("BUILD_ID")
+		agent.metadata[CIBuildNumber] = os.Getenv("BUILD_NUMBER")
+		agent.metadata[CIBuildUrl] = os.Getenv("BUILD_URL")
+		agent.metadata[Repository] = os.Getenv("GIT_URL")
+		agent.metadata[Commit] = os.Getenv("GIT_COMMIT")
+		agent.metadata[SourceRoot] = os.Getenv("WORKSPACE")
+	} else if _, set := os.LookupEnv("GITLAB_CI"); set {
+		agent.metadata[CI] = true
+		agent.metadata[CIProvider] = "gitLab"
+		agent.metadata[CIBuildId] = os.Getenv("CI_JOB_ID")
+		agent.metadata[CIBuildUrl] = os.Getenv("CI_JOB_URL")
+		agent.metadata[Repository] = os.Getenv("CI_REPOSITORY_URL")
+		agent.metadata[Commit] = os.Getenv("CI_COMMIT_SHA")
+		agent.metadata[SourceRoot] = os.Getenv("CI_PROJECT_DIR")
 	}
 }
