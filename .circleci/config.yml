@@ -4,9 +4,9 @@ orbs:
   docker-publish: circleci/docker-publish@0.1.4
 
 jobs:
-  test:
+  test-112: &common-test
     docker:
-      - image: golang:1.12.5
+      - image: golang:1.12
     working_directory: /go/src/github.com/undefinedlabs/go-agent
     steps:
       - checkout
@@ -20,10 +20,16 @@ jobs:
           name: Run tests
           command: go test -v ./...
 
+  test-111:
+    <<: *common-test
+    docker:
+      - image: golang:1.11
+
 workflows:
   build:
     jobs:
-      - test:
+      - test-112:
         filters:
           tags:
             only: /.*/
+      - test-111
