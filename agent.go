@@ -6,6 +6,7 @@ import (
 	"github.com/opentracing/opentracing-go"
 	"github.com/undefinedlabs/go-agent/tracer"
 	"os"
+	"strconv"
 	"sync"
 )
 
@@ -28,7 +29,16 @@ var (
 func init() {
 	once.Do(func() {
 		GlobalAgent = NewAgent()
-		opentracing.SetGlobalTracer(GlobalAgent.tracer)
+
+		if getBoolEnv("SCOPE_SET_GLOBAL_TRACER", true) {
+			opentracing.SetGlobalTracer(GlobalAgent.tracer)
+		}
+
+		if getBoolEnv("SCOPE_AUTO_INSTRUMENT", true) {
+			if err := PatchAll(); err != nil {
+				panic(err)
+			}
+		}
 	})
 }
 
@@ -120,4 +130,16 @@ func autodetectCI(agent *Agent) {
 		agent.metadata[Commit] = os.Getenv("CI_COMMIT_SHA")
 		agent.metadata[SourceRoot] = os.Getenv("CI_PROJECT_DIR")
 	}
+}
+
+func getBoolEnv(key string, fallback bool) bool {
+	stringValue, exists := os.LookupEnv(key)
+	if !exists {
+		return fallback
+	}
+	value, err := strconv.ParseBool(stringValue)
+	if err != nil {
+		panic(fmt.Sprintf("unable to parse %s - should be 'true' or 'false'", key))
+	}
+	return value
 }

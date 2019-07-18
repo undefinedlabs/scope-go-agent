@@ -58,7 +58,7 @@ type Options struct {
 	// results in use-after-Finish() errors. For a simple example, consider the
 	// following pseudocode:
 	//
-	//  func (s *Server) Handle(req http.Request) error {
+	//  func (s *Server) Handle(req nethttp.Request) error {
 	//    sp := s.StartSpan("server")
 	//    defer sp.Finish()
 	//    wait := s.queueProcessing(opentracing.ContextWithSpan(context.Background(), sp), req)
