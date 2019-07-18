@@ -1,13 +1,14 @@
 package scopeagent
 
 import (
+	"context"
 	"github.com/opentracing/opentracing-go"
 	"runtime"
 	"strings"
 	"testing"
 )
 
-func InstrumentTest(t *testing.T, f func(t *testing.T)) {
+func InstrumentTest(t *testing.T, f func(ctx context.Context, t *testing.T)) {
 	pc, _, _, _ := runtime.Caller(1)
 	parts := strings.Split(runtime.FuncForPC(pc).Name(), ".")
 	pl := len(parts)
@@ -21,7 +22,8 @@ func InstrumentTest(t *testing.T, f func(t *testing.T)) {
 		packageName = strings.Join(parts[0:pl-1], ".")
 	}
 
-	span := opentracing.StartSpan(t.Name(), opentracing.Tags{
+	ctx := context.Background()
+	span, ctx := opentracing.StartSpanFromContext(ctx, t.Name(), opentracing.Tags{
 		"span.kind":  "test",
 		"test.name":  funcName,
 		"test.suite": packageName,
@@ -36,5 +38,6 @@ func InstrumentTest(t *testing.T, f func(t *testing.T)) {
 			span.SetTag("test.status", "PASS")
 		}
 	}()
-	f(t)
+
+	f(ctx, t)
 }
