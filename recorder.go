@@ -61,13 +61,17 @@ func (r *SpanRecorder) sendSpans() error {
 	var spans []map[string]interface{}
 	var events []map[string]interface{}
 	for _, span := range r.spans {
+		var parentSpanID string
+		if span.ParentSpanID != 0 {
+			parentSpanID = fmt.Sprintf("%x", span.ParentSpanID)
+		}
 		spans = append(spans, map[string]interface{}{
 			"context": map[string]interface{}{
 				"trace_id": fmt.Sprintf("%x", span.Context.TraceID),
 				"span_id":  fmt.Sprintf("%x", span.Context.SpanID),
 				"baggage":  span.Context.Baggage,
 			},
-			"parent_span_id": span.ParentSpanID,
+			"parent_span_id": parentSpanID,
 			"operation":      span.Operation,
 			"start":          span.Start.Format(time.RFC3339),
 			"duration":       span.Duration.Nanoseconds(),
@@ -86,7 +90,7 @@ func (r *SpanRecorder) sendSpans() error {
 				"context": map[string]interface{}{
 					"trace_id": fmt.Sprintf("%x", span.Context.TraceID),
 					"span_id":  fmt.Sprintf("%x", span.Context.SpanID),
-					"event_id": eventId,
+					"event_id": eventId.String(),
 				},
 				"timestamp": event.Timestamp.Format(time.RFC3339),
 				"fields":    fields,
