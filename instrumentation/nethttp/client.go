@@ -7,12 +7,16 @@ import (
 )
 
 type Transport struct {
-	// The actual RoundTripper to use for the request. A nil
-	// RoundTripper defaults to http.DefaultTransport.
 	http.RoundTripper
 }
 
 func (t *Transport) RoundTrip(req *http.Request) (*http.Response, error) {
+	// Only trace outgoing requests that are inside an active trace
+	parent := opentracing.SpanFromContext(req.Context())
+	if parent == nil {
+		return t.RoundTripper.RoundTrip(req)
+	}
+
 	req, ht := nethttp.TraceRequest(opentracing.GlobalTracer(), req)
 	defer ht.Finish()
 
