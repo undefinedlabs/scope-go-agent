@@ -22,12 +22,12 @@ func InstrumentTest(t *testing.T, f func(ctx context.Context, t *testing.T)) {
 		packageName = strings.Join(parts[0:pl-1], ".")
 	}
 
-	ctx := context.Background()
-	span, ctx := opentracing.StartSpanFromContext(ctx, t.Name(), opentracing.Tags{
+	span, ctx := opentracing.StartSpanFromContext(context.Background(), t.Name(), opentracing.Tags{
 		"span.kind":  "test",
 		"test.name":  funcName,
 		"test.suite": packageName,
 	})
+	span.SetBaggageItem("trace.kind", "test")
 	defer span.Finish()
 	defer func() {
 		if t.Failed() {
