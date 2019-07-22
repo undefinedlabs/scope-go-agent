@@ -70,7 +70,13 @@ func NewAgent() *Agent {
 	}
 
 	a.recorder = NewSpanRecorder(a)
-	a.tracer = tracer.New(a.recorder)
+	a.tracer = tracer.NewWithOptions(tracer.Options{
+		Recorder: a.recorder,
+		ShouldSample: func(traceID uint64) bool {
+			return true
+		},
+		MaxLogsPerSpan: 10000,
+	})
 	return a
 }
 
