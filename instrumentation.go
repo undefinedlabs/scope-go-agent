@@ -6,14 +6,13 @@ import (
 )
 
 func PatchAll() error {
-	err := PatchHttpDefaultClient()
-	if err != nil {
+	if err := PatchHttpDefaultClient(); err != nil {
 		return err
 	}
 	return nil
 }
 
 func PatchHttpDefaultClient() error {
-	http.DefaultClient = &http.Client{Transport: &nethttp.Transport{}}
+	http.DefaultClient = &http.Client{Transport: &nethttp.Transport{RoundTripper: http.DefaultTransport}}
 	return nil
 }
