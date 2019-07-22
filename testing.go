@@ -28,6 +28,12 @@ func InstrumentTest(t *testing.T, f func(ctx context.Context, t *testing.T)) {
 		"test.suite": packageName,
 	})
 	span.SetBaggageItem("trace.kind", "test")
+	defer func() {
+		if r := recover(); r != nil {
+			_ = GlobalAgent.Flush()
+			panic(r)
+		}
+	}()
 	defer span.Finish()
 	defer func() {
 		if t.Failed() {

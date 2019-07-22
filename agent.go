@@ -83,8 +83,18 @@ func NewAgent() *Agent {
 }
 
 func (a *Agent) Stop() {
+	if a.debugMode {
+		fmt.Println("Scope agent is stopping gracefully...")
+	}
 	a.recorder.t.Kill(nil)
 	_ = a.recorder.t.Wait()
+}
+
+func (a *Agent) Flush() error {
+	if a.debugMode {
+		fmt.Println("Scope agent is flushing all pending spans manually")
+	}
+	return a.recorder.SendSpans()
 }
 
 func generateAgentID() string {

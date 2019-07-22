@@ -42,12 +42,12 @@ func (r *SpanRecorder) loop() error {
 	for {
 		select {
 		case <-ticker.C:
-			err := r.sendSpans()
+			err := r.SendSpans()
 			if err != nil {
 				fmt.Printf("%v", err)
 			}
 		case <-r.t.Dying():
-			err := r.sendSpans()
+			err := r.SendSpans()
 			if err != nil {
 				fmt.Printf("%v", err)
 			}
@@ -57,7 +57,7 @@ func (r *SpanRecorder) loop() error {
 	}
 }
 
-func (r *SpanRecorder) sendSpans() error {
+func (r *SpanRecorder) SendSpans() error {
 	r.Lock()
 	defer r.Unlock()
 
