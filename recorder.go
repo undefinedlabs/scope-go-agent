@@ -32,6 +32,9 @@ func (r *SpanRecorder) RecordSpan(span tracer.RawSpan) {
 	r.Lock()
 	defer r.Unlock()
 	r.spans = append(r.spans, span)
+	if r.agent.debugMode {
+		fmt.Printf("record span: %+v\n", span)
+	}
 }
 
 func (r *SpanRecorder) loop() error {

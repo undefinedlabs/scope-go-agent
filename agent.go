@@ -15,6 +15,7 @@ type Agent struct {
 	apiKey        string
 	version       string
 	metadata      map[string]interface{}
+	debugMode     bool
 
 	recorder *SpanRecorder
 	tracer   opentracing.Tracer
@@ -46,6 +47,7 @@ func NewAgent() *Agent {
 	a := new(Agent)
 	a.scopeEndpoint = os.Getenv("SCOPE_API_ENDPOINT")
 	a.apiKey = os.Getenv("SCOPE_APIKEY")
+	a.debugMode = getBoolEnv("SCOPE_DEBUG", false)
 	a.version = version
 
 	a.metadata = make(map[string]interface{})
