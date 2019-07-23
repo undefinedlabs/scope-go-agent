@@ -30,6 +30,7 @@ func InstrumentTest(t *testing.T, f func(ctx context.Context, t *testing.T)) {
 	span.SetBaggageItem("trace.kind", "test")
 	defer func() {
 		if r := recover(); r != nil {
+			span.SetTag("test.status", "ERROR")
 			_ = GlobalAgent.Flush()
 			panic(r)
 		}
