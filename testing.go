@@ -8,7 +8,19 @@ import (
 	"testing"
 )
 
+type Test struct {
+	ctx  context.Context
+	span opentracing.Span
+	t    *testing.T
+}
+
 func InstrumentTest(t *testing.T, f func(ctx context.Context, t *testing.T)) {
+	test := StartTest(t)
+	defer test.End()
+	f(test.Context(), t)
+}
+
+func StartTest(t *testing.T) *Test {
 	pc, _, _, _ := runtime.Caller(1)
 	parts := strings.Split(runtime.FuncForPC(pc).Name(), ".")
 	pl := len(parts)
@@ -28,23 +40,30 @@ func InstrumentTest(t *testing.T, f func(ctx context.Context, t *testing.T)) {
 		"test.suite": packageName,
 	})
 	span.SetBaggageItem("trace.kind", "test")
-	defer func() {
-		if r := recover(); r != nil {
-			span.SetTag("test.status", "ERROR")
-			_ = GlobalAgent.Flush()
-			panic(r)
-		}
-	}()
-	defer span.Finish()
-	defer func() {
-		if t.Failed() {
-			span.SetTag("test.status", "FAIL")
-		} else if t.Skipped() {
-			span.SetTag("test.status", "SKIP")
-		} else {
-			span.SetTag("test.status", "PASS")
-		}
-	}()
 
-	f(ctx, t)
+	return &Test{
+		ctx:  ctx,
+		span: span,
+		t:    t,
+	}
+}
+
+func (test *Test) End() {
+	if r := recover(); r != nil {
+		test.span.SetTag("test.status", "ERROR")
+		_ = GlobalAgent.Flush()
+		panic(r)
+	}
+	test.span.Finish()
+	if test.t.Failed() {
+		test.span.SetTag("test.status", "FAIL")
+	} else if test.t.Skipped() {
+		test.span.SetTag("test.status", "SKIP")
+	} else {
+		test.span.SetTag("test.status", "PASS")
+	}
+}
+
+func (test *Test) Context() context.Context {
+	return test.ctx
 }

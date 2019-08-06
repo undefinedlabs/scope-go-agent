@@ -50,9 +50,9 @@ func TestMain(m *testing.M) {
 }
 
 func TestExample(t *testing.T) {
-    scopeagent.InstrumentTest(t, func(t *testing.T) {
-        // ... test code here
-    })
+    test := scopeagent.StartTest(t)
+    defer test.End()
+    // ... test code here
 }
 ```
 
