@@ -19,6 +19,11 @@ jobs:
       - run:
           name: Run tests
           command: go test -v ./...
+      - run:
+          name: Run FOSSA check
+          command: |
+            curl -H 'Cache-Control: no-cache' https://raw.githubusercontent.com/fossas/fossa-cli/master/install.sh | bash
+            fossa analyze
 
   test-111:
     <<: *common-test
