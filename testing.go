@@ -2,10 +2,12 @@ package scopeagent
 
 import (
 	"context"
-	"github.com/opentracing/opentracing-go"
 	"runtime"
 	"strings"
 	"testing"
+
+	"github.com/opentracing/opentracing-go"
+	"github.com/undefinedlabs/go-agent/errors"
 )
 
 type Test struct {
@@ -51,6 +53,8 @@ func StartTest(t *testing.T) *Test {
 func (test *Test) End() {
 	if r := recover(); r != nil {
 		test.span.SetTag("test.status", "ERROR")
+		errors.LogError(test.span, r, 1)
+		test.span.Finish()
 		_ = GlobalAgent.Flush()
 		panic(r)
 	}
