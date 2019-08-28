@@ -193,7 +193,7 @@ func autodetectCI(agent *Agent) {
 			sha,
 		)
 		agent.metadata[Repository] = fmt.Sprintf(
-			"git@github.com:%s.git",
+			"https://github.com/%s.git",
 			repo,
 		)
 		agent.metadata[Commit] = sha
