@@ -54,18 +54,14 @@ func (test *Test) End() {
 	if r := recover(); r != nil {
 		test.span.SetTag("test.status", "ERROR")
 		errors.LogError(test.span, r, 1)
-		test.span.Finish()
-		_ = GlobalAgent.Flush()
-		panic(r)
-	}
-	test.span.Finish()
-	if test.t.Failed() {
+	} else if test.t.Failed() {
 		test.span.SetTag("test.status", "FAIL")
 	} else if test.t.Skipped() {
 		test.span.SetTag("test.status", "SKIP")
 	} else {
 		test.span.SetTag("test.status", "PASS")
 	}
+	test.span.Finish()
 }
 
 func (test *Test) Context() context.Context {
