@@ -147,6 +147,57 @@ func autodetectCI(agent *Agent) {
 		agent.metadata[Repository] = os.Getenv("CI_REPOSITORY_URL")
 		agent.metadata[Commit] = os.Getenv("CI_COMMIT_SHA")
 		agent.metadata[SourceRoot] = os.Getenv("CI_PROJECT_DIR")
+	} else if _, set := os.LookupEnv("APPVEYOR"); set {
+		buildId := os.Getenv("APPVEYOR_BUILD_ID")
+		agent.metadata[CI] = true
+		agent.metadata[CIProvider] = "AppVeyor"
+		agent.metadata[CIBuildId] = buildId
+		agent.metadata[CIBuildNumber] = os.Getenv("APPVEYOR_BUILD_NUMBER")
+		agent.metadata[CIBuildUrl] = fmt.Sprintf(
+			"https://ci.appveyor.com/project/%s/builds/%s",
+			os.Getenv("APPVEYOR_PROJECT_SLUG"),
+			buildId,
+		)
+		agent.metadata[Repository] = os.Getenv("APPVEYOR_REPO_NAME")
+		agent.metadata[Commit] = os.Getenv("APPVEYOR_REPO_COMMIT")
+		agent.metadata[SourceRoot] = os.Getenv("APPVEYOR_BUILD_FOLDER")
+	} else if _, set := os.LookupEnv("TF_BUILD"); set {
+		buildId := os.Getenv("Build.BuildId")
+		agent.metadata[CI] = true
+		agent.metadata[CIProvider] = "Azure Pipelines"
+		agent.metadata[CIBuildId] = buildId
+		agent.metadata[CIBuildNumber] = os.Getenv("Build.BuildNumber")
+		agent.metadata[CIBuildUrl] = fmt.Sprintf(
+			"%s/%s/_build/results?buildId=%s&_a=summary",
+			os.Getenv("System.TeamFoundationCollectionUri"),
+			os.Getenv("System.TeamProject"),
+			buildId,
+		)
+		agent.metadata[Repository] = os.Getenv("Build.Repository.Uri")
+		agent.metadata[Commit] = os.Getenv("Build.SourceVersion")
+		agent.metadata[SourceRoot] = os.Getenv("Build.SourcesDirectory")
+	} else if sha, set := os.LookupEnv("BITBUCKET_COMMIT"); set {
+		agent.metadata[CI] = true
+		agent.metadata[CIProvider] = "Bitbucket Pipelines"
+		agent.metadata[CIBuildNumber] = os.Getenv("BITBUCKET_BUILD_NUMBER")
+		agent.metadata[Repository] = os.Getenv("BITBUCKET_GIT_SSH_ORIGIN")
+		agent.metadata[Commit] = sha
+		agent.metadata[SourceRoot] = os.Getenv("BITBUCKET_CLONE_DIR")
+	} else if sha, set := os.LookupEnv("GITHUB_SHA"); set {
+		repo := os.Getenv("GITHUB_REPOSITORY")
+		agent.metadata[CI] = true
+		agent.metadata[CIProvider] = "GitHub"
+		agent.metadata[CIBuildUrl] = fmt.Sprintf(
+			"https://github.com/%s/commit/%s/checks",
+			repo,
+			sha,
+		)
+		agent.metadata[Repository] = fmt.Sprintf(
+			"git@github.com:%s.git",
+			repo,
+		)
+		agent.metadata[Commit] = sha
+		agent.metadata[SourceRoot] = os.Getenv("GITHUB_WORKSPACE")
 	}
 }
 
