@@ -47,12 +47,19 @@ func getExceptionLogFields(recoverData interface{}, skipFrames int) []log.Field 
 func getExceptionFrameData(errMessage string, errStack []errors.StackFrame) map[string]interface{} {
 	var exFrames []map[string]interface{}
 	for _, frame := range errStack {
-		exFrames = append(exFrames, map[string]interface{}{
-			"name":   frame.Name,
-			"module": frame.Package,
-			"file":   frame.File,
-			"line":   frame.LineNumber,
-		})
+		if frame.Package == "runtime"  {
+			exFrames = append(exFrames, map[string]interface{}{
+				"name":   frame.Name,
+				"module": frame.Package,
+			})
+		} else {
+			exFrames = append(exFrames, map[string]interface{}{
+				"name":   frame.Name,
+				"module": frame.Package,
+				"file":   frame.File,
+				"line":   frame.LineNumber,
+			})
+		}
 	}
 	exStack := map[string]interface{} {
 		"frames" : exFrames,
