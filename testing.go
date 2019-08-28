@@ -5,7 +5,6 @@ import (
 	"runtime"
 	"strings"
 	"testing"
-
 	"github.com/opentracing/opentracing-go"
 	"github.com/undefinedlabs/go-agent/errors"
 )
