@@ -29,8 +29,13 @@ func getExceptionLogFields(recoverData interface{}, skipFrames int) []log.Field 
 
 		exFrames := exceptionData["stacktrace"].(map[string]interface{})["frames"].([]map[string]interface{})
 		if exFrames != nil && len(exFrames) > 0 {
-			lastFrame := exFrames[0]
-			source = fmt.Sprintf("%s:%d", lastFrame["file"], lastFrame["line"])
+			for i, _ := range exFrames {
+				currentFrame := exFrames[i]
+				if currentFrame["file"] != nil {
+					source = fmt.Sprintf("%s:%d", currentFrame["file"], currentFrame["line"])
+					break
+				}
+			}
 		}
 
 		fields := make([]log.Field, 5)
