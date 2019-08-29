@@ -30,16 +30,14 @@ func GetConfig() *Config {
 	defer file.Close()
 	fileBytes, _ := ioutil.ReadAll(file)
 	var config Config
-	err =  json.Unmarshal(fileBytes, &config)
-	if err != nil {
+	if err = json.Unmarshal(fileBytes, &config); err != nil {
 		return nil
 	}
 	return &config
 }
 
 func GetConfigCurrentProfile() *Profile {
-	config := GetConfig()
-	if config != nil && config.Profiles != nil && config.CurrentProfile != "" {
+	if config := GetConfig(); config != nil && config.Profiles != nil && config.CurrentProfile != "" {
 		profile := config.Profiles[config.CurrentProfile]
 		return &profile
 	}

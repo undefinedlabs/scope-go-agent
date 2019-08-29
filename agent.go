@@ -263,35 +263,32 @@ func getBoolEnv(key string, fallback bool) bool {
 	return value
 }
 
-func initGitData() {
+func getGitData() *GitData {
 	gitDataOnce.Do(func() {
 		gitData = GetCurrentGitData()
 	})
+	return gitData
 }
 
 func fillFromGitIfEmpty(a *Agent) {
 	if a.metadata[Repository] == nil || a.metadata[Repository] == "" {
-		initGitData()
-		if gitData != nil {
-			a.metadata[Repository] = gitData.Repository
+		if git := getGitData(); git != nil {
+			a.metadata[Repository] = git.Repository
 		}
 	}
 	if a.metadata[Commit] == nil || a.metadata[Commit] == "" {
-		initGitData()
-		if gitData != nil {
-			a.metadata[Commit] = gitData.Commit
+		if git := getGitData(); git != nil {
+			a.metadata[Commit] = git.Commit
 		}
 	}
 	if a.metadata[SourceRoot] == nil || a.metadata[SourceRoot] == "" {
-		initGitData()
-		if gitData != nil {
-			a.metadata[SourceRoot] = gitData.SourceRoot
+		if git := getGitData(); git != nil {
+			a.metadata[SourceRoot] = git.SourceRoot
 		}
 	}
 	if a.metadata[Branch] == nil || a.metadata[Branch] == "" {
-		initGitData()
-		if gitData != nil {
-			a.metadata[Branch] = gitData.Branch
+		if git := getGitData(); git != nil {
+			a.metadata[Branch] = git.Branch
 		}
 	}
 }
