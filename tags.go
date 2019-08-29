@@ -15,4 +15,20 @@ const (
 	CIBuildId     = "ci.build_id"
 	CIBuildNumber = "ci.build_number"
 	CIBuildUrl    = "ci.build_url"
+
+	EventType      = "event"
+	EventSource    = "source"
+	EventMessage   = "message"
+	EventStack     = "stack"
+	EventException = "exception"
+
+
+	LogEvent			= "log"
+	LogEventLevel		= "log.level"
+
+	LogLevel_INFO		= "INFO"
+	LogLevel_WARNING 	= "WARNING"
+	LogLevel_ERROR		= "ERROR"
+	LogLevel_DEBUG		= "DEBUG"
+	LogLevel_VERBOSE	= "VERBOSE"
 )
