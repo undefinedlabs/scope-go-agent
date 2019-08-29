@@ -53,6 +53,7 @@ func StartTest(t *testing.T) *Test {
 	})
 	span.SetBaggageItem("trace.kind", "test")
 
+	// Replaces stdout and stderr
 	stdOut := newStdIO(&os.Stdout)
 	stdErr := newStdIO(&os.Stderr)
 
@@ -64,6 +65,7 @@ func StartTest(t *testing.T) *Test {
 		stdErr: stdErr,
 	}
 
+	// Starts stdIO pipe handlers
 	if test.stdOut != nil {
 		go stdIOHandler(test, test.stdOut, false)
 	}
@@ -79,7 +81,14 @@ func (test *Test) End() {
 
 	if r := recover(); r != nil {
 		test.span.SetTag("test.status", "ERROR")
-	} else if test.t.Failed() {
+		test.stdOut.restore(&os.Stdout)
+		test.stdErr.restore(&os.Stderr)
+		test.span.Finish()
+		_ = GlobalAgent.Flush()
+		panic(r)
+	}
+
+	if test.t.Failed() {
 		test.span.SetTag("test.status", "FAIL")
 	} else if test.t.Skipped() {
 		test.span.SetTag("test.status", "SKIP")
@@ -89,14 +98,13 @@ func (test *Test) End() {
 
 	test.stdOut.restore(&os.Stdout)
 	test.stdErr.restore(&os.Stderr)
-	test.span.Finish()
 }
 
 func (test *Test) Context() context.Context {
 	return test.ctx
 }
 
-
+// Handles the StdIO pipe for stdout and stderr
 func stdIOHandler (test *Test, stdio *StdIO, isError bool) {
 	stdio.sync.Add(1)
 	defer stdio.sync.Done()
@@ -112,19 +120,18 @@ func stdIOHandler (test *Test, stdio *StdIO, isError bool) {
 				log.String(EventMessage, line),
 				log.String(LogEventLevel, LogLevel_ERROR),
 			)
-			_, _ = stdio.oldIO.WriteString("** Adding 1 Error LOG on " + test.t.Name() + "\n")
 		} else {
 			test.span.LogFields(
 				log.String(EventType, LogEvent),
 				log.String(EventMessage, line),
 				log.String(LogEventLevel, LogLevel_VERBOSE),
 			)
-			_, _ = stdio.oldIO.WriteString("** Adding 1 Verbose LOG on " + test.t.Name() + "\n")
 		}
 		_, _ = stdio.oldIO.WriteString(line)
 	}
 }
 
+// Creates and replaces a file instance with a pipe
 func newStdIO(file **os.File) *StdIO {
 	rPipe, wPipe, err := os.Pipe()
 	if err == nil {
@@ -140,7 +147,10 @@ func newStdIO(file **os.File) *StdIO {
 	return nil
 }
 
+// Restores the old file instance
 func (stdIO *StdIO) restore(file **os.File) {
+	_ = (*file).Sync()
+	_ = stdIO.readPipe.Sync()
 	_ = stdIO.writePipe.Close()
 	_ = stdIO.readPipe.Close()
 	stdIO.sync.Wait()
