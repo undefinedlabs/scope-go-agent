@@ -22,11 +22,13 @@ type StackFrames struct {
 	Package    string
 }
 
+// Write exception event in span using the recover data from panic
 func LogError(span opentracing.Span, recoverData interface{}, skipFrames int) {
 	var exceptionFields = getExceptionLogFields(recoverData, skipFrames+1)
 	span.LogFields(exceptionFields...)
 }
 
+// Gets the current stack frames array
 func GetCurrentStackFrames(skip int) []StackFrames {
 	skip = skip + 1
 	err := errors.New(nil)
