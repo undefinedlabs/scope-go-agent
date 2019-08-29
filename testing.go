@@ -53,6 +53,7 @@ func (test *Test) End() {
 	if r := recover(); r != nil {
 		test.span.SetTag("test.status", "ERROR")
 		errors.LogError(test.span, r, 1)
+		test.t.Fatal(r)
 	} else if test.t.Failed() {
 		test.span.SetTag("test.status", "FAIL")
 	} else if test.t.Skipped() {
