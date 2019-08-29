@@ -6,22 +6,52 @@ import (
 	"github.com/opentracing/opentracing-go"
 	"github.com/opentracing/opentracing-go/log"
 )
+
 const (
-	EventType		= "event"
-	EventSource		= "source"
-	EventMessage	= "message"
-	EventStack		= "stack"
-	EventException	= "exception"
+	EventType      = "event"
+	EventSource    = "source"
+	EventMessage   = "message"
+	EventStack     = "stack"
+	EventException = "exception"
 )
 
+type StackFrames struct {
+	File       string
+	LineNumber int
+	Name       string
+	Package    string
+}
+
 func LogError(span opentracing.Span, recoverData interface{}, skipFrames int) {
-	var exceptionFields = getExceptionLogFields(recoverData, skipFrames + 1)
+	var exceptionFields = getExceptionLogFields(recoverData, skipFrames+1)
 	span.LogFields(exceptionFields...)
+}
+
+func GetCurrentStackFrames(skip int) []StackFrames {
+	skip = skip + 1
+	err := errors.New(nil)
+	errStack := err.StackFrames()
+	nLength := len(errStack) - skip
+	if nLength < 0 {
+		return nil
+	}
+	stackFrames := make([]StackFrames, nLength)
+	for idx, frame := range errStack {
+		if idx >= skip {
+			stackFrames[idx-skip] = StackFrames{
+				File:       frame.File,
+				LineNumber: frame.LineNumber,
+				Name:       frame.Name,
+				Package:    frame.Package,
+			}
+		}
+	}
+	return stackFrames
 }
 
 func getExceptionLogFields(recoverData interface{}, skipFrames int) []log.Field {
 	if recoverData != nil {
-		err := errors.Wrap(recoverData, 2 + skipFrames)
+		err := errors.Wrap(recoverData, 2+skipFrames)
 		errMessage := err.Error()
 		errStack := err.StackFrames()
 		exceptionData := getExceptionFrameData(errMessage, errStack)
@@ -52,7 +82,7 @@ func getExceptionLogFields(recoverData interface{}, skipFrames int) []log.Field 
 func getExceptionFrameData(errMessage string, errStack []errors.StackFrame) map[string]interface{} {
 	var exFrames []map[string]interface{}
 	for _, frame := range errStack {
-		if frame.Package == "runtime"  {
+		if frame.Package == "runtime" {
 			exFrames = append(exFrames, map[string]interface{}{
 				"name":   frame.Name,
 				"module": frame.Package,
@@ -66,11 +96,11 @@ func getExceptionFrameData(errMessage string, errStack []errors.StackFrame) map[
 			})
 		}
 	}
-	exStack := map[string]interface{} {
-		"frames" : exFrames,
+	exStack := map[string]interface{}{
+		"frames": exFrames,
 	}
-	return map[string]interface{} {
-		"message": errMessage,
+	return map[string]interface{}{
+		"message":    errMessage,
 		"stacktrace": exStack,
 	}
 }

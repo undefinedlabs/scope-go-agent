@@ -2,11 +2,11 @@ package scopeagent
 
 import (
 	"context"
+	"github.com/opentracing/opentracing-go"
+	"github.com/undefinedlabs/go-agent/errors"
 	"runtime"
 	"strings"
 	"testing"
-	"github.com/opentracing/opentracing-go"
-	"github.com/undefinedlabs/go-agent/errors"
 )
 
 type Test struct {
