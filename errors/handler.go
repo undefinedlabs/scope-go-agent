@@ -59,12 +59,10 @@ func getExceptionLogFields(recoverData interface{}, skipFrames int) []log.Field 
 		exceptionData := getExceptionFrameData(errMessage, errStack)
 		source := ""
 
-		exFrames := exceptionData["stacktrace"].(map[string]interface{})["frames"].([]map[string]interface{})
-		if exFrames != nil && len(exFrames) > 0 {
-			for i, _ := range exFrames {
-				currentFrame := exFrames[i]
-				if currentFrame["file"] != nil {
-					source = fmt.Sprintf("%s:%d", currentFrame["file"], currentFrame["line"])
+		if errStack != nil && len(errStack) > 0 {
+			for _, currentFrame := range errStack {
+				if currentFrame.Package != "runtime" && currentFrame.File != "" {
+					source = fmt.Sprintf("%s:%d", currentFrame.File, currentFrame.LineNumber)
 					break
 				}
 			}
