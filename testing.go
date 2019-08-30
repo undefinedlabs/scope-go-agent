@@ -52,7 +52,6 @@ func StartTest(t *testing.T) *Test {
 func (test *Test) End() {
 	if r := recover(); r != nil {
 		test.span.SetTag("test.status", "ERROR")
-		test.span.SetTag("error", true)
 		errors.LogError(test.span, r, 1)
 		test.span.Finish()
 		_ = GlobalAgent.Flush()

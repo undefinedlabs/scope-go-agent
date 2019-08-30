@@ -90,6 +90,8 @@ type Options struct {
 	// reduces allocations. However, if you have any use-after-finish race
 	// conditions the code may panic.
 	EnableSpanPool bool
+	// Func to call when a panic has been detected when a span is finalizing
+	OnSpanFinishPanic func(rSpan *RawSpan, r interface{})
 }
 
 // DefaultOptions returns an Options object with a 1 in 64 sampling rate and

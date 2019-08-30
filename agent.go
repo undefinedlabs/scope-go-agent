@@ -78,6 +78,13 @@ func NewAgent() *Agent {
 			return true
 		},
 		MaxLogsPerSpan: 10000,
+		OnSpanFinishPanic: func(rSpan *tracer.RawSpan, r interface{}) {
+			// When a span finish detect a panic, we set the span tag as error
+			if rSpan.Tags == nil {
+				rSpan.Tags = opentracing.Tags{}
+			}
+			rSpan.Tags["error"] = true
+		},
 	})
 	return a
 }

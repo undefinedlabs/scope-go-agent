@@ -4,7 +4,7 @@ import (
 	"sync"
 	"time"
 
-	opentracing "github.com/opentracing/opentracing-go"
+	"github.com/opentracing/opentracing-go"
 	"github.com/opentracing/opentracing-go/ext"
 	"github.com/opentracing/opentracing-go/log"
 )
@@ -160,7 +160,19 @@ func (s *spanImpl) Log(ld opentracing.LogData) {
 }
 
 func (s *spanImpl) Finish() {
+
+	var r interface{}
+	if s.tracer.options.OnSpanFinishPanic != nil && s.raw.ParentSpanID != 0 {
+		if r = recover(); r != nil {
+			s.tracer.options.OnSpanFinishPanic(&s.raw, r)
+		}
+	}
+
 	s.FinishWithOptions(opentracing.FinishOptions{})
+
+	if r != nil {
+		panic(r)
+	}
 }
 
 // rotateLogBuffer rotates the records in the buffer: records 0 to pos-1 move at
