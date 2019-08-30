@@ -52,6 +52,7 @@ func StartTest(t *testing.T) *Test {
 func (test *Test) End() {
 	if r := recover(); r != nil {
 		test.span.SetTag("test.status", "ERROR")
+		test.span.SetTag("error", true)
 		errors.LogError(test.span, r, 1)
 		test.span.Finish()
 		_ = GlobalAgent.Flush()
@@ -59,6 +60,7 @@ func (test *Test) End() {
 	}
 	if test.t.Failed() {
 		test.span.SetTag("test.status", "FAIL")
+		test.span.SetTag("error", true)
 	} else if test.t.Skipped() {
 		test.span.SetTag("test.status", "SKIP")
 	} else {
