@@ -15,15 +15,24 @@ import (
 
 type SpanRecorder struct {
 	sync.RWMutex
-	t tomb.Tomb
+	t 			tomb.Tomb
 
-	agent *Agent
-	spans []tracer.RawSpan
+	agent 			*Agent
+	spans 			[]tracer.RawSpan
+	flushFrequency	time.Duration
+	totalSend		int
+	okSend			int
+	koSend			int
 }
 
 func NewSpanRecorder(agent *Agent) *SpanRecorder {
 	r := new(SpanRecorder)
 	r.agent = agent
+	if agent.testingMode {
+		r.flushFrequency = 1 * time.Second
+	} else {
+		r.flushFrequency = 60 * time.Second
+	}
 	r.t.Go(r.loop)
 	return r
 }
@@ -38,7 +47,7 @@ func (r *SpanRecorder) RecordSpan(span tracer.RawSpan) {
 }
 
 func (r *SpanRecorder) loop() error {
-	ticker := time.NewTicker(1 * time.Second)
+	ticker := time.NewTicker(r.flushFrequency)
 	for {
 		select {
 		case <-ticker.C:
@@ -61,6 +70,7 @@ func (r *SpanRecorder) SendSpans() error {
 	r.Lock()
 	defer r.Unlock()
 
+	r.totalSend = r.totalSend + 1
 	var spans []map[string]interface{}
 	var events []map[string]interface{}
 	for _, span := range r.spans {
@@ -109,6 +119,7 @@ func (r *SpanRecorder) SendSpans() error {
 
 	binaryPayload, err := msgpack.Marshal(payload)
 	if err != nil {
+		r.koSend = r.koSend + 1
 		return err
 	}
 
@@ -116,14 +127,17 @@ func (r *SpanRecorder) SendSpans() error {
 	zw := gzip.NewWriter(&buf)
 	_, err = zw.Write(binaryPayload)
 	if err != nil {
+		r.koSend = r.koSend + 1
 		return err
 	}
 	if err := zw.Close(); err != nil {
+		r.koSend = r.koSend + 1
 		return err
 	}
 	url := fmt.Sprintf("%s/%s", r.agent.scopeEndpoint, "api/agent/ingest")
 	req, err := http.NewRequest("POST", url, &buf)
 	if err != nil {
+		r.koSend = r.koSend + 1
 		return err
 	}
 	req.Header.Set("User-Agent", fmt.Sprintf("scope-agent-go/%s", r.agent.version))
@@ -134,12 +148,19 @@ func (r *SpanRecorder) SendSpans() error {
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
+		r.koSend = r.koSend + 1
 		return err
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode <= 500 {
 		r.spans = nil
+	}
+
+	if resp.StatusCode < 400 {
+		r.okSend = r.okSend + 1
+	} else {
+		r.koSend = r.koSend + 1
 	}
 
 	return nil

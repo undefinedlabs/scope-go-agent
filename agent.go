@@ -14,8 +14,10 @@ type Agent struct {
 	scopeEndpoint string
 	apiKey        string
 	version       string
+	agentId		  string
 	metadata      map[string]interface{}
 	debugMode     bool
+	testingMode	  bool
 
 	recorder *SpanRecorder
 	tracer   opentracing.Tracer
@@ -49,9 +51,10 @@ func NewAgent() *Agent {
 	a.apiKey = os.Getenv("SCOPE_APIKEY")
 	a.debugMode = getBoolEnv("SCOPE_DEBUG", false)
 	a.version = version
+	a.agentId = generateAgentID()
 
 	a.metadata = make(map[string]interface{})
-	a.metadata[AgentID] = generateAgentID()
+	a.metadata[AgentID] = a.agentId
 	a.metadata[AgentVersion] = version
 	a.metadata[AgentType] = "go"
 
@@ -71,6 +74,8 @@ func NewAgent() *Agent {
 		a.metadata[Service] = "default"
 	}
 
+	a.testingMode = getBoolEnv("SCOPE_TESTING_MODE", true)
+
 	a.recorder = NewSpanRecorder(a)
 	a.tracer = tracer.NewWithOptions(tracer.Options{
 		Recorder: a.recorder,
@@ -88,6 +93,21 @@ func (a *Agent) Stop() {
 	}
 	a.recorder.t.Kill(nil)
 	_ = a.recorder.t.Wait()
+
+	if a.testingMode && a.recorder.totalSend > 0 {
+		if a.recorder.koSend == 0 {
+			fmt.Printf("\n** Scope Test Report **\n\n")
+			fmt.Println("Access the detailed test report for this build at:")
+			fmt.Printf("   %s/external/v1/results/%s\n\n", a.scopeEndpoint, a.agentId)
+		} else if a.recorder.koSend < a.recorder.totalSend {
+			fmt.Printf("\n** Scope Test Report **\n\n")
+			fmt.Println("There was a problem sending data to Scope, partial test report for this build at:")
+			fmt.Printf("   %s/external/v1/results/%s\n\n", a.scopeEndpoint, a.agentId)
+		} else {
+			_, _ = fmt.Fprintf(os.Stderr, "\n** Scope Test Report **\n\n")
+			_, _ = fmt.Fprintf(os.Stderr, "There was a problem sending data to Scope\n")
+		}
+	}
 }
 
 func (a *Agent) Flush() error {
