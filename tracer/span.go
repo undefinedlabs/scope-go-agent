@@ -162,7 +162,7 @@ func (s *spanImpl) Log(ld opentracing.LogData) {
 func (s *spanImpl) Finish() {
 
 	var r interface{}
-	if s.tracer.options.OnSpanFinishPanic != nil && s.raw.ParentSpanID != 0 {
+	if s.tracer != nil && s.tracer.options.OnSpanFinishPanic != nil && s.raw.ParentSpanID != 0 {
 		if r = recover(); r != nil {
 			s.tracer.options.OnSpanFinishPanic(&s.raw, r)
 		}
