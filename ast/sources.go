@@ -10,11 +10,11 @@ import (
 )
 
 var (
-	methodCodes 	map[string]map[string]*MethodCode
+	methodCodes 	map[string]map[string]*MethodCodeBoundaries
 	mutex			sync.Mutex
 )
 
-type MethodCode struct {
+type MethodCodeBoundaries struct {
 	Package string
 	Name 	string
 	File	string
@@ -27,22 +27,22 @@ type CodePos struct {
 }
 
 // Gets the function source code boundaries from the caller method
-func GetFuncSourceFromCaller(skip int) *MethodCode {
+func GetFuncSourceFromCaller(skip int) *MethodCodeBoundaries {
 	pc, _, _, _ := runtime.Caller(skip + 1)
 	return GetFuncSource(pc)
 }
 
 // Gets the function source code boundaries from a method
-func GetFuncSource(pc uintptr) *MethodCode {
+func GetFuncSource(pc uintptr) *MethodCodeBoundaries {
 	mFunc := runtime.FuncForPC(pc)
 	mFile, _ := mFunc.FileLine(pc)
 
 	mutex.Lock()
 	if methodCodes == nil {
-		methodCodes = map[string]map[string]*MethodCode{}
+		methodCodes = map[string]map[string]*MethodCodeBoundaries{}
 	}
 	if methodCodes[mFile] == nil {
-		methodCodes[mFile] = map[string]*MethodCode{}
+		methodCodes[mFile] = map[string]*MethodCodeBoundaries{}
 
 		fSet := token.NewFileSet()
 		f, err := parser.ParseFile(fSet, mFile, nil, 0)
@@ -59,7 +59,7 @@ func GetFuncSource(pc uintptr) *MethodCode {
 					if bPos.IsValid() && bEnd.IsValid() {
 						pos := fSet.PositionFor(bPos, true)
 						end := fSet.PositionFor(bEnd, true)
-						methodCode := MethodCode{
+						methodCode := MethodCodeBoundaries{
 							Package: packageName,
 							Name: fDecl.Name.String(),
 							File: mFile,
