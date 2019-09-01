@@ -2,12 +2,20 @@ package scopeagent
 
 import (
 	"context"
+	"fmt"
 	"github.com/opentracing/opentracing-go"
 	"github.com/undefinedlabs/go-agent/contexts"
 	"github.com/undefinedlabs/go-agent/errors"
+	"reflect"
 	"runtime"
 	"strings"
+	"sync"
 	"testing"
+	"bou.ke/monkey"
+)
+
+var (
+	patcher		sync.Once
 )
 
 type Test struct {
@@ -23,6 +31,20 @@ func InstrumentTest(t *testing.T, f func(ctx context.Context, t *testing.T)) {
 }
 
 func StartTest(t *testing.T) *Test {
+	//**
+	//patcher.Do(func() {
+		var fatalGuard *monkey.PatchGuard
+		monkey.PatchInstanceMethod(reflect.TypeOf(t), "Fatal", func (tInst *testing.T, args ...interface{}) {
+			fatalGuard.Unpatch()
+			defer fatalGuard.Restore()
+
+			line := fmt.Sprintln(args...)
+			fmt.Println("INTERCEPTED: " + line)
+
+			tInst.Fatal(args)
+		})
+	//})
+	//**
 	pc, _, _, _ := runtime.Caller(1)
 	parts := strings.Split(runtime.FuncForPC(pc).Name(), ".")
 	pl := len(parts)

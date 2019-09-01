@@ -3,6 +3,7 @@ module github.com/undefinedlabs/go-agent
 go 1.12
 
 require (
+	bou.ke/monkey v1.0.1
 	github.com/davecgh/go-spew v1.1.1
 	github.com/go-errors/errors v1.0.1
 	github.com/gogo/protobuf v1.2.1
