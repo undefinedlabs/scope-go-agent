@@ -5,6 +5,7 @@ import (
 	"context"
 	"github.com/opentracing/opentracing-go"
 	"github.com/opentracing/opentracing-go/log"
+	log2 "log"
 	"os"
 	"runtime"
 	"strings"
@@ -56,6 +57,7 @@ func StartTest(t *testing.T) *Test {
 	// Replaces stdout and stderr
 	stdOut := newStdIO(&os.Stdout)
 	stdErr := newStdIO(&os.Stderr)
+	log2.SetOutput(stdOut.writePipe)
 
 	test := &Test{
 		ctx:  ctx,
@@ -98,6 +100,7 @@ func (test *Test) End() {
 
 	test.stdOut.restore(&os.Stdout)
 	test.stdErr.restore(&os.Stderr)
+	log2.SetOutput(os.Stderr)
 }
 
 func (test *Test) Context() context.Context {
