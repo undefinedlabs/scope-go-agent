@@ -3,6 +3,7 @@ package scopeagent
 import (
 	"context"
 	"github.com/opentracing/opentracing-go"
+	"github.com/undefinedlabs/go-agent/contexts"
 	"github.com/undefinedlabs/go-agent/errors"
 	"runtime"
 	"strings"
@@ -41,6 +42,7 @@ func StartTest(t *testing.T) *Test {
 		"test.suite": packageName,
 	})
 	span.SetBaggageItem("trace.kind", "test")
+	contexts.SetGoRoutineData("currentSpan", span)
 
 	return &Test{
 		ctx:  ctx,
@@ -67,6 +69,7 @@ func (test *Test) End() {
 		test.span.SetTag("test.status", "PASS")
 	}
 	test.span.Finish()
+	contexts.SetGoRoutineData("currentSpan", nil)
 }
 
 func (test *Test) Context() context.Context {
