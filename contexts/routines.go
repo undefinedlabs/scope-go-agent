@@ -8,15 +8,15 @@ import (
 
 type GoRoutineInfo struct {
 	// Go routine id
-	Id 					int
+	Id int
 	// Calculated parent go routine id
-	ParentId			int
+	ParentId int
 	// Current running go routine
-	Current				bool
+	Current bool
 	// Name of the parent func of the go routine
-	parentFuncName		string
+	parentFuncName string
 	// Stack trace funcs
-	stackFuncs			[]string
+	stackFuncs []string
 }
 
 // Gets the current go routine stack map
@@ -52,7 +52,7 @@ func getRoutineStackData() []*GoRoutineInfo {
 			currentRoutine = &GoRoutineInfo{
 				Id:             goId,
 				ParentId:       0,
-				Current:		currentRoutine == nil,
+				Current:        currentRoutine == nil,
 				parentFuncName: "",
 				stackFuncs:     make([]string, 0),
 			}
@@ -79,7 +79,7 @@ func getRoutineStackData() []*GoRoutineInfo {
 				}
 			}
 			if item.ParentId > 0 {
-				break;
+				break
 			}
 		}
 	}

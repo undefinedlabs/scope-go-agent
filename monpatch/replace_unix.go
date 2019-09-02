@@ -4,7 +4,7 @@ import "syscall"
 
 func mprotectCrossPage(addr uintptr, length int, prot int) {
 	pageSize := syscall.Getpagesize()
-	for p := pageStart(addr); p < addr + uintptr(length); p += uintptr(pageSize) {
+	for p := pageStart(addr); p < addr+uintptr(length); p += uintptr(pageSize) {
 		page := rawMemoryAccess(p, pageSize)
 		err := syscall.Mprotect(page, prot)
 		if err != nil {
