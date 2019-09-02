@@ -2,11 +2,10 @@ package scopeagent
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io/ioutil"
 	"os"
-	"runtime"
+	"os/user"
 )
 
 type Config struct {
@@ -21,7 +20,8 @@ type Profile struct {
 }
 
 func GetConfig() *Config {
-	homeDir, _ := homeDir()
+	currentUser, _ := user.Current()
+	homeDir := currentUser.HomeDir
 	filePath := fmt.Sprintf("%s/.scope/config.json", homeDir)
 	file, err := os.Open(filePath)
 	if err != nil {
@@ -42,25 +42,4 @@ func GetConfigCurrentProfile() *Profile {
 		return &profile
 	}
 	return nil
-}
-
-
-func homeDir() (string, error) {
-	env, enverr := "HOME", "$HOME"
-	switch runtime.GOOS {
-	case "windows":
-		env, enverr = "USERPROFILE", "%userprofile%"
-	case "plan9":
-		env, enverr = "home", "$home"
-	case "nacl", "android":
-		return "/", nil
-	case "darwin":
-		if runtime.GOARCH == "arm" || runtime.GOARCH == "arm64" {
-			return "/", nil
-		}
-	}
-	if v := os.Getenv(env); v != "" {
-		return v, nil
-	}
-	return "", errors.New(enverr + " is not defined")
 }
