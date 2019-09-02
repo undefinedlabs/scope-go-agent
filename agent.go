@@ -1,11 +1,13 @@
 package scopeagent
 
 import (
+	"errors"
 	"fmt"
 	"github.com/google/uuid"
 	"github.com/opentracing/opentracing-go"
 	"github.com/undefinedlabs/go-agent/tracer"
 	"os"
+	"runtime"
 	"strconv"
 	"sync"
 )
@@ -25,6 +27,8 @@ var (
 	once        sync.Once
 	GlobalAgent *Agent
 	version     = "0.1.0-dev"
+	gitDataOnce sync.Once
+	gitData     *GitData
 )
 
 func init() {
@@ -45,16 +49,59 @@ func init() {
 
 func NewAgent() *Agent {
 	a := new(Agent)
-	a.scopeEndpoint = os.Getenv("SCOPE_API_ENDPOINT")
-	a.apiKey = os.Getenv("SCOPE_APIKEY")
+	configProfile := GetConfigCurrentProfile()
+
+	if endpoint, set := os.LookupEnv("SCOPE_API_ENDPOINT"); set && endpoint != "" {
+		a.scopeEndpoint = endpoint
+	} else if configProfile != nil {
+		a.scopeEndpoint = configProfile.ApiEndpoint
+	} else {
+		panic(errors.New("Api Endpoint is missing"))
+	}
+
+	if apikey, set := os.LookupEnv("SCOPE_APIKEY"); set && apikey != "" {
+		a.apiKey = apikey
+	} else if configProfile != nil {
+		a.apiKey = configProfile.ApiKey
+	} else {
+		panic(errors.New("Api Key is missing"))
+	}
+
 	a.debugMode = getBoolEnv("SCOPE_DEBUG", false)
 	a.version = version
 
 	a.metadata = make(map[string]interface{})
+
+	// Agent data
 	a.metadata[AgentID] = generateAgentID()
 	a.metadata[AgentVersion] = version
 	a.metadata[AgentType] = "go"
 
+	// Platform data
+	a.metadata[PlatformName] = runtime.GOOS
+	a.metadata[PlatformArchitecture] = runtime.GOARCH
+	if runtime.GOARCH == "amd64" {
+		a.metadata[ProcessArchitecture] = "X64"
+	} else if runtime.GOARCH == "386" {
+		a.metadata[ProcessArchitecture] = "X86"
+	} else if runtime.GOARCH == "arm" {
+		a.metadata[ProcessArchitecture] = "Arm"
+	} else if runtime.GOARCH == "arm64" {
+		a.metadata[ProcessArchitecture] = "Arm64"
+	}
+
+	// Current folder
+	wd, _ := os.Getwd()
+	a.metadata[CurrentFolder] = wd
+
+	// Hostname
+	hostname, _ := os.Hostname()
+	a.metadata[Hostname] = hostname
+
+	// Go version
+	a.metadata[GoVersion] = runtime.Version()
+
+	// Git data
 	autodetectCI(a)
 	if repository, set := os.LookupEnv("SCOPE_REPOSITORY"); set {
 		a.metadata[Repository] = repository
@@ -70,6 +117,11 @@ func NewAgent() *Agent {
 	} else {
 		a.metadata[Service] = "default"
 	}
+
+	// Failback to git command
+	fillFromGitIfEmpty(a)
+
+	a.metadata[Diff] = GetGitDiff()
 
 	a.recorder = NewSpanRecorder(a)
 	a.tracer = tracer.NewWithOptions(tracer.Options{
@@ -211,4 +263,34 @@ func getBoolEnv(key string, fallback bool) bool {
 		panic(fmt.Sprintf("unable to parse %s - should be 'true' or 'false'", key))
 	}
 	return value
+}
+
+func getGitData() *GitData {
+	gitDataOnce.Do(func() {
+		gitData = GetCurrentGitData()
+	})
+	return gitData
+}
+
+func fillFromGitIfEmpty(a *Agent) {
+	if a.metadata[Repository] == nil || a.metadata[Repository] == "" {
+		if git := getGitData(); git != nil {
+			a.metadata[Repository] = git.Repository
+		}
+	}
+	if a.metadata[Commit] == nil || a.metadata[Commit] == "" {
+		if git := getGitData(); git != nil {
+			a.metadata[Commit] = git.Commit
+		}
+	}
+	if a.metadata[SourceRoot] == nil || a.metadata[SourceRoot] == "" {
+		if git := getGitData(); git != nil {
+			a.metadata[SourceRoot] = git.SourceRoot
+		}
+	}
+	if a.metadata[Branch] == nil || a.metadata[Branch] == "" {
+		if git := getGitData(); git != nil {
+			a.metadata[Branch] = git.Branch
+		}
+	}
 }
