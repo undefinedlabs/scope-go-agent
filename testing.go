@@ -3,7 +3,6 @@ package scopeagent
 import (
 	"bou.ke/monkey"
 	"context"
-	"fmt"
 	"log"
 	"reflect"
 	"runtime"
@@ -20,6 +19,8 @@ import (
 var (
 	patcher sync.Once
 )
+
+const currentTestKey  = "currentTest"
 
 type Test struct {
 	ctx  context.Context
@@ -60,7 +61,7 @@ func StartTest(t *testing.T) *Test {
 		span: span,
 		t:    t,
 	}
-	contexts.SetGoRoutineData("currentTest", test)
+	contexts.SetGoRoutineData(currentTestKey, test)
 
 	return test
 }
@@ -83,7 +84,7 @@ func (test *Test) End() {
 		test.span.SetTag("test.status", "PASS")
 	}
 	test.span.Finish()
-	contexts.SetGoRoutineData("currentTest", nil)
+	contexts.SetGoRoutineData(currentTestKey, nil)
 }
 
 func (test *Test) Context() context.Context {
@@ -102,7 +103,7 @@ func patchLogger() {
 			funcPc, _, _, _ := runtime.Caller(1)
 			funcName := runtime.FuncForPC(funcPc).Name()
 
-			currentTest := contexts.GetGoRoutineData("currentTest")
+			currentTest := contexts.GetGoRoutineData(currentTestKey)
 			if currentTest != nil {
 				test := currentTest.(*Test)
 
