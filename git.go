@@ -16,16 +16,17 @@ type GitData struct {
 }
 
 type GitDiff struct {
-	Type			string	`json:"type"`
-	Version			string  `json:"version"`
-	Uuid			string  `json:"uuid"`
-	Files			[]DiffFileItem  `json:"files"`
+	Type			string	`msgpack:"type"`
+	Version			string  `msgpack:"version"`
+	Uuid			string  `msgpack:"uuid"`
+	Files			[]DiffFileItem  `msgpack:"files"`
 }
 type DiffFileItem struct {
-	Path			string  `json:"path"`
-	Added			int		`json:"added"`
-	Removed 		int		`json:"removed"`
-	Status			string  `json:"status"`
+	Path			string  `msgpack:"path"`
+	Added			int		`msgpack:"added"`
+	Removed 		int		`msgpack:"removed"`
+	Status			string  `msgpack:"status"`
+	PreviousPath	*string  `msgpack:"previousPath"`
 }
 
 // Gets the current git data
@@ -57,12 +58,7 @@ func GetCurrentGitData() *GitData {
 }
 
 func GetGitDiff() *GitDiff {
-	var sourceRoot, diff string
-
-	if sourceRootBytes, err := exec.Command("git", "rev-parse", "--show-toplevel").Output(); err == nil {
-		sourceRoot = strings.TrimSuffix(string(sourceRootBytes), "\n")
-	}
-
+	var diff string
 	if diffBytes, err := exec.Command("git", "diff", "--numstat").Output(); err == nil {
 		diff = string(diffBytes)
 	} else {
@@ -70,9 +66,7 @@ func GetGitDiff() *GitDiff {
 	}
 
 	reader := bufio.NewReader(strings.NewReader(diff))
-
 	var files []DiffFileItem
-
 	for {
 		line, err := reader.ReadString('\n')
 		if err != nil {
@@ -81,19 +75,14 @@ func GetGitDiff() *GitDiff {
 		diffItem := strings.Split(line, "\t")
 		added, _ := strconv.Atoi(diffItem[0])
 		removed, _ := strconv.Atoi(diffItem[1])
-
-		var path string
-		if sourceRoot == "" {
-			path = diffItem[2]
-		} else {
-			path = sourceRoot + "/" + diffItem[2]
-		}
+		path := strings.TrimSuffix(diffItem[2], "\n")
 
 		files = append(files, DiffFileItem{
 			Path:    path,
 			Added:   added,
 			Removed: removed,
 			Status:  "Modified",
+			PreviousPath: nil,
 		})
 	}
 
