@@ -66,7 +66,7 @@ func GetGitDiff() *GitDiff {
 	}
 
 	reader := bufio.NewReader(strings.NewReader(diff))
-	var files []DiffFileItem
+	files := make([]DiffFileItem, 0)
 	for {
 		line, err := reader.ReadString('\n')
 		if err != nil {
