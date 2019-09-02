@@ -68,10 +68,8 @@ func GetGitDiff() *GitDiff {
 			break
 		}
 		diffItem := strings.Split(line, "\t")
-
 		added, _ := strconv.Atoi(diffItem[0])
 		removed, _ := strconv.Atoi(diffItem[1])
-
 		files = append(files, DiffFileItem{
 			Path:    sourceRoot + "/" + diffItem[2],
 			Added:   added,
