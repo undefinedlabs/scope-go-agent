@@ -1,6 +1,7 @@
 package tracer
 
 import (
+	"github.com/go-errors/errors"
 	"sync"
 	"time"
 
@@ -161,17 +162,18 @@ func (s *spanImpl) Log(ld opentracing.LogData) {
 
 func (s *spanImpl) Finish() {
 
-	var r interface{}
+	var currentError *errors.Error
 	if s.tracer != nil && s.tracer.options.OnSpanFinishPanic != nil && s.raw.ParentSpanID != 0 {
-		if r = recover(); r != nil {
-			s.tracer.options.OnSpanFinishPanic(&s.raw, r)
+		if r := recover(); r != nil {
+			currentError = errors.Wrap(r, 1)
+			s.tracer.options.OnSpanFinishPanic(&s.raw, currentError)
 		}
 	}
 
 	s.FinishWithOptions(opentracing.FinishOptions{})
 
-	if r != nil {
-		panic(r)
+	if currentError != nil {
+		panic(currentError)
 	}
 }
 

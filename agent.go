@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/google/uuid"
 	"github.com/opentracing/opentracing-go"
+	"github.com/undefinedlabs/go-agent/errors"
 	"github.com/undefinedlabs/go-agent/tracer"
 	"os"
 	"strconv"
@@ -79,11 +80,8 @@ func NewAgent() *Agent {
 		},
 		MaxLogsPerSpan: 10000,
 		OnSpanFinishPanic: func(rSpan *tracer.RawSpan, r interface{}) {
-			// When a span finish detect a panic, we set the span tag as error
-			if rSpan.Tags == nil {
-				rSpan.Tags = opentracing.Tags{}
-			}
-			rSpan.Tags["error"] = true
+			// Log the error in the current span
+			errors.LogErrorInRawSpan(rSpan, r)
 		},
 	})
 	return a
