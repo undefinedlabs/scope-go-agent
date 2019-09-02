@@ -1,21 +1,24 @@
 package scopeagent
 
 import (
+	"bou.ke/monkey"
 	"context"
 	"fmt"
-	"github.com/opentracing/opentracing-go"
-	"github.com/undefinedlabs/go-agent/contexts"
-	"github.com/undefinedlabs/go-agent/errors"
+	"log"
 	"reflect"
 	"runtime"
 	"strings"
 	"sync"
 	"testing"
-	"bou.ke/monkey"
+
+	"github.com/opentracing/opentracing-go"
+	oLog "github.com/opentracing/opentracing-go/log"
+	"github.com/undefinedlabs/go-agent/contexts"
+	"github.com/undefinedlabs/go-agent/errors"
 )
 
 var (
-	patcher		sync.Once
+	patcher sync.Once
 )
 
 type Test struct {
@@ -31,20 +34,7 @@ func InstrumentTest(t *testing.T, f func(ctx context.Context, t *testing.T)) {
 }
 
 func StartTest(t *testing.T) *Test {
-	//**
-	//patcher.Do(func() {
-		var fatalGuard *monkey.PatchGuard
-		monkey.PatchInstanceMethod(reflect.TypeOf(t), "Fatal", func (tInst *testing.T, args ...interface{}) {
-			fatalGuard.Unpatch()
-			defer fatalGuard.Restore()
-
-			line := fmt.Sprintln(args...)
-			fmt.Println("INTERCEPTED: " + line)
-
-			tInst.Fatal(args)
-		})
-	//})
-	//**
+	patchLogger()
 	pc, _, _, _ := runtime.Caller(1)
 	parts := strings.Split(runtime.FuncForPC(pc).Name(), ".")
 	pl := len(parts)
@@ -64,13 +54,15 @@ func StartTest(t *testing.T) *Test {
 		"test.suite": packageName,
 	})
 	span.SetBaggageItem("trace.kind", "test")
-	contexts.SetGoRoutineData("currentSpan", span)
 
-	return &Test{
+	test := &Test{
 		ctx:  ctx,
 		span: span,
 		t:    t,
 	}
+	contexts.SetGoRoutineData("currentTest", test)
+
+	return test
 }
 
 func (test *Test) End() {
@@ -91,9 +83,52 @@ func (test *Test) End() {
 		test.span.SetTag("test.status", "PASS")
 	}
 	test.span.Finish()
-	contexts.SetGoRoutineData("currentSpan", nil)
+	contexts.SetGoRoutineData("currentTest", nil)
 }
 
 func (test *Test) Context() context.Context {
 	return test.ctx
+}
+
+
+func patchLogger() {
+
+	patcher.Do(func() {
+		var logOutputGuard *monkey.PatchGuard
+		logOutputGuard = monkey.PatchInstanceMethod(reflect.TypeOf(new(log.Logger)), "Output", func(l *log.Logger, calldepth int, s string) error {
+			logOutputGuard.Unpatch()
+			defer logOutputGuard.Restore()
+
+			funcPc, _, _, _ := runtime.Caller(1)
+			funcName := runtime.FuncForPC(funcPc).Name()
+
+			currentTest := contexts.GetGoRoutineData("currentTest")
+			if currentTest != nil {
+				test := currentTest.(*Test)
+
+				if isFatal := strings.Contains(funcName, "Fatal"); isFatal || strings.Contains(funcName, "Panic") {
+					test.span.LogFields(
+						oLog.String("event", "log"),
+						oLog.String("message", s),
+						oLog.String("log.level", "ERROR"),
+					)
+					if isFatal {
+						test.span.SetTag("test.status", "FAIL")
+						test.span.SetTag("error", true)
+						test.span.Finish()
+						_ = GlobalAgent.Flush()
+					}
+				} else {
+					test.span.LogFields(
+						oLog.String("event", "log"),
+						oLog.String("message", s),
+						oLog.String("log.level", "VERBOSE"),
+					)
+				}
+			}
+
+			return l.Output(calldepth, s)
+		})
+	})
+
 }
