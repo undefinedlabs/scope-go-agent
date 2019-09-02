@@ -30,17 +30,23 @@ type DiffFileItem struct {
 
 // Gets the current git data
 func GetCurrentGitData() *GitData {
-	repoBytes, _ := exec.Command("git", "remote", "get-url", "origin").Output()
-	repository := strings.TrimSuffix(string(repoBytes), "\n")
+	var repository, commit, sourceRoot, branch string
 
-	commitBytes, _ := exec.Command("git", "rev-parse", "HEAD").Output()
-	commit := strings.TrimSuffix(string(commitBytes), "\n")
+	if repoBytes, err := exec.Command("git", "remote", "get-url", "origin").Output(); err == nil {
+		repository = strings.TrimSuffix(string(repoBytes), "\n")
+	}
 
-	sourceRootBytes, _ := exec.Command("git", "rev-parse", "--show-toplevel").Output()
-	sourceRoot := strings.TrimSuffix(string(sourceRootBytes), "\n")
+	if commitBytes, err := exec.Command("git", "rev-parse", "HEAD").Output(); err == nil {
+		commit = strings.TrimSuffix(string(commitBytes), "\n")
+	}
 
-	branchBytes, _ := exec.Command("git", "rev-parse", "--abbrev-ref", "HEAD").Output()
-	branch := strings.TrimSuffix(string(branchBytes), "\n")
+	if sourceRootBytes, err := exec.Command("git", "rev-parse", "--show-toplevel").Output(); err == nil {
+		sourceRoot = strings.TrimSuffix(string(sourceRootBytes), "\n")
+	}
+
+	if branchBytes, err := exec.Command("git", "rev-parse", "--abbrev-ref", "HEAD").Output(); err == nil {
+		branch = strings.TrimSuffix(string(branchBytes), "\n")
+	}
 
 	return &GitData{
 		Repository: repository,
@@ -51,12 +57,17 @@ func GetCurrentGitData() *GitData {
 }
 
 func GetGitDiff() *GitDiff {
+	var sourceRoot, diff string
 
-	sourceRootBytes, _ := exec.Command("git", "rev-parse", "--show-toplevel").Output()
-	sourceRoot := strings.TrimSuffix(string(sourceRootBytes), "\n")
+	if sourceRootBytes, err := exec.Command("git", "rev-parse", "--show-toplevel").Output(); err == nil {
+		sourceRoot = strings.TrimSuffix(string(sourceRootBytes), "\n")
+	}
 
-	diffBytes, _ := exec.Command("git", "diff", "--numstat").Output()
-	diff := string(diffBytes)
+	if diffBytes, err := exec.Command("git", "diff", "--numstat").Output(); err == nil {
+		diff = string(diffBytes)
+	} else {
+		return nil
+	}
 
 	reader := bufio.NewReader(strings.NewReader(diff))
 
@@ -70,8 +81,16 @@ func GetGitDiff() *GitDiff {
 		diffItem := strings.Split(line, "\t")
 		added, _ := strconv.Atoi(diffItem[0])
 		removed, _ := strconv.Atoi(diffItem[1])
+
+		var path string
+		if sourceRoot == "" {
+			path = diffItem[2]
+		} else {
+			path = sourceRoot + "/" + diffItem[2]
+		}
+
 		files = append(files, DiffFileItem{
-			Path:    sourceRoot + "/" + diffItem[2],
+			Path:    path,
 			Added:   added,
 			Removed: removed,
 			Status:  "Modified",
