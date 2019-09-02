@@ -16,17 +16,17 @@ type GitData struct {
 }
 
 type GitDiff struct {
-	Type			string	`msgpack:"type"`
-	Version			string  `msgpack:"version"`
-	Uuid			string  `msgpack:"uuid"`
-	Files			[]DiffFileItem  `msgpack:"files"`
+	Type			string	`json:"type" msgpack:"type"`
+	Version			string  `json:"version" msgpack:"version"`
+	Uuid			string  `json:"uuid" msgpack:"uuid"`
+	Files			[]DiffFileItem  `json:"files" msgpack:"files"`
 }
 type DiffFileItem struct {
-	Path			string  `msgpack:"path"`
-	Added			int		`msgpack:"added"`
-	Removed 		int		`msgpack:"removed"`
-	Status			string  `msgpack:"status"`
-	PreviousPath	*string  `msgpack:"previousPath"`
+	Path			string  `json:"path" msgpack:"path"`
+	Added			int		`json:"added" msgpack:"added"`
+	Removed 		int		`json:"removed" msgpack:"removed"`
+	Status			string  `json:"status" msgpack:"status"`
+	PreviousPath	*string  `json:"previousPath" msgpack:"previousPath"`
 }
 
 // Gets the current git data
