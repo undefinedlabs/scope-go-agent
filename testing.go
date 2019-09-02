@@ -101,27 +101,135 @@ func patchLogger() {
 		commonType := reflect.ValueOf(testing.T{}).FieldByName("common").Type()
 		commonTypeReference := reflect.New(commonType).Type()
 
-		var traceGuard *monpatch.PatchGuard
-		traceGuard = monpatch.PatchInstanceMethod(commonTypeReference, "Fatal", func(t *testing.T, args ...interface{}) {
-			traceGuard.Unpatch()
-			defer traceGuard.Restore()
+		var traceFatalGuard *monpatch.PatchGuard
+		traceFatalGuard = monpatch.PatchInstanceMethod(commonTypeReference, "Fatal",
+			func(t *testing.T, args ...interface{}) {
+				traceFatalGuard.Unpatch()
+				defer traceFatalGuard.Restore()
 
-			currentTest := contexts.GetGoRoutineData(currentTestKey)
-			if currentTest != nil {
-				test := currentTest.(*Test)
+				currentTest := contexts.GetGoRoutineData(currentTestKey)
+				if currentTest != nil {
+					test := currentTest.(*Test)
 
-				test.span.LogFields(
-					oLog.String("event", "log"),
-					oLog.String("message", fmt.Sprint(args)),
-					oLog.String("log.level", "ERROR"),
-					oLog.String("log.logger", "testing.T"),
-				)
-				test.span.SetTag("test.status", "FAIL")
-				test.span.SetTag("error", true)
-			}
+					test.span.LogFields(
+						oLog.String("event", "log"),
+						oLog.String("message", fmt.Sprint(args)),
+						oLog.String("log.level", "ERROR"),
+						oLog.String("log.logger", "testing.T"),
+					)
+					test.span.SetTag("test.status", "FAIL")
+					test.span.SetTag("error", true)
+				}
 
-			t.Fatal(args)
-		})
+				t.Fatal(args)
+			})
+
+		var traceFatalfGuard *monpatch.PatchGuard
+		traceFatalfGuard = monpatch.PatchInstanceMethod(commonTypeReference, "Fatalf",
+			func(t *testing.T, format string, args ...interface{}) {
+				traceFatalfGuard.Unpatch()
+				defer traceFatalfGuard.Restore()
+
+				currentTest := contexts.GetGoRoutineData(currentTestKey)
+				if currentTest != nil {
+					test := currentTest.(*Test)
+
+					test.span.LogFields(
+						oLog.String("event", "log"),
+						oLog.String("message", fmt.Sprintf(format, args)),
+						oLog.String("log.level", "ERROR"),
+						oLog.String("log.logger", "testing.T"),
+					)
+					test.span.SetTag("test.status", "FAIL")
+					test.span.SetTag("error", true)
+				}
+
+				t.Fatalf(format, args)
+			})
+
+		var traceErrorGuard *monpatch.PatchGuard
+		traceErrorGuard = monpatch.PatchInstanceMethod(commonTypeReference, "Error",
+			func(t *testing.T, args ...interface{}) {
+				traceErrorGuard.Unpatch()
+				defer traceErrorGuard.Restore()
+
+				currentTest := contexts.GetGoRoutineData(currentTestKey)
+				if currentTest != nil {
+					test := currentTest.(*Test)
+
+					test.span.LogFields(
+						oLog.String("event", "log"),
+						oLog.String("message", fmt.Sprint(args)),
+						oLog.String("log.level", "ERROR"),
+						oLog.String("log.logger", "testing.T"),
+					)
+				}
+
+				t.Error(args)
+			})
+
+		var traceErrorfGuard *monpatch.PatchGuard
+		traceErrorfGuard = monpatch.PatchInstanceMethod(commonTypeReference, "Errorf",
+			func(t *testing.T, format string, args ...interface{}) {
+				traceErrorfGuard.Unpatch()
+				defer traceErrorfGuard.Restore()
+
+				currentTest := contexts.GetGoRoutineData(currentTestKey)
+				if currentTest != nil {
+					test := currentTest.(*Test)
+
+					test.span.LogFields(
+						oLog.String("event", "log"),
+						oLog.String("message", fmt.Sprintf(format, args)),
+						oLog.String("log.level", "ERROR"),
+						oLog.String("log.logger", "testing.T"),
+					)
+				}
+
+				t.Errorf(format, args)
+			})
+
+		var traceLogGuard *monpatch.PatchGuard
+		traceLogGuard = monpatch.PatchInstanceMethod(commonTypeReference, "Log",
+			func(t *testing.T, args ...interface{}) {
+				traceLogGuard.Unpatch()
+				defer traceLogGuard.Restore()
+
+				currentTest := contexts.GetGoRoutineData(currentTestKey)
+				if currentTest != nil {
+					test := currentTest.(*Test)
+
+					test.span.LogFields(
+						oLog.String("event", "log"),
+						oLog.String("message", fmt.Sprint(args)),
+						oLog.String("log.level", "INFO"),
+						oLog.String("log.logger", "testing.T"),
+					)
+				}
+
+				t.Log(args)
+			})
+
+		var traceLogfGuard *monpatch.PatchGuard
+		traceLogfGuard = monpatch.PatchInstanceMethod(commonTypeReference, "Logf",
+			func(t *testing.T, format string, args ...interface{}) {
+				traceLogfGuard.Unpatch()
+				defer traceLogfGuard.Restore()
+
+				currentTest := contexts.GetGoRoutineData(currentTestKey)
+				if currentTest != nil {
+					test := currentTest.(*Test)
+
+					test.span.LogFields(
+						oLog.String("event", "log"),
+						oLog.String("message", fmt.Sprintf(format, args)),
+						oLog.String("log.level", "INFO"),
+						oLog.String("log.logger", "testing.T"),
+					)
+				}
+
+				t.Logf(format, args)
+			})
 
 		var logOutputGuard *monpatch.PatchGuard
 		logOutputGuard = monpatch.PatchInstanceMethod(reflect.TypeOf(new(log.Logger)), "Output", func(l *log.Logger, calldepth int, s string) error {
