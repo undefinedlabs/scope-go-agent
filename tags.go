@@ -19,6 +19,7 @@ const (
 	Commit     	= "commit"
 	Branch		= "branch"
 	SourceRoot 	= "source.root"
+	Diff		= "diff"
 
 	CI            = "ci.in_ci"
 	CIProvider    = "ci.provider"

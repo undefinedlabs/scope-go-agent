@@ -121,6 +121,8 @@ func NewAgent() *Agent {
 	// Failback to git command
 	fillFromGitIfEmpty(a)
 
+	a.metadata[Diff] = GetGitDiff()
+
 	a.recorder = NewSpanRecorder(a)
 	a.tracer = tracer.NewWithOptions(tracer.Options{
 		Recorder: a.recorder,
