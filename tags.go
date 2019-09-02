@@ -22,6 +22,8 @@ const (
 	EventStack     = "stack"
 	EventException = "exception"
 
+	EventTestFailure = "test_failure"
+
 
 	LogEvent			= "log"
 	LogEventLevel		= "log.level"

@@ -93,6 +93,10 @@ func (test *Test) End() {
 	if test.t.Failed() {
 		test.span.SetTag("test.status", "FAIL")
 		test.span.SetTag("error", true)
+		test.span.LogFields(
+			log.String(EventType, EventTestFailure),
+			log.String(EventMessage, "Test has failed"),
+		)
 	} else if test.t.Skipped() {
 		test.span.SetTag("test.status", "SKIP")
 	} else {
