@@ -1,14 +1,16 @@
 package scopeagent
 
 import (
-	"bou.ke/monkey"
 	"context"
+	"fmt"
 	"log"
 	"reflect"
 	"runtime"
 	"strings"
 	"sync"
 	"testing"
+
+	"github.com/undefinedlabs/go-agent/monpatch"
 
 	"github.com/opentracing/opentracing-go"
 	oLog "github.com/opentracing/opentracing-go/log"
@@ -20,7 +22,7 @@ var (
 	patcher sync.Once
 )
 
-const currentTestKey  = "currentTest"
+const currentTestKey = "currentTest"
 
 type Test struct {
 	ctx  context.Context
@@ -95,8 +97,34 @@ func (test *Test) Context() context.Context {
 func patchLogger() {
 
 	patcher.Do(func() {
-		var logOutputGuard *monkey.PatchGuard
-		logOutputGuard = monkey.PatchInstanceMethod(reflect.TypeOf(new(log.Logger)), "Output", func(l *log.Logger, calldepth int, s string) error {
+
+		commonType := reflect.ValueOf(testing.T{}).FieldByName("common").Type()
+		commonTypeReference := reflect.New(commonType).Type()
+
+		var traceGuard *monpatch.PatchGuard
+		traceGuard = monpatch.PatchInstanceMethod(commonTypeReference, "Fatal", func(t *testing.T, args ...interface{}) {
+			traceGuard.Unpatch()
+			defer traceGuard.Restore()
+
+			currentTest := contexts.GetGoRoutineData(currentTestKey)
+			if currentTest != nil {
+				test := currentTest.(*Test)
+
+				test.span.LogFields(
+					oLog.String("event", "log"),
+					oLog.String("message", fmt.Sprint(args)),
+					oLog.String("log.level", "ERROR"),
+					oLog.String("log.logger", "testing.T"),
+				)
+				test.span.SetTag("test.status", "FAIL")
+				test.span.SetTag("error", true)
+			}
+
+			t.Fatal(args)
+		})
+
+		var logOutputGuard *monpatch.PatchGuard
+		logOutputGuard = monpatch.PatchInstanceMethod(reflect.TypeOf(new(log.Logger)), "Output", func(l *log.Logger, calldepth int, s string) error {
 			logOutputGuard.Unpatch()
 			defer logOutputGuard.Restore()
 
@@ -112,6 +140,7 @@ func patchLogger() {
 						oLog.String("event", "log"),
 						oLog.String("message", s),
 						oLog.String("log.level", "ERROR"),
+						oLog.String("log.logger", "log.Logger"),
 					)
 					if isFatal {
 						test.span.SetTag("test.status", "FAIL")
@@ -124,6 +153,7 @@ func patchLogger() {
 						oLog.String("event", "log"),
 						oLog.String("message", s),
 						oLog.String("log.level", "VERBOSE"),
+						oLog.String("log.logger", "log.Logger"),
 					)
 				}
 			}
