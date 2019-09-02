@@ -142,10 +142,14 @@ func patchLogger() {
 				currentTest := contexts.GetGoRoutineData(currentTestKey)
 				if currentTest != nil {
 					test := currentTest.(*Test)
-
+					var source string
+					if _, file, line, ok := runtime.Caller(1); ok == true {
+						source = fmt.Sprintf("%s:%d", file, line)
+					}
 					test.span.LogFields(
 						oLog.String("event", "log"),
 						oLog.String("message", fmt.Sprint(args)),
+						oLog.String(EventSource, source),
 						oLog.String("log.level", "ERROR"),
 						oLog.String("log.logger", "testing.T"),
 					)
@@ -165,10 +169,14 @@ func patchLogger() {
 				currentTest := contexts.GetGoRoutineData(currentTestKey)
 				if currentTest != nil {
 					test := currentTest.(*Test)
-
+					var source string
+					if _, file, line, ok := runtime.Caller(1); ok == true {
+						source = fmt.Sprintf("%s:%d", file, line)
+					}
 					test.span.LogFields(
 						oLog.String("event", "log"),
 						oLog.String("message", fmt.Sprintf(format, args)),
+						oLog.String(EventSource, source),
 						oLog.String("log.level", "ERROR"),
 						oLog.String("log.logger", "testing.T"),
 					)
@@ -188,10 +196,14 @@ func patchLogger() {
 				currentTest := contexts.GetGoRoutineData(currentTestKey)
 				if currentTest != nil {
 					test := currentTest.(*Test)
-
+					var source string
+					if _, file, line, ok := runtime.Caller(1); ok == true {
+						source = fmt.Sprintf("%s:%d", file, line)
+					}
 					test.span.LogFields(
 						oLog.String("event", "log"),
 						oLog.String("message", fmt.Sprint(args)),
+						oLog.String(EventSource, source),
 						oLog.String("log.level", "ERROR"),
 						oLog.String("log.logger", "testing.T"),
 					)
@@ -209,10 +221,14 @@ func patchLogger() {
 				currentTest := contexts.GetGoRoutineData(currentTestKey)
 				if currentTest != nil {
 					test := currentTest.(*Test)
-
+					var source string
+					if _, file, line, ok := runtime.Caller(1); ok == true {
+						source = fmt.Sprintf("%s:%d", file, line)
+					}
 					test.span.LogFields(
 						oLog.String("event", "log"),
 						oLog.String("message", fmt.Sprintf(format, args)),
+						oLog.String(EventSource, source),
 						oLog.String("log.level", "ERROR"),
 						oLog.String("log.logger", "testing.T"),
 					)
@@ -230,10 +246,14 @@ func patchLogger() {
 				currentTest := contexts.GetGoRoutineData(currentTestKey)
 				if currentTest != nil {
 					test := currentTest.(*Test)
-
+					var source string
+					if _, file, line, ok := runtime.Caller(1); ok == true {
+						source = fmt.Sprintf("%s:%d", file, line)
+					}
 					test.span.LogFields(
 						oLog.String("event", "log"),
 						oLog.String("message", fmt.Sprint(args)),
+						oLog.String(EventSource, source),
 						oLog.String("log.level", "INFO"),
 						oLog.String("log.logger", "testing.T"),
 					)
@@ -251,10 +271,14 @@ func patchLogger() {
 				currentTest := contexts.GetGoRoutineData(currentTestKey)
 				if currentTest != nil {
 					test := currentTest.(*Test)
-
+					var source string
+					if _, file, line, ok := runtime.Caller(1); ok == true {
+						source = fmt.Sprintf("%s:%d", file, line)
+					}
 					test.span.LogFields(
 						oLog.String("event", "log"),
 						oLog.String("message", fmt.Sprintf(format, args)),
+						oLog.String(EventSource, source),
 						oLog.String("log.level", "INFO"),
 						oLog.String("log.logger", "testing.T"),
 					)
@@ -274,11 +298,15 @@ func patchLogger() {
 			currentTest := contexts.GetGoRoutineData(currentTestKey)
 			if currentTest != nil {
 				test := currentTest.(*Test)
-
+				var source string
+				if _, file, line, ok := runtime.Caller(2); ok == true {
+					source = fmt.Sprintf("%s:%d", file, line)
+				}
 				if isFatal := strings.Contains(funcName, "Fatal"); isFatal || strings.Contains(funcName, "Panic") {
 					test.span.LogFields(
 						oLog.String("event", "log"),
 						oLog.String("message", s),
+						oLog.String(EventSource, source),
 						oLog.String("log.level", "ERROR"),
 						oLog.String("log.logger", "log.Logger"),
 					)
@@ -292,6 +320,7 @@ func patchLogger() {
 					test.span.LogFields(
 						oLog.String("event", "log"),
 						oLog.String("message", s),
+						oLog.String(EventSource, source),
 						oLog.String("log.level", "VERBOSE"),
 						oLog.String("log.logger", "log.Logger"),
 					)
