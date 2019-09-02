@@ -5,21 +5,21 @@ const (
 	AgentID      = "agent.id"
 	AgentVersion = "agent.version"
 
-	PlatformName			= "platform.name"
-	PlatformArchitecture	= "platform.architecture"
-	ProcessArchitecture		= "architecture"
+	PlatformName         = "platform.name"
+	PlatformArchitecture = "platform.architecture"
+	ProcessArchitecture  = "architecture"
 
-	CurrentFolder	= "current.folder"
-	Hostname		= "hostname"
+	CurrentFolder = "current.folder"
+	Hostname      = "hostname"
 
-	GoVersion		= "go.version"
+	GoVersion = "go.version"
 
-	Service    	= "service"
-	Repository 	= "repository"
-	Commit     	= "commit"
-	Branch		= "branch"
-	SourceRoot 	= "source.root"
-	Diff		= "diff"
+	Service    = "service"
+	Repository = "repository"
+	Commit     = "commit"
+	Branch     = "branch"
+	SourceRoot = "source.root"
+	Diff       = "diff"
 
 	CI            = "ci.in_ci"
 	CIProvider    = "ci.provider"

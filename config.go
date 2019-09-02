@@ -9,14 +9,14 @@ import (
 )
 
 type Config struct {
-	CurrentProfile	string				`json:"currentProfile"`
-	Profiles		map[string]Profile	`json:"profiles"`
+	CurrentProfile string             `json:"currentProfile"`
+	Profiles       map[string]Profile `json:"profiles"`
 }
 
 type Profile struct {
-	ApiEndpoint		string  `json:"apiEndpoint"`
-	ApiKey			string	`json:"apiKey"`
-	OAuthToken		string	`json:"oauthToken"`
+	ApiEndpoint string `json:"apiEndpoint"`
+	ApiKey      string `json:"apiKey"`
+	OAuthToken  string `json:"oauthToken"`
 }
 
 func GetConfig() *Config {

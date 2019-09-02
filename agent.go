@@ -3,13 +3,13 @@ package scopeagent
 import (
 	"errors"
 	"fmt"
+	"github.com/google/uuid"
+	"github.com/opentracing/opentracing-go"
+	"github.com/undefinedlabs/go-agent/tracer"
 	"os"
 	"runtime"
 	"strconv"
 	"sync"
-	"github.com/google/uuid"
-	"github.com/opentracing/opentracing-go"
-	"github.com/undefinedlabs/go-agent/tracer"
 )
 
 type Agent struct {
@@ -27,8 +27,8 @@ var (
 	once        sync.Once
 	GlobalAgent *Agent
 	version     = "0.1.0-dev"
-	gitDataOnce	sync.Once
-	gitData		*GitData
+	gitDataOnce sync.Once
+	gitData     *GitData
 )
 
 func init() {
