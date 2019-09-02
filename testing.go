@@ -7,6 +7,7 @@ import (
 	"github.com/opentracing/opentracing-go/log"
 	log2 "log"
 	"os"
+	"github.com/undefinedlabs/go-agent/errors"
 	"runtime"
 	"strings"
 	"sync"
@@ -79,28 +80,29 @@ func StartTest(t *testing.T) *Test {
 }
 
 func (test *Test) End() {
-	defer test.span.Finish()
-
 	if r := recover(); r != nil {
 		test.span.SetTag("test.status", "ERROR")
 		test.stdOut.restore(&os.Stdout)
 		test.stdErr.restore(&os.Stderr)
+		test.span.SetTag("error", true)
+		errors.LogError(test.span, r, 1)
 		test.span.Finish()
 		_ = GlobalAgent.Flush()
 		panic(r)
 	}
-
 	if test.t.Failed() {
 		test.span.SetTag("test.status", "FAIL")
+		test.span.SetTag("error", true)
 	} else if test.t.Skipped() {
 		test.span.SetTag("test.status", "SKIP")
 	} else {
 		test.span.SetTag("test.status", "PASS")
 	}
 
-	test.stdOut.restore(&os.Stdout)
+  test.stdOut.restore(&os.Stdout)
 	test.stdErr.restore(&os.Stderr)
 	log2.SetOutput(os.Stderr)
+  test.span.Finish()
 }
 
 func (test *Test) Context() context.Context {
