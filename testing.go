@@ -17,14 +17,14 @@ import (
 
 type Test struct {
 	testing.TB
-	ctx    context.Context
-	span   opentracing.Span
-	t      *testing.T
-	stdOut *StdIO
-	stdErr *StdIO
-	failReason string
+	ctx              context.Context
+	span             opentracing.Span
+	t                *testing.T
+	stdOut           *StdIO
+	stdErr           *StdIO
+	failReason       string
 	failReasonSource string
-	skipReason string
+	skipReason       string
 	skipReasonSource string
 }
 type StdIO struct {
