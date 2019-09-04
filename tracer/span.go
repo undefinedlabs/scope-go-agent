@@ -272,3 +272,14 @@ func (s *spanImpl) Operation() string {
 func (s *spanImpl) Start() time.Time {
 	return s.raw.Start
 }
+
+func (s *spanImpl) SetTraceAndSpanId(traceID uint64, spanId uint64) {
+	s.raw.Context.TraceID = traceID
+	s.raw.Context.SpanID = spanId
+}
+
+type ScopeSpan interface {
+	Span
+
+	SetTraceAndSpanId(traceID uint64, spanId uint64)
+}

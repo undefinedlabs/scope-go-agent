@@ -62,10 +62,10 @@ func StartTest(t *testing.T) *Test {
 
 	// Check if we have to read values from out of process context
 	if agentId, traceId, spanId, ok := getOutOfProcessContext(); ok {
-		currentContext := span.Context().(tracer.SpanContext)
+		scopeSpan := span.(tracer.ScopeSpan)
+		//fmt.Printf("Using AgentId: %s, TraceId: %x, SpanId. %x\n", agentId, traceId, spanId)
 		GlobalAgent.metadata[AgentID] = agentId
-		currentContext.TraceID = traceId
-		currentContext.SpanID = spanId
+		scopeSpan.SetTraceAndSpanId(traceId, spanId)
 	}
 
 	span.SetBaggageItem("trace.kind", "test")
