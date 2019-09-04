@@ -115,7 +115,7 @@ func getCoverage(coverageFile string, onlyExecuted bool) *coverage {
 				break
 			}
 			line = strings.TrimSuffix(line, "\n")
-			endFileToken := strings.Index(line, ":")
+			endFileToken := strings.LastIndex(line, ":")
 			file := line[:endFileToken]
 			line = line[endFileToken+1:]
 			if file == "mode" {
