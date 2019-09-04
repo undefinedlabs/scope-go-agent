@@ -35,13 +35,12 @@ const (
 
 	EventTestFailure = "test_failure"
 
+	LogEvent      = "log"
+	LogEventLevel = "log.level"
 
-	LogEvent			= "log"
-	LogEventLevel		= "log.level"
-
-	LogLevel_INFO		= "INFO"
-	LogLevel_WARNING 	= "WARNING"
-	LogLevel_ERROR		= "ERROR"
-	LogLevel_DEBUG		= "DEBUG"
-	LogLevel_VERBOSE	= "VERBOSE"
+	LogLevel_INFO    = "INFO"
+	LogLevel_WARNING = "WARNING"
+	LogLevel_ERROR   = "ERROR"
+	LogLevel_DEBUG   = "DEBUG"
+	LogLevel_VERBOSE = "VERBOSE"
 )
