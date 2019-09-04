@@ -177,7 +177,7 @@ ReferencesLoop:
 
 			refCtx := ref.ReferencedContext.(SpanContext)
 			sp.raw.Context.TraceID = refCtx.TraceID
-			sp.raw.Context.SpanID = randomID()
+			sp.raw.Context.SpanID = RandomID()
 			sp.raw.Context.Sampled = refCtx.Sampled
 			sp.raw.ParentSpanID = refCtx.SpanID
 
@@ -193,7 +193,7 @@ ReferencesLoop:
 	if sp.raw.Context.TraceID == 0 {
 		// No parent Span found; allocate new trace and span ids and determine
 		// the Sampled status.
-		sp.raw.Context.TraceID, sp.raw.Context.SpanID = randomID2()
+		sp.raw.Context.TraceID, sp.raw.Context.SpanID = RandomID2()
 		sp.raw.Context.Sampled = t.options.ShouldSample(sp.raw.Context.TraceID)
 	}
 
