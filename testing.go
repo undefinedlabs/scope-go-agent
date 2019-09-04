@@ -5,9 +5,9 @@ import (
 	"context"
 	"github.com/opentracing/opentracing-go"
 	"github.com/opentracing/opentracing-go/log"
+	"github.com/undefinedlabs/go-agent/errors"
 	log2 "log"
 	"os"
-	"github.com/undefinedlabs/go-agent/errors"
 	"runtime"
 	"strings"
 	"sync"
@@ -15,17 +15,18 @@ import (
 )
 
 type Test struct {
-	ctx  	context.Context
-	span 	opentracing.Span
-	t    	*testing.T
-	stdOut	*StdIO
-	stdErr	*StdIO
+	ctx         context.Context
+	span        opentracing.Span
+	t           *testing.T
+	stdOut      *StdIO
+	stdErr      *StdIO
+	loggerStdIO *StdIO
 }
 type StdIO struct {
-	oldIO		*os.File
-	readPipe	*os.File
-	writePipe	*os.File
-	sync		*sync.WaitGroup
+	oldIO     *os.File
+	readPipe  *os.File
+	writePipe *os.File
+	sync      *sync.WaitGroup
 }
 
 func InstrumentTest(t *testing.T, f func(ctx context.Context, t *testing.T)) {
@@ -56,16 +57,18 @@ func StartTest(t *testing.T) *Test {
 	span.SetBaggageItem("trace.kind", "test")
 
 	// Replaces stdout and stderr
-	stdOut := newStdIO(&os.Stdout)
-	stdErr := newStdIO(&os.Stderr)
-	log2.SetOutput(stdOut.writePipe)
+	loggerStdIO := newStdIO(&os.Stderr, false)
+	stdOut := newStdIO(&os.Stdout, true)
+	stdErr := newStdIO(&os.Stderr, true)
+	log2.SetOutput(loggerStdIO.writePipe)
 
 	test := &Test{
-		ctx:  ctx,
-		span: span,
-		t:    t,
-		stdOut: stdOut,
-		stdErr: stdErr,
+		ctx:         ctx,
+		span:        span,
+		t:           t,
+		stdOut:      stdOut,
+		stdErr:      stdErr,
+		loggerStdIO: loggerStdIO,
 	}
 
 	// Starts stdIO pipe handlers
@@ -75,6 +78,9 @@ func StartTest(t *testing.T) *Test {
 	if test.stdErr != nil {
 		go stdIOHandler(test, test.stdErr, true)
 	}
+	if test.loggerStdIO != nil {
+		go loggerStdIOHandler(test, test.loggerStdIO)
+	}
 
 	return test
 }
@@ -82,8 +88,10 @@ func StartTest(t *testing.T) *Test {
 func (test *Test) End() {
 	if r := recover(); r != nil {
 		test.span.SetTag("test.status", "ERROR")
-		test.stdOut.restore(&os.Stdout)
-		test.stdErr.restore(&os.Stderr)
+		test.stdOut.restore(&os.Stdout, true)
+		test.stdErr.restore(&os.Stderr, true)
+		test.loggerStdIO.restore(&os.Stderr, false)
+		log2.SetOutput(os.Stderr)
 		test.span.SetTag("error", true)
 		errors.LogError(test.span, r, 1)
 		test.span.Finish()
@@ -103,10 +111,11 @@ func (test *Test) End() {
 		test.span.SetTag("test.status", "PASS")
 	}
 
-  test.stdOut.restore(&os.Stdout)
-	test.stdErr.restore(&os.Stderr)
+	test.stdOut.restore(&os.Stdout, true)
+	test.stdErr.restore(&os.Stderr, true)
+	test.loggerStdIO.restore(&os.Stderr, false)
 	log2.SetOutput(os.Stderr)
-  test.span.Finish()
+	test.span.Finish()
 }
 
 func (test *Test) Context() context.Context {
@@ -114,7 +123,7 @@ func (test *Test) Context() context.Context {
 }
 
 // Handles the StdIO pipe for stdout and stderr
-func stdIOHandler (test *Test, stdio *StdIO, isError bool) {
+func stdIOHandler(test *Test, stdio *StdIO, isError bool) {
 	stdio.sync.Add(1)
 	defer stdio.sync.Done()
 	reader := bufio.NewReader(stdio.readPipe)
@@ -140,28 +149,72 @@ func stdIOHandler (test *Test, stdio *StdIO, isError bool) {
 	}
 }
 
+// Handles the StdIO for a logger
+func loggerStdIOHandler(test *Test, stdio *StdIO) {
+	stdio.sync.Add(1)
+	defer stdio.sync.Done()
+	reader := bufio.NewReader(stdio.readPipe)
+	for {
+		line, err := reader.ReadString('\n')
+		if err != nil {
+			break
+		}
+		nLine := line
+		flags := log2.Flags()
+		if flags&(log2.Ldate|log2.Ltime|log2.Lmicroseconds) != 0 {
+			if flags&log2.Ldate != 0 {
+				nLine = nLine[11:]
+			}
+			if flags&(log2.Ltime|log2.Lmicroseconds) != 0 {
+				nLine = nLine[8:]
+				if flags&log2.Lmicroseconds != 0 {
+					nLine = nLine[7:]
+				}
+				nLine = nLine[1:]
+			}
+		}
+		test.span.LogFields(
+			log.String(EventType, LogEvent),
+			log.String(EventMessage, nLine),
+			log.String(LogEventLevel, LogLevel_VERBOSE),
+		)
+
+		if stdio.oldIO != nil {
+			_, _ = stdio.oldIO.WriteString(line)
+		}
+	}
+}
+
 // Creates and replaces a file instance with a pipe
-func newStdIO(file **os.File) *StdIO {
+func newStdIO(file **os.File, replace bool) *StdIO {
 	rPipe, wPipe, err := os.Pipe()
 	if err == nil {
 		stdIO := &StdIO{
-			oldIO:     *file,
 			readPipe:  rPipe,
 			writePipe: wPipe,
 			sync:      new(sync.WaitGroup),
 		}
-		*file = wPipe
+		if file != nil {
+			stdIO.oldIO = *file
+			if replace {
+				*file = wPipe
+			}
+		}
 		return stdIO
 	}
 	return nil
 }
 
 // Restores the old file instance
-func (stdIO *StdIO) restore(file **os.File) {
-	_ = (*file).Sync()
+func (stdIO *StdIO) restore(file **os.File, replace bool) {
+	if file != nil {
+		_ = (*file).Sync()
+	}
 	_ = stdIO.readPipe.Sync()
 	_ = stdIO.writePipe.Close()
 	_ = stdIO.readPipe.Close()
 	stdIO.sync.Wait()
-	*file = stdIO.oldIO
+	if replace && file != nil {
+		*file = stdIO.oldIO
+	}
 }
