@@ -3,6 +3,7 @@ package scopeagent
 import (
 	"bytes"
 	"compress/gzip"
+	"encoding/json"
 	"fmt"
 	"github.com/google/uuid"
 	"github.com/undefinedlabs/go-agent/tracer"
@@ -76,7 +77,7 @@ func (r *SpanRecorder) SendSpans() error {
 			},
 			"parent_span_id": parentSpanID,
 			"operation":      span.Operation,
-			"start":          span.Start.Format(time.RFC3339),
+			"start":          span.Start.Format(time.RFC3339Nano),
 			"duration":       span.Duration.Nanoseconds(),
 			"tags":           span.Tags,
 		})
@@ -95,7 +96,7 @@ func (r *SpanRecorder) SendSpans() error {
 					"span_id":  fmt.Sprintf("%x", span.Context.SpanID),
 					"event_id": eventId.String(),
 				},
-				"timestamp": event.Timestamp.Format(time.RFC3339),
+				"timestamp": event.Timestamp.Format(time.RFC3339Nano),
 				"fields":    fields,
 			})
 		}
@@ -105,6 +106,11 @@ func (r *SpanRecorder) SendSpans() error {
 		"metadata": r.agent.metadata,
 		"spans":    spans,
 		"events":   events,
+	}
+
+	if r.agent.debugMode {
+		jsonPayLoad, _ := json.Marshal(payload)
+		fmt.Printf("Payload: %s\n\n", string(jsonPayLoad))
 	}
 
 	binaryPayload, err := msgpack.Marshal(payload)
