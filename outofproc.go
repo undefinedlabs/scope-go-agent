@@ -12,6 +12,13 @@ import (
 	"testing"
 )
 
+const(
+	EnvTestRun      = "SCOPE_TESTRUN"
+	EnvForceAgentId = "SCOPE_FORCE_AGENTID"
+	EnvForceTraceId = "SCOPE_FORCE_TRACEID"
+	EnvForceSpanId  = "SCOPE_FORCE_SPANID"
+)
+
 type coverage struct {
 	Type    string         `json:"type" msgpack:"type"`
 	Version string         `json:"version" msgpack:"version"`
@@ -24,7 +31,7 @@ type fileCoverage struct {
 }
 
 func checkIfNewTestProcessNeeded(t *testing.T, funcName string) bool {
-	if _, exist := os.LookupEnv("SCOPE_TESTRUN"); !exist {
+	if _, exist := os.LookupEnv(EnvTestRun); !exist {
 		t.Parallel()
 
 		agentId := GlobalAgent.metadata[AgentID].(string)
@@ -39,10 +46,10 @@ func checkIfNewTestProcessNeeded(t *testing.T, funcName string) bool {
 		}
 		fmt.Printf("Executing test: %s\n", funcName)
 		cmd := exec.Command(command, commandArgs...)
-		cmd.Env = append(cmd.Env, "SCOPE_TESTRUN=1")
-		cmd.Env = append(cmd.Env, "SCOPE_FORCE_AGENTID="+agentId)
-		cmd.Env = append(cmd.Env, "SCOPE_FORCE_TRACEID="+strconv.FormatUint(traceId, 10))
-		cmd.Env = append(cmd.Env, "SCOPE_FORCE_SPANID="+strconv.FormatUint(spanId, 10))
+		cmd.Env = append(cmd.Env, EnvTestRun+ "=1")
+		cmd.Env = append(cmd.Env, EnvForceAgentId+ "=" + agentId)
+		cmd.Env = append(cmd.Env, EnvForceTraceId+ "=" + strconv.FormatUint(traceId, 10))
+		cmd.Env = append(cmd.Env, EnvForceSpanId+ "=" + strconv.FormatUint(spanId, 10))
 		output, _ := cmd.CombinedOutput()
 
 		coverageData := getCoverage(coverageFile)
@@ -62,18 +69,18 @@ func checkIfNewTestProcessNeeded(t *testing.T, funcName string) bool {
 }
 
 func checkIfFlushNeeded() {
-	if _, exist := os.LookupEnv("SCOPE_TESTRUN"); exist {
+	if _, exist := os.LookupEnv(EnvTestRun); exist {
 		GlobalAgent.Stop()
 	}
 }
 
 func getOutOfProcessContext() (agentId string, traceId uint64, spanId uint64, ok bool) {
-	if _, exist := os.LookupEnv("SCOPE_TESTRUN"); exist {
-		agentId = os.Getenv("SCOPE_FORCE_AGENTID")
-		if traceIdStr, set := os.LookupEnv("SCOPE_FORCE_TRACEID"); set {
+	if _, exist := os.LookupEnv(EnvTestRun); exist {
+		agentId = os.Getenv(EnvForceAgentId)
+		if traceIdStr, set := os.LookupEnv(EnvForceTraceId); set {
 			traceId, _ = strconv.ParseUint(traceIdStr, 10, 64)
 		}
-		if spanIdStr, set := os.LookupEnv("SCOPE_FORCE_SPANID"); set {
+		if spanIdStr, set := os.LookupEnv(EnvForceSpanId); set {
 			spanId, _ = strconv.ParseUint(spanIdStr, 10, 64)
 		}
 		ok = traceId != 0 && spanId != 0
