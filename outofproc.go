@@ -45,7 +45,7 @@ func checkIfNewTestProcessNeeded(t *testing.T, funcName string) bool {
 		coverageFile := fmt.Sprintf(".%s-%s.cout", agentId, funcName)
 		command := os.Args[0]
 		var commandArgs []string
-		if testing.CoverMode() == "set" {
+		if testing.CoverMode() != "" {
 			commandArgs = []string{
 				"-test.timeout=30s",
 				fmt.Sprintf("-test.run=^(%s)$", funcName),
