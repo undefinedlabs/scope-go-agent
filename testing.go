@@ -3,16 +3,17 @@ package scopeagent
 import (
 	"bufio"
 	"context"
-	"github.com/opentracing/opentracing-go"
-	"github.com/opentracing/opentracing-go/log"
-	"github.com/undefinedlabs/go-agent/errors"
-	"github.com/undefinedlabs/go-agent/tracer"
 	log2 "log"
 	"os"
 	"runtime"
 	"strings"
 	"sync"
 	"testing"
+
+	"github.com/opentracing/opentracing-go"
+	"github.com/opentracing/opentracing-go/log"
+	"github.com/undefinedlabs/go-agent/errors"
+	"github.com/undefinedlabs/go-agent/tracer"
 )
 
 type Test struct {
