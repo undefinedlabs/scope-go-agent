@@ -5,9 +5,9 @@ import (
 	"context"
 	"github.com/opentracing/opentracing-go"
 	"github.com/opentracing/opentracing-go/log"
+	"github.com/undefinedlabs/go-agent/errors"
 	log2 "log"
 	"os"
-	"github.com/undefinedlabs/go-agent/errors"
 	"runtime"
 	"strings"
 	"sync"
@@ -15,17 +15,17 @@ import (
 )
 
 type Test struct {
-	ctx  	context.Context
-	span 	opentracing.Span
-	t    	*testing.T
-	stdOut	*StdIO
-	stdErr	*StdIO
+	ctx    context.Context
+	span   opentracing.Span
+	t      *testing.T
+	stdOut *StdIO
+	stdErr *StdIO
 }
 type StdIO struct {
-	oldIO		*os.File
-	readPipe	*os.File
-	writePipe	*os.File
-	sync		*sync.WaitGroup
+	oldIO     *os.File
+	readPipe  *os.File
+	writePipe *os.File
+	sync      *sync.WaitGroup
 }
 
 func InstrumentTest(t *testing.T, f func(ctx context.Context, t *testing.T)) {
@@ -61,9 +61,9 @@ func StartTest(t *testing.T) *Test {
 	log2.SetOutput(stdOut.writePipe)
 
 	test := &Test{
-		ctx:  ctx,
-		span: span,
-		t:    t,
+		ctx:    ctx,
+		span:   span,
+		t:      t,
 		stdOut: stdOut,
 		stdErr: stdErr,
 	}
@@ -103,10 +103,10 @@ func (test *Test) End() {
 		test.span.SetTag("test.status", "PASS")
 	}
 
-  test.stdOut.restore(&os.Stdout)
+	test.stdOut.restore(&os.Stdout)
 	test.stdErr.restore(&os.Stderr)
 	log2.SetOutput(os.Stderr)
-  test.span.Finish()
+	test.span.Finish()
 }
 
 func (test *Test) Context() context.Context {
@@ -114,7 +114,7 @@ func (test *Test) Context() context.Context {
 }
 
 // Handles the StdIO pipe for stdout and stderr
-func stdIOHandler (test *Test, stdio *StdIO, isError bool) {
+func stdIOHandler(test *Test, stdio *StdIO, isError bool) {
 	stdio.sync.Add(1)
 	defer stdio.sync.Done()
 	reader := bufio.NewReader(stdio.readPipe)
