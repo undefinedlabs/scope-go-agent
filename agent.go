@@ -13,20 +13,23 @@ import (
 )
 
 type Agent struct {
+	Tracer opentracing.Tracer
+
 	scopeEndpoint string
 	apiKey        string
-	version       string
-	metadata      map[string]interface{}
-	debugMode     bool
 
-	recorder *SpanRecorder
-	tracer   opentracing.Tracer
+	version   string
+	metadata  map[string]interface{}
+	debugMode bool
+	recorder  *SpanRecorder
 }
 
 var (
-	once        sync.Once
 	GlobalAgent *Agent
-	version     = "0.1.0-dev"
+
+	version = "0.1.0-dev"
+
+	once        sync.Once
 	gitDataOnce sync.Once
 	gitData     *GitData
 )
@@ -36,7 +39,7 @@ func init() {
 		GlobalAgent = NewAgent()
 
 		if getBoolEnv("SCOPE_SET_GLOBAL_TRACER", true) {
-			opentracing.SetGlobalTracer(GlobalAgent.tracer)
+			opentracing.SetGlobalTracer(GlobalAgent.Tracer)
 		}
 
 		if getBoolEnv("SCOPE_AUTO_INSTRUMENT", true) {
@@ -124,7 +127,7 @@ func NewAgent() *Agent {
 	a.metadata[Diff] = GetGitDiff()
 
 	a.recorder = NewSpanRecorder(a)
-	a.tracer = tracer.NewWithOptions(tracer.Options{
+	a.Tracer = tracer.NewWithOptions(tracer.Options{
 		Recorder: a.recorder,
 		ShouldSample: func(traceID uint64) bool {
 			return true
