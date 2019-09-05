@@ -4,9 +4,9 @@ orbs:
   docker-publish: circleci/docker-publish@0.1.4
 
 jobs:
-  test-112: &common-test
+  test-111: &common-test
     docker:
-      - image: golang:1.12
+      - image: golang:1.11
     working_directory: /go/src/github.com/undefinedlabs/go-agent
     steps:
       - checkout
@@ -25,16 +25,19 @@ jobs:
             curl -H 'Cache-Control: no-cache' https://raw.githubusercontent.com/fossas/fossa-cli/master/install.sh | bash
             fossa analyze
 
-  test-111:
+  test-112:
     <<: *common-test
     docker:
-      - image: golang:1.11
+      - image: golang:1.12
+
+  test-113:
+    <<: *common-test
+    docker:
+      - image: golang:1.13
 
 workflows:
   build:
     jobs:
-      - test-112:
-        filters:
-          tags:
-            only: /.*/
       - test-111
+      - test-112
+      - test-113
