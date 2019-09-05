@@ -29,11 +29,10 @@ go get -u github.com/undefinedlabs/go-agent
 
 ## Usage
 
-In order to instrument your tests that use Go's native [`testing`](https://golang.org/pkg/testing/) package, you
-have to follow these steps:
+In order to instrument your tests that use Go's native [`testing`](https://golang.org/pkg/testing/) package, follow these steps:
  
-1. Write a `TestMain(m *testing.M)` function that calls `GlobalAgent.Stop()` before exiting.
-2. Wrap each test using a helper function called `InstrumentTest`.
+1. Write a `TestMain(*testing.M)` function that calls `scopeagent.GlobalAgent.Stop()` before exiting.
+2. Call `scopeagent.StartTest(*testing.T)` at the beginning of each test, which will return a `scopeagent.Test` object, and `defer test.End()`.
 
 For example:
 
