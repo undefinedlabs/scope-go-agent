@@ -16,14 +16,14 @@ import (
 
 type SpanRecorder struct {
 	sync.RWMutex
-	t 			tomb.Tomb
+	t tomb.Tomb
 
-	agent 			*Agent
-	spans 			[]tracer.RawSpan
-	flushFrequency	time.Duration
-	totalSend		int
-	okSend			int
-	koSend			int
+	agent          *Agent
+	spans          []tracer.RawSpan
+	flushFrequency time.Duration
+	totalSend      int
+	okSend         int
+	koSend         int
 }
 
 func NewSpanRecorder(agent *Agent) *SpanRecorder {
@@ -184,6 +184,7 @@ func (r *SpanRecorder) SendSpans() error {
 				break
 			} else {
 				lastError = errors.New(resp.Status)
+				time.Sleep(500 * time.Millisecond)
 			}
 		} else {
 			break

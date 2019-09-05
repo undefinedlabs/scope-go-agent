@@ -14,10 +14,10 @@ type Agent struct {
 	scopeEndpoint string
 	apiKey        string
 	version       string
-	agentId		  string
+	agentId       string
 	metadata      map[string]interface{}
 	debugMode     bool
-	testingMode	  bool
+	testingMode   bool
 
 	recorder *SpanRecorder
 	tracer   opentracing.Tracer
