@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"os"
 	"os/user"
+	"runtime"
 )
 
 type Config struct {
@@ -22,7 +23,12 @@ type Profile struct {
 func GetConfig() *Config {
 	currentUser, _ := user.Current()
 	homeDir := currentUser.HomeDir
-	filePath := fmt.Sprintf("%s/.scope/config.json", homeDir)
+	var filePath string
+	if runtime.GOOS == "windows" {
+		filePath = fmt.Sprintf("%s/AppData/Roaming/scope/config.json", homeDir)
+	} else {
+		filePath = fmt.Sprintf("%s/.scope/config.json", homeDir)
+	}
 	file, err := os.Open(filePath)
 	if err != nil {
 		return nil

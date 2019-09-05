@@ -3,8 +3,10 @@ package scopeagent
 import (
 	"bufio"
 	"context"
+	"fmt"
 	"github.com/opentracing/opentracing-go"
 	"github.com/opentracing/opentracing-go/log"
+	"github.com/undefinedlabs/go-agent/ast"
 	"github.com/undefinedlabs/go-agent/errors"
 	log2 "log"
 	"os"
@@ -49,10 +51,17 @@ func StartTest(t *testing.T) *Test {
 		packageName = strings.Join(parts[0:pl-1], ".")
 	}
 
+	sourceBounds := ast.GetFuncSource(pc)
+	var testCode string
+	if sourceBounds != nil {
+		testCode = fmt.Sprintf("%s:%d:%d", sourceBounds.File, sourceBounds.Start.Line, sourceBounds.End.Line)
+	}
+
 	span, ctx := opentracing.StartSpanFromContext(context.Background(), t.Name(), opentracing.Tags{
 		"span.kind":  "test",
 		"test.name":  funcName,
 		"test.suite": packageName,
+		"test.code":  testCode,
 	})
 	span.SetBaggageItem("trace.kind", "test")
 
