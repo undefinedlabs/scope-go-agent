@@ -1,6 +1,7 @@
 package ast
 
 import (
+	"fmt"
 	"go/ast"
 	"go/parser"
 	"go/token"
@@ -47,6 +48,7 @@ func GetFuncSource(pc uintptr) *MethodCodeBoundaries {
 		fSet := token.NewFileSet()
 		f, err := parser.ParseFile(fSet, mFile, nil, 0)
 		if err != nil {
+			fmt.Printf("%v\n", err)
 			return nil
 		}
 
