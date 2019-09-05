@@ -68,7 +68,19 @@ func checkIfNewTestProcessNeeded(t *testing.T, funcName string) bool {
 		coverageData := getCoverage(coverageFile, true)
 		sendCoveragePatch(coverageData, agentId, spanIdStr)
 
-		fmt.Printf("* Test: %s\n%s\n", funcName, string(output))
+		resString :=  string(output)
+		var resArray []string
+		tmpArray := strings.Split(resString,"\n")
+		for _, line := range tmpArray {
+			line = strings.TrimSpace(line)
+			if line != "" && line != "PASS" && line != "FAIL" {
+				resArray = append(resArray, line)
+			}
+		}
+		resString = strings.Join(resArray, "\n")
+		if resString != "" {
+			fmt.Println(resString)
+		}
 
 		if cmd.ProcessState.ExitCode() == 0 {
 			t.SkipNow()
