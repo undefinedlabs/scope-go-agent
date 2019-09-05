@@ -161,22 +161,24 @@ func loggerStdIOHandler(test *Test, stdio *StdIO) {
 		}
 		nLine := line
 		flags := log2.Flags()
+		sliceCount := 0
 		if flags&(log2.Ldate|log2.Ltime|log2.Lmicroseconds) != 0 {
 			if flags&log2.Ldate != 0 {
-				nLine = nLine[11:]
+				sliceCount = sliceCount + 11
 			}
 			if flags&(log2.Ltime|log2.Lmicroseconds) != 0 {
-				nLine = nLine[8:]
+				sliceCount = sliceCount + 9
 				if flags&log2.Lmicroseconds != 0 {
-					nLine = nLine[7:]
+					sliceCount = sliceCount + 7
 				}
-				nLine = nLine[1:]
 			}
+			nLine = nLine[sliceCount:]
 		}
 		test.span.LogFields(
 			log.String(EventType, LogEvent),
 			log.String(EventMessage, nLine),
 			log.String(LogEventLevel, LogLevel_VERBOSE),
+			log.String("log.logger", "std.Logger"),
 		)
 
 		if stdio.oldIO != nil {
