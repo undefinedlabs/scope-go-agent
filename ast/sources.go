@@ -10,20 +10,20 @@ import (
 )
 
 var (
-	methodCodes 	map[string]map[string]*MethodCodeBoundaries
-	mutex			sync.Mutex
+	methodCodes map[string]map[string]*MethodCodeBoundaries
+	mutex       sync.Mutex
 )
 
 type MethodCodeBoundaries struct {
 	Package string
-	Name 	string
-	File	string
-	Start	CodePos
-	End		CodePos
+	Name    string
+	File    string
+	Start   CodePos
+	End     CodePos
 }
 type CodePos struct {
-	Line 	int
-	Column 	int
+	Line   int
+	Column int
 }
 
 // Gets the function source code boundaries from the caller method
@@ -61,8 +61,8 @@ func GetFuncSource(pc uintptr) *MethodCodeBoundaries {
 						end := fSet.PositionFor(bEnd, true)
 						methodCode := MethodCodeBoundaries{
 							Package: packageName,
-							Name: fDecl.Name.String(),
-							File: mFile,
+							Name:    fDecl.Name.String(),
+							File:    mFile,
 							Start: CodePos{
 								Line:   pos.Line,
 								Column: pos.Column,

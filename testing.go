@@ -5,8 +5,8 @@ import (
 	"context"
 	"fmt"
 	"github.com/opentracing/opentracing-go"
-	"github.com/undefinedlabs/go-agent/ast"
 	"github.com/opentracing/opentracing-go/log"
+	"github.com/undefinedlabs/go-agent/ast"
 	"github.com/undefinedlabs/go-agent/errors"
 	log2 "log"
 	"os"
@@ -60,7 +60,7 @@ func StartTest(t *testing.T) *Test {
 		"span.kind":  "test",
 		"test.name":  funcName,
 		"test.suite": packageName,
-		"test.code": testCode,
+		"test.code":  testCode,
 	})
 	span.SetBaggageItem("trace.kind", "test")
 
