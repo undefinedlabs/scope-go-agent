@@ -1,6 +1,7 @@
 package ast
 
 import (
+	"fmt"
 	"go/ast"
 	"go/parser"
 	"go/token"
@@ -47,6 +48,7 @@ func GetFuncSource(pc uintptr) *MethodCodeBoundaries {
 		fSet := token.NewFileSet()
 		f, err := parser.ParseFile(fSet, mFile, nil, 0)
 		if err != nil {
+			fmt.Printf("%v\n", err)
 			return nil
 		}
 
@@ -80,7 +82,7 @@ func GetFuncSource(pc uintptr) *MethodCodeBoundaries {
 	}
 	mutex.Unlock()
 
-	funcName := mFunc.Name()
-	funcNameParts := strings.Split(funcName, ".")
-	return methodCodes[mFile][funcNameParts[1]]
+	parts := strings.Split(mFunc.Name(), ".")
+	funcName := parts[len(parts)-1]
+	return methodCodes[mFile][funcName]
 }
