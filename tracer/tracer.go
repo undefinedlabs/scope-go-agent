@@ -1,9 +1,10 @@
 package tracer
 
 import (
+	"github.com/undefinedlabs/go-agent/ntp"
 	"time"
 
-	opentracing "github.com/opentracing/opentracing-go"
+	"github.com/opentracing/opentracing-go"
 )
 
 // Tracer extends the opentracing.Tracer interface with methods to
@@ -156,7 +157,7 @@ func (t *tracerImpl) StartSpanWithOptions(
 	// Start time.
 	startTime := opts.StartTime
 	if startTime.IsZero() {
-		startTime = time.Now()
+		startTime = ntp.Now()
 	}
 
 	// Tags.

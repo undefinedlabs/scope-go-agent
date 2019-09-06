@@ -1,11 +1,10 @@
 package tracer
 
 import (
+	"github.com/stretchr/testify/assert"
+	"github.com/undefinedlabs/go-agent/ntp"
 	"sync/atomic"
 	"testing"
-	"time"
-
-	"github.com/stretchr/testify/assert"
 )
 
 func TestInMemoryRecorderSpans(t *testing.T) {
@@ -14,7 +13,7 @@ func TestInMemoryRecorderSpans(t *testing.T) {
 	span := RawSpan{
 		Context:   SpanContext{},
 		Operation: "test-span",
-		Start:     time.Now(),
+		Start:     ntp.Now(),
 		Duration:  -1,
 	}
 	apiRecorder.RecordSpan(span)
