@@ -9,7 +9,7 @@ import (
 
 	"github.com/davecgh/go-spew/spew"
 	opentracing "github.com/opentracing/opentracing-go"
-	"github.com/undefinedlabs/go-agent/tracer"
+	"go.undefinedlabs.com/scopeagent/tracer"
 )
 
 type verbatimCarrier struct {

@@ -1,11 +1,11 @@
-package scopeagent
+package scopeagent // import "go.undefinedlabs.com/scopeagent"
 
 import (
 	"errors"
 	"fmt"
 	"github.com/google/uuid"
 	"github.com/opentracing/opentracing-go"
-	"github.com/undefinedlabs/go-agent/tracer"
+	"go.undefinedlabs.com/scopeagent/tracer"
 	"os"
 	"runtime"
 	"strconv"
