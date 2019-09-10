@@ -37,7 +37,7 @@ func GetFuncSourceFromCaller(skip int) *MethodCodeBoundaries {
 func GetFuncSourceForName(pc uintptr, name string) *MethodCodeBoundaries {
 	mFunc := runtime.FuncForPC(pc)
 	mFile, _ := mFunc.FileLine(pc)
-	fileCode, err := loadCodesForFile(mFile)
+	fileCode, err := getCodesForFile(mFile)
 	if err != nil {
 		fmt.Printf("%v\n", err)
 		return nil
@@ -49,7 +49,7 @@ func GetFuncSourceForName(pc uintptr, name string) *MethodCodeBoundaries {
 func GetFuncSource(pc uintptr) *MethodCodeBoundaries {
 	mFunc := runtime.FuncForPC(pc)
 	mFile, _ := mFunc.FileLine(pc)
-	fileCode, err := loadCodesForFile(mFile)
+	fileCode, err := getCodesForFile(mFile)
 	if err != nil {
 		fmt.Printf("%v\n", err)
 		return nil
@@ -60,7 +60,7 @@ func GetFuncSource(pc uintptr) *MethodCodeBoundaries {
 	return fileCode[funcName]
 }
 
-func loadCodesForFile(file string) (map[string]*MethodCodeBoundaries, error) {
+func getCodesForFile(file string) (map[string]*MethodCodeBoundaries, error) {
 	mutex.Lock()
 	if methodCodes == nil {
 		methodCodes = map[string]map[string]*MethodCodeBoundaries{}
