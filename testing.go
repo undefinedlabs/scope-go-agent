@@ -137,7 +137,7 @@ func (test *Test) Context() context.Context {
 	return test.ctx
 }
 
-// Runs a child test
+// Runs a sub test
 func (test *Test) Run(name string, f func(t *testing.T)) {
 	pc, _, _, _ := runtime.Caller(1)
 	test.t.Run(name, func(childT *testing.T) {
