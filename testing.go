@@ -13,9 +13,9 @@ import (
 
 	"github.com/opentracing/opentracing-go"
 	"github.com/opentracing/opentracing-go/log"
-	"github.com/undefinedlabs/go-agent/ast"
-	"github.com/undefinedlabs/go-agent/errors"
-	"github.com/undefinedlabs/go-agent/tracer"
+	"go.undefinedlabs.com/scopeagent/ast"
+	"go.undefinedlabs.com/scopeagent/errors"
+	"go.undefinedlabs.com/scopeagent/tracer"
 )
 
 type Test struct {
