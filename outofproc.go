@@ -6,7 +6,7 @@ import (
 	"compress/gzip"
 	"fmt"
 	"github.com/google/uuid"
-	"github.com/undefinedlabs/go-agent/tracer"
+	"go.undefinedlabs.com/scopeagent/tracer"
 	"github.com/vmihailenco/msgpack"
 	"net/http"
 	"os"
@@ -64,13 +64,12 @@ func checkIfNewTestProcessNeeded(t *testing.T, funcName string) bool {
 		cmd.Env = append(cmd.Env, EnvForceTraceId+"="+traceIdStr)
 		cmd.Env = append(cmd.Env, EnvForceSpanId+"="+spanIdStr)
 		output, _ := cmd.CombinedOutput()
-
 		coverageData := getCoverage(coverageFile, true)
 		sendCoveragePatch(coverageData, agentId, spanIdStr)
 
-		resString :=  string(output)
+		resString := string(output)
 		var resArray []string
-		tmpArray := strings.Split(resString,"\n")
+		tmpArray := strings.Split(resString, "\n")
 		for _, line := range tmpArray {
 			line = strings.TrimSpace(line)
 			if line != "" && line != "PASS" && line != "FAIL" {
