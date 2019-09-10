@@ -39,19 +39,25 @@ func InstrumentTest(t *testing.T, f func(ctx context.Context, t *testing.T)) {
 
 func StartTest(t *testing.T) *Test {
 	pc, _, _, _ := runtime.Caller(1)
-	parts := strings.Split(runtime.FuncForPC(pc).Name(), ".")
-	pl := len(parts)
-	packageName := ""
-	funcName := parts[pl-1]
+	return startTestFromCaller(t, pc)
+}
 
-	if parts[pl-2][0] == '(' {
-		funcName = parts[pl-2] + "." + funcName
-		packageName = strings.Join(parts[0:pl-2], ".")
-	} else {
-		packageName = strings.Join(parts[0:pl-1], ".")
+func startTestFromCaller(t *testing.T, pc uintptr) *Test {
+	fullTestName := t.Name()
+	testNameSlash := strings.IndexByte(fullTestName, '/')
+	if testNameSlash < 0 {
+		testNameSlash = len(fullTestName)
 	}
+	funcName := fullTestName[:testNameSlash]
 
-	sourceBounds := ast.GetFuncSource(pc)
+	funcFullName := runtime.FuncForPC(pc).Name()
+	funcNameIndex := strings.LastIndex(funcFullName, funcName)
+	if funcNameIndex < 1 {
+		funcNameIndex = len(funcFullName)
+	}
+	packageName := funcFullName[:funcNameIndex-1]
+
+	sourceBounds := ast.GetFuncSourceForName(pc, funcName)
 	var testCode string
 	if sourceBounds != nil {
 		testCode = fmt.Sprintf("%s:%d:%d", sourceBounds.File, sourceBounds.Start.Line, sourceBounds.End.Line)
@@ -59,7 +65,7 @@ func StartTest(t *testing.T) *Test {
 
 	span, ctx := opentracing.StartSpanFromContext(context.Background(), t.Name(), opentracing.Tags{
 		"span.kind":  "test",
-		"test.name":  funcName,
+		"test.name":  fullTestName,
 		"test.suite": packageName,
 		"test.code":  testCode,
 	})
@@ -129,6 +135,16 @@ func (test *Test) End() {
 
 func (test *Test) Context() context.Context {
 	return test.ctx
+}
+
+// Runs a child test
+func (test *Test) Run(name string, f func(t *testing.T)) {
+	pc, _, _, _ := runtime.Caller(1)
+	test.t.Run(name, func(childT *testing.T) {
+		childTest := startTestFromCaller(childT, pc)
+		defer childTest.End()
+		f(childT)
+	})
 }
 
 // Handles the StdIO pipe for stdout and stderr

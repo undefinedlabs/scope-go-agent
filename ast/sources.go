@@ -34,22 +34,44 @@ func GetFuncSourceFromCaller(skip int) *MethodCodeBoundaries {
 }
 
 // Gets the function source code boundaries from a method
+func GetFuncSourceForName(pc uintptr, name string) *MethodCodeBoundaries {
+	mFunc := runtime.FuncForPC(pc)
+	mFile, _ := mFunc.FileLine(pc)
+	fileCode, err := loadCodesForFile(mFile)
+	if err != nil {
+		fmt.Printf("%v\n", err)
+		return nil
+	}
+	return fileCode[name]
+}
+
+// Gets the function source code boundaries from a method
 func GetFuncSource(pc uintptr) *MethodCodeBoundaries {
 	mFunc := runtime.FuncForPC(pc)
 	mFile, _ := mFunc.FileLine(pc)
+	fileCode, err := loadCodesForFile(mFile)
+	if err != nil {
+		fmt.Printf("%v\n", err)
+		return nil
+	}
 
+	parts := strings.Split(mFunc.Name(), ".")
+	funcName := parts[len(parts)-1]
+	return fileCode[funcName]
+}
+
+func loadCodesForFile(file string) (map[string]*MethodCodeBoundaries, error) {
 	mutex.Lock()
 	if methodCodes == nil {
 		methodCodes = map[string]map[string]*MethodCodeBoundaries{}
 	}
-	if methodCodes[mFile] == nil {
-		methodCodes[mFile] = map[string]*MethodCodeBoundaries{}
+	if methodCodes[file] == nil {
+		methodCodes[file] = map[string]*MethodCodeBoundaries{}
 
 		fSet := token.NewFileSet()
-		f, err := parser.ParseFile(fSet, mFile, nil, 0)
+		f, err := parser.ParseFile(fSet, file, nil, 0)
 		if err != nil {
-			fmt.Printf("%v\n", err)
-			return nil
+			return nil, err
 		}
 
 		packageName := f.Name.String()
@@ -64,7 +86,7 @@ func GetFuncSource(pc uintptr) *MethodCodeBoundaries {
 						methodCode := MethodCodeBoundaries{
 							Package: packageName,
 							Name:    fDecl.Name.String(),
-							File:    mFile,
+							File:    file,
 							Start: CodePos{
 								Line:   pos.Line,
 								Column: pos.Column,
@@ -74,15 +96,12 @@ func GetFuncSource(pc uintptr) *MethodCodeBoundaries {
 								Column: end.Column,
 							},
 						}
-						methodCodes[mFile][methodCode.Name] = &methodCode
+						methodCodes[file][methodCode.Name] = &methodCode
 					}
 				}
 			}
 		}
 	}
 	mutex.Unlock()
-
-	parts := strings.Split(mFunc.Name(), ".")
-	funcName := parts[len(parts)-1]
-	return methodCodes[mFile][funcName]
+	return methodCodes[file], nil
 }
