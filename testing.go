@@ -71,7 +71,8 @@ func startTestFromCaller(t *testing.T, pc uintptr) *Test {
 		testCode = fmt.Sprintf("%s:%d:%d", sourceBounds.File, sourceBounds.Start.Line, sourceBounds.End.Line)
 	}
 
-	span, ctx := opentracing.StartSpanFromContext(context.Background(), t.Name(), opentracing.Tags{
+	var startOptions []opentracing.StartSpanOption
+	startOptions = append(startOptions, opentracing.Tags{
 		"span.kind":      "test",
 		"test.name":      fullTestName,
 		"test.suite":     packageName,
@@ -79,6 +80,11 @@ func startTestFromCaller(t *testing.T, pc uintptr) *Test {
 		"test.framework": "testing",
 		"test.language":  "go",
 	})
+	if processSpanContext != nil {
+		startOptions = append(startOptions, opentracing.ChildOf(*processSpanContext))
+	}
+
+	span, ctx := opentracing.StartSpanFromContext(context.Background(), t.Name(), startOptions...)
 	span.SetBaggageItem("trace.kind", "test")
 
 	// Replaces stdout and stderr

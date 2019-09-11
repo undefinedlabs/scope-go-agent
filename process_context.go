@@ -1,12 +1,12 @@
 package scopeagent
 
 import (
+	"errors"
 	"fmt"
 	"github.com/opentracing/opentracing-go"
 	"os"
 	"os/exec"
 	"strings"
-	"sync"
 )
 
 const (
@@ -14,19 +14,22 @@ const (
 )
 
 var (
-	escapeMap       map[string]string
-	onceCarrierInit sync.Once
+	escapeMap          map[string]string
+	processSpanContext *opentracing.SpanContext
 )
 
 func init() {
-	onceCarrierInit.Do(func() {
-		escapeMap = map[string]string{
-			".": "__dt__",
-			"-": "__dh__",
-		}
-	})
+	escapeMap = map[string]string{
+		".": "__dt__",
+		"-": "__dh__",
+	}
+	if envCtx, err := ExtractFromEnvVars(os.Environ()); err == nil {
+		processSpanContext = &envCtx
+	}
 }
 
+
+// Environment Carrier
 type envCarrier struct {
 	Env *[]string
 }
@@ -96,6 +99,9 @@ func ExtractFromEnvVars(env []string) (opentracing.SpanContext, error) {
 }
 
 // Gets the current span context from the environment variables
-func getContextFromEnvironment() (opentracing.SpanContext, error) {
-	return ExtractFromEnvVars(os.Environ())
+func ProcessSpanContext() (opentracing.SpanContext, error) {
+	if processSpanContext == nil {
+		return nil, errors.New("process span context not found")
+	}
+	return *processSpanContext, nil
 }
