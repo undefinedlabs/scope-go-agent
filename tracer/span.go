@@ -2,6 +2,7 @@ package tracer
 
 import (
 	"github.com/go-errors/errors"
+	"go.undefinedlabs.com/scopeagent/ntp"
 	"sync"
 	"time"
 
@@ -127,7 +128,7 @@ func (s *spanImpl) LogFields(fields ...log.Field) {
 		return
 	}
 	if lr.Timestamp.IsZero() {
-		lr.Timestamp = time.Now()
+		lr.Timestamp = ntp.Now()
 	}
 	s.appendLog(lr)
 }
@@ -154,7 +155,7 @@ func (s *spanImpl) Log(ld opentracing.LogData) {
 	}
 
 	if ld.Timestamp.IsZero() {
-		ld.Timestamp = time.Now()
+		ld.Timestamp = ntp.Now()
 	}
 
 	s.appendLog(ld.ToLogRecord())
@@ -197,7 +198,7 @@ func rotateLogBuffer(buf []opentracing.LogRecord, pos int) {
 func (s *spanImpl) FinishWithOptions(opts opentracing.FinishOptions) {
 	finishTime := opts.FinishTime
 	if finishTime.IsZero() {
-		finishTime = time.Now()
+		finishTime = ntp.Now()
 	}
 	duration := finishTime.Sub(s.raw.Start)
 
