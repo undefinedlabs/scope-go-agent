@@ -1,11 +1,11 @@
-package scopeagent
+package scopeagent // import "go.undefinedlabs.com/scopeagent"
 
 import (
 	"errors"
 	"fmt"
 	"github.com/google/uuid"
 	"github.com/opentracing/opentracing-go"
-	"github.com/undefinedlabs/go-agent/tracer"
+	"go.undefinedlabs.com/scopeagent/tracer"
 	"os"
 	"runtime"
 	"strconv"
@@ -18,10 +18,12 @@ type Agent struct {
 	scopeEndpoint string
 	apiKey        string
 
-	version   string
-	metadata  map[string]interface{}
-	debugMode bool
-	recorder  *SpanRecorder
+	agentId     string
+	version     string
+	metadata    map[string]interface{}
+	debugMode   bool
+	testingMode bool
+	recorder    *SpanRecorder
 }
 
 var (
@@ -72,11 +74,12 @@ func NewAgent() *Agent {
 
 	a.debugMode = getBoolEnv("SCOPE_DEBUG", false)
 	a.version = version
+	a.agentId = generateAgentID()
 
 	a.metadata = make(map[string]interface{})
 
 	// Agent data
-	a.metadata[AgentID] = generateAgentID()
+	a.metadata[AgentID] = a.agentId
 	a.metadata[AgentVersion] = version
 	a.metadata[AgentType] = "go"
 
@@ -123,9 +126,9 @@ func NewAgent() *Agent {
 
 	// Failback to git command
 	fillFromGitIfEmpty(a)
-
 	a.metadata[Diff] = GetGitDiff()
 
+	a.testingMode = getBoolEnv("SCOPE_TESTING_MODE", true)
 	a.recorder = NewSpanRecorder(a)
 	a.Tracer = tracer.NewWithOptions(tracer.Options{
 		Recorder: a.recorder,
@@ -143,6 +146,21 @@ func (a *Agent) Stop() {
 	}
 	a.recorder.t.Kill(nil)
 	_ = a.recorder.t.Wait()
+
+	if a.testingMode && a.recorder.totalSend > 0 {
+		if a.recorder.koSend == 0 {
+			fmt.Printf("\n** Scope Test Report **\n\n")
+			fmt.Println("Access the detailed test report for this build at:")
+			fmt.Printf("   %s/external/v1/results/%s\n\n", a.scopeEndpoint, a.agentId)
+		} else if a.recorder.koSend < a.recorder.totalSend {
+			fmt.Printf("\n** Scope Test Report **\n\n")
+			fmt.Println("There was a problem sending data to Scope, partial test report for this build at:")
+			fmt.Printf("   %s/external/v1/results/%s\n\n", a.scopeEndpoint, a.agentId)
+		} else {
+			_, _ = fmt.Fprintf(os.Stderr, "\n** Scope Test Report **\n\n")
+			_, _ = fmt.Fprintf(os.Stderr, "There was a problem sending data to Scope\n")
+		}
+	}
 }
 
 func (a *Agent) Flush() error {
