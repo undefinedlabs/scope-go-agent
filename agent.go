@@ -32,25 +32,22 @@ var (
 
 	version = "0.1.0-dev"
 
-	once        sync.Once
 	gitDataOnce sync.Once
 	gitData     *GitData
 )
 
 func init() {
-	once.Do(func() {
-		GlobalAgent = NewAgent()
+	GlobalAgent = NewAgent()
 
-		if getBoolEnv("SCOPE_SET_GLOBAL_TRACER", true) {
-			opentracing.SetGlobalTracer(GlobalAgent.Tracer)
-		}
+	if getBoolEnv("SCOPE_SET_GLOBAL_TRACER", true) {
+		opentracing.SetGlobalTracer(GlobalAgent.Tracer)
+	}
 
-		if getBoolEnv("SCOPE_AUTO_INSTRUMENT", true) {
-			if err := PatchAll(); err != nil {
-				panic(err)
-			}
+	if getBoolEnv("SCOPE_AUTO_INSTRUMENT", true) {
+		if err := PatchAll(); err != nil {
+			panic(err)
 		}
-	})
+	}
 }
 
 func NewAgent() *Agent {

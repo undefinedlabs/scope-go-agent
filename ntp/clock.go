@@ -3,7 +3,6 @@ package ntp
 import (
 	"fmt"
 	"github.com/beevik/ntp"
-	"sync"
 	"time"
 )
 
@@ -13,32 +12,29 @@ const (
 
 var (
 	ntpOffset     time.Duration
-	ntpOffsetOnce sync.Once
 )
 
 func init() {
-	ntpOffsetOnce.Do(func() {
-		tries := 3
-		var response *ntp.Response
-		for {
-			if tries > 0 {
-				tries--
-				r, err := ntp.Query(Server)
-				if err != nil {
-					fmt.Printf("%v\n", err)
-					time.Sleep(1 * time.Second)
-					continue
-				}
-				response = r
+	tries := 3
+	var response *ntp.Response
+	for {
+		if tries > 0 {
+			tries--
+			r, err := ntp.Query(Server)
+			if err != nil {
+				fmt.Printf("%v\n", err)
+				time.Sleep(1 * time.Second)
+				continue
 			}
-			break
+			response = r
 		}
-		if response != nil {
-			ntpOffset = response.ClockOffset
-		} else {
-			fmt.Println("Error getting the NTP offset")
-		}
-	})
+		break
+	}
+	if response != nil {
+		ntpOffset = response.ClockOffset
+	} else {
+		fmt.Println("Error getting the NTP offset")
+	}
 }
 
 // Returns the time.Now() with the ntp offset
