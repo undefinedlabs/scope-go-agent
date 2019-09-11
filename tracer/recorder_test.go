@@ -2,7 +2,7 @@ package tracer
 
 import (
 	"github.com/stretchr/testify/assert"
-	"github.com/undefinedlabs/go-agent/ntp"
+	"go.undefinedlabs.com/scopeagent/ntp"
 	"sync/atomic"
 	"testing"
 )

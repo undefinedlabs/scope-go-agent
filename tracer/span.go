@@ -1,7 +1,7 @@
 package tracer
 
 import (
-	"github.com/undefinedlabs/go-agent/ntp"
+	"go.undefinedlabs.com/scopeagent/ntp"
 	"sync"
 	"time"
 
