@@ -49,7 +49,7 @@ func (r *SpanRecorder) RecordSpan(span tracer.RawSpan) {
 }
 
 func (r *SpanRecorder) loop() error {
-	ticker := time.NewTicker(500 * time.Millisecond)
+	ticker := time.NewTicker(1 * time.Second)
 	cTime := time.Now()
 	for {
 		select {
