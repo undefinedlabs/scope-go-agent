@@ -1,6 +1,7 @@
 package scopeagent
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"github.com/opentracing/opentracing-go"
@@ -81,14 +82,32 @@ func unescape(value string) string {
 
 // Injects the test context to the command environment variables
 func (test *Test) Inject(command *exec.Cmd) *exec.Cmd {
+	command.Env = append(command.Env, GetSpanContextEnvVars(test.span.Context())...)
+	return command
+}
+// Injects the span context to the command environment variables
+func Inject(ctx context.Context, command *exec.Cmd) *exec.Cmd {
+	command.Env = append(command.Env, GetContextEnvVars(ctx)...)
+	return command
+}
+
+
+// Injects the span context to an environment variables array
+func GetSpanContextEnvVars(ctx opentracing.SpanContext) []string {
 	var carrier opentracing.TextMapWriter
 	carrier = &envCarrier{}
-	err := GlobalAgent.Tracer.Inject(test.span.Context(), opentracing.TextMap, carrier)
+	err := GlobalAgent.Tracer.Inject(ctx, opentracing.TextMap, carrier)
 	if err != nil {
 		fmt.Printf("%v\n", err)
 	}
-	command.Env = append(command.Env, *carrier.(*envCarrier).Env...)
-	return command
+	return *carrier.(*envCarrier).Env
+}
+// Gets the span context env vars
+func GetContextEnvVars(ctx context.Context) []string {
+	if span := opentracing.SpanFromContext(ctx); span != nil {
+		return GetSpanContextEnvVars(span.Context())
+	}
+	return []string{}
 }
 
 // Extract the context from an environment variables array
