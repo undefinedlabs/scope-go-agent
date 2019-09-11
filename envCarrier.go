@@ -6,7 +6,25 @@ import (
 	"os"
 	"os/exec"
 	"strings"
+	"sync"
 )
+
+const (
+	EnvironmentKeyPrefix = "CTX_"
+)
+var (
+	EscapeMap map[string]string
+	onceCarrierInit sync.Once
+)
+
+func init() {
+	onceCarrierInit.Do(func(){
+		EscapeMap = map[string]string{
+			"." : "__dt__",
+			"-" : "__dh__",
+		}
+	})
+}
 
 type envCarrier struct {
 	Env	*[]string
@@ -14,7 +32,7 @@ type envCarrier struct {
 func (carrier *envCarrier) Set(key, val string) {
 	var newCarrier []string
 	keyUpper := strings.ToUpper(key)
-	ctxKey := escape("CTX_" + keyUpper)
+	ctxKey := escape(EnvironmentKeyPrefix + keyUpper)
 	if carrier.Env != nil {
 		for _, item := range *carrier.Env {
 			if strings.Index(item, ctxKey) < 0 {
@@ -28,7 +46,7 @@ func (carrier *envCarrier) Set(key, val string) {
 func (carrier *envCarrier) ForeachKey(handler func(key, val string) error) error {
 	if carrier.Env != nil {
 		for _, item := range *carrier.Env {
-			if strings.Index(item, "CTX_") >= 0 {
+			if strings.Index(item, EnvironmentKeyPrefix) >= 0 {
 				kv := strings.Split(item, "=")
 				err := handler(unescape(kv[0][4:]), kv[1])
 				if err != nil {
@@ -44,9 +62,15 @@ func (carrier *envCarrier) ForeachKey(handler func(key, val string) error) error
 // Environment variable names used by the utilities in the Shell and Utilities volume of IEEE Std 1003.1-2001
 // consist solely of uppercase letters, digits, and the '_' (underscore)
 func escape(value string) string {
+	for key, val := range EscapeMap {
+		value = strings.ReplaceAll(value, key, val)
+	}
 	return value
 }
 func unescape(value string) string {
+	for key, val := range EscapeMap {
+		value = strings.ReplaceAll(value, val, key)
+	}
 	return value
 }
 
@@ -64,7 +88,7 @@ func (test *Test) Inject(command *exec.Cmd) *exec.Cmd {
 }
 
 // Extract the context from an environment variables array
-func extract(env []string) (opentracing.SpanContext, error) {
+func ExtractFromEnvVars(env []string) (opentracing.SpanContext, error) {
 	var carrier opentracing.TextMapReader
 	carrier = &envCarrier{Env:&env}
 	return GlobalAgent.Tracer.Extract(opentracing.TextMap, carrier)
@@ -72,5 +96,5 @@ func extract(env []string) (opentracing.SpanContext, error) {
 
 // Gets the current span context from the environment variables
 func getContextFromEnvironment() (opentracing.SpanContext, error) {
-	return extract(os.Environ())
+	return ExtractFromEnvVars(os.Environ())
 }
