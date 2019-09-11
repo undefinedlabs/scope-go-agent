@@ -18,11 +18,26 @@ var (
 
 func init() {
 	ntpOffsetOnce.Do(func() {
-		response, err := ntp.Query(Server)
-		if err != nil {
-			fmt.Printf("%v\n", err)
+		tries := 3
+		var response *ntp.Response
+		for {
+			if tries > 0 {
+				tries--
+				r, err := ntp.Query(Server)
+				if err != nil {
+					fmt.Printf("%v\n", err)
+					time.Sleep(1 * time.Second)
+					continue
+				}
+				response = r
+			}
+			break
 		}
-		ntpOffset = response.ClockOffset
+		if response != nil {
+			ntpOffset = response.ClockOffset
+		} else {
+			fmt.Println("Error getting the NTP offset")
+		}
 	})
 }
 
