@@ -36,17 +36,20 @@ type stdIO struct {
 	sync      *sync.WaitGroup
 }
 
+// Instrument a test
 func InstrumentTest(t *testing.T, f func(ctx context.Context, t *testing.T)) {
 	test := StartTest(t)
 	defer test.End()
 	f(test.Context(), t)
 }
 
+// Starts a new test
 func StartTest(t *testing.T) *Test {
 	pc, _, _, _ := runtime.Caller(1)
 	return startTestFromCaller(t, pc)
 }
 
+// Starts a new test with and uses the caller pc info for Name and Suite
 func startTestFromCaller(t *testing.T, pc uintptr) *Test {
 	fullTestName := t.Name()
 	testNameSlash := strings.IndexByte(fullTestName, '/')
@@ -105,6 +108,7 @@ func startTestFromCaller(t *testing.T, pc uintptr) *Test {
 	return test
 }
 
+// Ends the current test
 func (test *Test) End() {
 	if r := recover(); r != nil {
 		test.span.SetTag("test.status", "ERROR")
@@ -158,6 +162,7 @@ func (test *Test) End() {
 	test.span.Finish()
 }
 
+// Gets the test context
 func (test *Test) Context() context.Context {
 	return test.ctx
 }
