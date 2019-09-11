@@ -82,12 +82,14 @@ func unescape(value string) string {
 // Injects the test context to the command environment variables
 func (test *Test) Inject(command *exec.Cmd) *exec.Cmd {
 	command.Env = append(command.Env, GetSpanContextEnvVars(test.span.Context())...)
+	appendScopeEnvVars(command)
 	return command
 }
 
 // Injects the span context to the command environment variables
 func Inject(ctx context.Context, command *exec.Cmd) *exec.Cmd {
 	command.Env = append(command.Env, GetContextEnvVars(ctx)...)
+	appendScopeEnvVars(command)
 	return command
 }
 
@@ -123,4 +125,23 @@ func ProcessSpanContext() (opentracing.SpanContext, error) {
 		return nil, errors.New("process span context not found")
 	}
 	return *processSpanContext, nil
+}
+
+// Append all SCOPE_* environment variables to a child command
+func appendScopeEnvVars(command *exec.Cmd) {
+	var othersVars []string
+	envVars := os.Environ()
+	for _, item := range envVars {
+		if strings.Index(item, "SCOPE_") == 0 {
+			kv := strings.Split(item, "=")
+			for _, cmdEnvItem := range command.Env {
+				if strings.Index(cmdEnvItem, kv[0]) == 0 {
+					othersVars = append(othersVars, cmdEnvItem)
+				}
+			}
+		}
+	}
+	if len(othersVars) > 0 {
+		command.Env = append(command.Env, othersVars...)
+	}
 }
