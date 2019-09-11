@@ -120,6 +120,7 @@ func (test *Test) End() {
 		errors.LogError(test.span, r, 1)
 		test.span.Finish()
 		_ = GlobalAgent.Flush()
+		GlobalAgent.printReport()
 		panic(r)
 	}
 	if test.t.Failed() {
