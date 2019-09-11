@@ -12,23 +12,25 @@ import (
 const (
 	EnvironmentKeyPrefix = "CTX_"
 )
+
 var (
-	EscapeMap map[string]string
+	EscapeMap       map[string]string
 	onceCarrierInit sync.Once
 )
 
 func init() {
-	onceCarrierInit.Do(func(){
+	onceCarrierInit.Do(func() {
 		EscapeMap = map[string]string{
-			"." : "__dt__",
-			"-" : "__dh__",
+			".": "__dt__",
+			"-": "__dh__",
 		}
 	})
 }
 
 type envCarrier struct {
-	Env	*[]string
+	Env *[]string
 }
+
 func (carrier *envCarrier) Set(key, val string) {
 	var newCarrier []string
 	keyUpper := strings.ToUpper(key)
@@ -74,7 +76,6 @@ func unescape(value string) string {
 	return value
 }
 
-
 // Injects the test context to the command environment variables
 func (test *Test) Inject(command *exec.Cmd) *exec.Cmd {
 	var carrier opentracing.TextMapWriter
@@ -90,7 +91,7 @@ func (test *Test) Inject(command *exec.Cmd) *exec.Cmd {
 // Extract the context from an environment variables array
 func ExtractFromEnvVars(env []string) (opentracing.SpanContext, error) {
 	var carrier opentracing.TextMapReader
-	carrier = &envCarrier{Env:&env}
+	carrier = &envCarrier{Env: &env}
 	return GlobalAgent.Tracer.Extract(opentracing.TextMap, carrier)
 }
 
