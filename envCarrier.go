@@ -10,17 +10,17 @@ import (
 )
 
 const (
-	EnvironmentKeyPrefix = "CTX_"
+	environmentKeyPrefix = "CTX_"
 )
 
 var (
-	EscapeMap       map[string]string
+	escapeMap       map[string]string
 	onceCarrierInit sync.Once
 )
 
 func init() {
 	onceCarrierInit.Do(func() {
-		EscapeMap = map[string]string{
+		escapeMap = map[string]string{
 			".": "__dt__",
 			"-": "__dh__",
 		}
@@ -34,7 +34,7 @@ type envCarrier struct {
 func (carrier *envCarrier) Set(key, val string) {
 	var newCarrier []string
 	keyUpper := strings.ToUpper(key)
-	ctxKey := escape(EnvironmentKeyPrefix + keyUpper)
+	ctxKey := escape(environmentKeyPrefix + keyUpper)
 	if carrier.Env != nil {
 		for _, item := range *carrier.Env {
 			if strings.Index(item, ctxKey) < 0 {
@@ -48,7 +48,7 @@ func (carrier *envCarrier) Set(key, val string) {
 func (carrier *envCarrier) ForeachKey(handler func(key, val string) error) error {
 	if carrier.Env != nil {
 		for _, item := range *carrier.Env {
-			if strings.Index(item, EnvironmentKeyPrefix) >= 0 {
+			if strings.Index(item, environmentKeyPrefix) >= 0 {
 				kv := strings.Split(item, "=")
 				err := handler(unescape(kv[0][4:]), kv[1])
 				if err != nil {
@@ -64,13 +64,13 @@ func (carrier *envCarrier) ForeachKey(handler func(key, val string) error) error
 // Environment variable names used by the utilities in the Shell and Utilities volume of IEEE Std 1003.1-2001
 // consist solely of uppercase letters, digits, and the '_' (underscore)
 func escape(value string) string {
-	for key, val := range EscapeMap {
+	for key, val := range escapeMap {
 		value = strings.ReplaceAll(value, key, val)
 	}
 	return value
 }
 func unescape(value string) string {
-	for key, val := range EscapeMap {
+	for key, val := range escapeMap {
 		value = strings.ReplaceAll(value, val, key)
 	}
 	return value
