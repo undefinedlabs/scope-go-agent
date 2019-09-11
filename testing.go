@@ -21,15 +21,15 @@ type Test struct {
 	ctx              context.Context
 	span             opentracing.Span
 	t                *testing.T
-	stdOut           *StdIO
-	stdErr           *StdIO
-	loggerStdIO      *StdIO
+	stdOut           *stdIO
+	stdErr           *stdIO
+	loggerStdIO      *stdIO
 	failReason       string
 	failReasonSource string
 	skipReason       string
 	skipReasonSource string
 }
-type StdIO struct {
+type stdIO struct {
 	oldIO     *os.File
 	readPipe  *os.File
 	writePipe *os.File
@@ -157,7 +157,7 @@ func (test *Test) Context() context.Context {
 }
 
 // Handles the StdIO pipe for stdout and stderr
-func stdIOHandler(test *Test, stdio *StdIO, isError bool) {
+func stdIOHandler(test *Test, stdio *stdIO, isError bool) {
 	stdio.sync.Add(1)
 	defer stdio.sync.Done()
 	reader := bufio.NewReader(stdio.readPipe)
@@ -184,7 +184,7 @@ func stdIOHandler(test *Test, stdio *StdIO, isError bool) {
 }
 
 // Handles the StdIO for a logger
-func loggerStdIOHandler(test *Test, stdio *StdIO) {
+func loggerStdIOHandler(test *Test, stdio *stdIO) {
 	stdio.sync.Add(1)
 	defer stdio.sync.Done()
 	reader := bufio.NewReader(stdio.readPipe)
@@ -222,10 +222,10 @@ func loggerStdIOHandler(test *Test, stdio *StdIO) {
 }
 
 // Creates and replaces a file instance with a pipe
-func newStdIO(file **os.File, replace bool) *StdIO {
+func newStdIO(file **os.File, replace bool) *stdIO {
 	rPipe, wPipe, err := os.Pipe()
 	if err == nil {
-		stdIO := &StdIO{
+		stdIO := &stdIO{
 			readPipe:  rPipe,
 			writePipe: wPipe,
 			sync:      new(sync.WaitGroup),
@@ -242,7 +242,7 @@ func newStdIO(file **os.File, replace bool) *StdIO {
 }
 
 // Restores the old file instance
-func (stdIO *StdIO) restore(file **os.File, replace bool) {
+func (stdIO *stdIO) restore(file **os.File, replace bool) {
 	if file != nil {
 		_ = (*file).Sync()
 	}
@@ -250,12 +250,13 @@ func (stdIO *StdIO) restore(file **os.File, replace bool) {
 	_ = stdIO.writePipe.Close()
 	_ = stdIO.readPipe.Close()
 	stdIO.sync.Wait()
-  if replace && file != nil {
+	if replace && file != nil {
 		*file = stdIO.oldIO
 	}
 }
 
-//TB interface implementation
+// ***************************
+// TB interface implementation
 func (test *Test) private() {}
 func (test *Test) Error(args ...interface{}) {
 	var source string
