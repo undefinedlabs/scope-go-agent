@@ -149,6 +149,10 @@ func (a *Agent) Stop() {
 	a.recorder.t.Kill(nil)
 	_ = a.recorder.t.Wait()
 
+	a.printReport()
+}
+
+func (a *Agent) printReport() {
 	if a.testingMode && a.recorder.totalSend > 0 {
 		if a.recorder.koSend == 0 {
 			fmt.Printf("\n** Scope Test Report **\n\n")
