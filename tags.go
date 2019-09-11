@@ -34,6 +34,7 @@ const (
 	EventException = "exception"
 
 	EventTestFailure = "test_failure"
+	EventTestSkip    = "test_skip"
 
 	LogEvent      = "log"
 	LogEventLevel = "log.level"
