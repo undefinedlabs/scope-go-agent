@@ -1,6 +1,7 @@
 package tracer
 
 import (
+	"github.com/go-errors/errors"
 	"go.undefinedlabs.com/scopeagent/ntp"
 	"sync"
 	"time"
@@ -161,7 +162,19 @@ func (s *spanImpl) Log(ld opentracing.LogData) {
 }
 
 func (s *spanImpl) Finish() {
+	var currentError *errors.Error
+	if s.tracer != nil && s.tracer.options.OnSpanFinishPanic != nil && s.raw.ParentSpanID != 0 {
+		if r := recover(); r != nil {
+			currentError = errors.Wrap(r, 1)
+			s.tracer.options.OnSpanFinishPanic(&s.raw, currentError)
+		}
+	}
+
 	s.FinishWithOptions(opentracing.FinishOptions{})
+
+	if currentError != nil {
+		panic(currentError)
+	}
 }
 
 // rotateLogBuffer rotates the records in the buffer: records 0 to pos-1 move at
@@ -182,6 +195,14 @@ func rotateLogBuffer(buf []opentracing.LogRecord, pos int) {
 }
 
 func (s *spanImpl) FinishWithOptions(opts opentracing.FinishOptions) {
+	var currentError *errors.Error
+	if s.tracer != nil && s.tracer.options.OnSpanFinishPanic != nil && s.raw.ParentSpanID != 0 {
+		if r := recover(); r != nil {
+			currentError = errors.Wrap(r, 1)
+			s.tracer.options.OnSpanFinishPanic(&s.raw, currentError)
+		}
+	}
+
 	finishTime := opts.FinishTime
 	if finishTime.IsZero() {
 		finishTime = ntp.Now()
@@ -237,6 +258,10 @@ func (s *spanImpl) FinishWithOptions(opts opentracing.FinishOptions) {
 
 	if poolEnabled {
 		spanPool.Put(s)
+	}
+
+	if currentError != nil {
+		panic(currentError)
 	}
 }
 
