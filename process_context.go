@@ -29,7 +29,6 @@ func init() {
 	}
 }
 
-
 // Environment Carrier
 type envCarrier struct {
 	Env *[]string
@@ -85,12 +84,12 @@ func (test *Test) Inject(command *exec.Cmd) *exec.Cmd {
 	command.Env = append(command.Env, GetSpanContextEnvVars(test.span.Context())...)
 	return command
 }
+
 // Injects the span context to the command environment variables
 func Inject(ctx context.Context, command *exec.Cmd) *exec.Cmd {
 	command.Env = append(command.Env, GetContextEnvVars(ctx)...)
 	return command
 }
-
 
 // Injects the span context to an environment variables array
 func GetSpanContextEnvVars(ctx opentracing.SpanContext) []string {
@@ -102,6 +101,7 @@ func GetSpanContextEnvVars(ctx opentracing.SpanContext) []string {
 	}
 	return *carrier.(*envCarrier).Env
 }
+
 // Gets the span context env vars
 func GetContextEnvVars(ctx context.Context) []string {
 	if span := opentracing.SpanFromContext(ctx); span != nil {
