@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"github.com/google/uuid"
 	"github.com/opentracing/opentracing-go"
-	"go.undefinedlabs.com/scopeagent/errors"
+	scopeError "go.undefinedlabs.com/scopeagent/errors"
 	"go.undefinedlabs.com/scopeagent/tracer"
 	"os"
 	"runtime"
@@ -139,7 +139,7 @@ func NewAgent() *Agent {
 		MaxLogsPerSpan: 10000,
 		OnSpanFinishPanic: func(rSpan *tracer.RawSpan, r interface{}) {
 			// Log the error in the current span
-			errors.LogErrorInRawSpan(rSpan, r)
+			scopeError.LogErrorInRawSpan(rSpan, r)
 		},
 	})
 	return a
