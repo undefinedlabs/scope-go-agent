@@ -5,10 +5,10 @@ version: 2
 cli:
   server: https://app.fossa.com
   fetcher: custom
-  project: https://github.com/undefinedlabs/go-agent.git
+  project: https://go.undefinedlabs.com/scopeagent.git
 analyze:
   modules:
-    - name: github.com/undefinedlabs/go-agent
+    - name: go.undefinedlabs.com/scopeagent
       type: go
       target: .
       path: .

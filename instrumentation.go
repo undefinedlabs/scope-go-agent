@@ -1,7 +1,7 @@
 package scopeagent
 
 import (
-	"github.com/undefinedlabs/go-agent/instrumentation/nethttp"
+	"go.undefinedlabs.com/scopeagent/instrumentation/nethttp"
 	"net/http"
 )
 
