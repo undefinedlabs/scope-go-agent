@@ -5,7 +5,7 @@ import (
 	"github.com/go-errors/errors"
 	"github.com/opentracing/opentracing-go"
 	"github.com/opentracing/opentracing-go/log"
-	"github.com/undefinedlabs/go-agent/tracer"
+	"go.undefinedlabs.com/scopeagent/tracer"
 	"strings"
 	"time"
 )
