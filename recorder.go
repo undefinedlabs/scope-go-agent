@@ -3,8 +3,8 @@ package scopeagent
 import (
 	"bytes"
 	"compress/gzip"
-	"errors"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/google/uuid"
 	"github.com/vmihailenco/msgpack"

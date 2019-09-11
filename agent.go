@@ -18,12 +18,12 @@ type Agent struct {
 	scopeEndpoint string
 	apiKey        string
 
-  agentId       string
-	version   string
-	metadata  map[string]interface{}
-	debugMode bool
-  testingMode   bool
-	recorder  *SpanRecorder
+	agentId     string
+	version     string
+	metadata    map[string]interface{}
+	debugMode   bool
+	testingMode bool
+	recorder    *SpanRecorder
 }
 
 var (
@@ -79,7 +79,7 @@ func NewAgent() *Agent {
 	a.metadata = make(map[string]interface{})
 
 	// Agent data
-  a.metadata[AgentID] = a.agentId
+	a.metadata[AgentID] = a.agentId
 	a.metadata[AgentVersion] = version
 	a.metadata[AgentType] = "go"
 
@@ -128,7 +128,7 @@ func NewAgent() *Agent {
 	fillFromGitIfEmpty(a)
 	a.metadata[Diff] = GetGitDiff()
 
-  a.testingMode = getBoolEnv("SCOPE_TESTING_MODE", true)
+	a.testingMode = getBoolEnv("SCOPE_TESTING_MODE", true)
 	a.recorder = NewSpanRecorder(a)
 	a.Tracer = tracer.NewWithOptions(tracer.Options{
 		Recorder: a.recorder,
