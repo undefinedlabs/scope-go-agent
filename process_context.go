@@ -93,7 +93,6 @@ func (test *Test) InjectToCmdWithSpan(command *exec.Cmd) (opentracing.Span, cont
 	innerSpan.SetTag("Args", command.Args)
 	innerSpan.SetTag("Path", command.Path)
 	innerSpan.SetTag("Dir", command.Dir)
-	innerSpan.SetTag("String", command.String())
 	InjectToCmd(innerCtx, command)
 	return innerSpan, innerCtx
 }
