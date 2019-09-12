@@ -21,6 +21,8 @@ var (
 )
 
 func init() {
+	// Environment variable names used by the utilities in the Shell and Utilities volume of IEEE Std 1003.1-2001
+	// consist solely of uppercase letters, digits, and the '_' (underscore)
 	escapeMap = map[string]string{
 		".": "__dt__",
 		"-": "__dh__",
