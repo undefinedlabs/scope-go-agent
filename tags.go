@@ -12,7 +12,8 @@ const (
 	CurrentFolder = "current.folder"
 	Hostname      = "hostname"
 
-	GoVersion = "go.version"
+	InContainer = "incontainer"
+	GoVersion   = "go.version"
 
 	Service    = "service"
 	Repository = "repository"

@@ -126,6 +126,7 @@ func NewAgent() *Agent {
 	// Failback to git command
 	fillFromGitIfEmpty(a)
 	a.metadata[Diff] = GetGitDiff()
+	a.metadata[InContainer] = isRunningInContainer()
 
 	a.testingMode = getBoolEnv("SCOPE_TESTING_MODE", true)
 	a.recorder = NewSpanRecorder(a)
