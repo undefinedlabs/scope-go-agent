@@ -76,6 +76,8 @@ func startTestFromCaller(t *testing.T, pc uintptr) *Test {
 		"test.name":  fullTestName,
 		"test.suite": packageName,
 		"test.code":  testCode,
+		"test.framework" : "testing",
+		"test.language" : "go",
 	})
 	span.SetBaggageItem("trace.kind", "test")
 
