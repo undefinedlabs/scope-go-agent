@@ -7,6 +7,7 @@ import (
 	"github.com/opentracing/opentracing-go"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 )
 
@@ -80,17 +81,38 @@ func unescape(value string) string {
 }
 
 // Injects the test context to the command environment variables
-func (test *Test) Inject(command *exec.Cmd) *exec.Cmd {
+func (test *Test) InjectToCmd(command *exec.Cmd) *exec.Cmd {
 	command.Env = append(command.Env, GetSpanContextEnvVars(test.span.Context())...)
 	appendScopeEnvVars(command)
 	return command
 }
+// Injects a new span context to the command environment variables
+func (test *Test) InjectToCmdWithSpan(command *exec.Cmd) (opentracing.Span, context.Context) {
+	innerSpan, innerCtx := opentracing.StartSpanFromContext(test.Context(), "Exec: " + filepath.Base(command.Args[0]))
+	innerSpan.SetTag("Args", command.Args)
+	innerSpan.SetTag("Path", command.Path)
+	innerSpan.SetTag("Dir", command.Dir)
+	innerSpan.SetTag("String", command.String())
+	Inject(innerCtx, command)
+	return innerSpan, innerCtx
+}
 
 // Injects the span context to the command environment variables
-func Inject(ctx context.Context, command *exec.Cmd) *exec.Cmd {
+func InjectToCmd(ctx context.Context, command *exec.Cmd) *exec.Cmd {
 	command.Env = append(command.Env, GetContextEnvVars(ctx)...)
 	appendScopeEnvVars(command)
 	return command
+}
+
+// Injects a new span context to the command environment variables
+func InjectToCmdWithSpan(ctx context.Context, command *exec.Cmd) (opentracing.Span, context.Context) {
+	innerSpan, innerCtx := opentracing.StartSpanFromContext(ctx, "Exec: " + filepath.Base(command.Args[0]))
+	innerSpan.SetTag("Args", command.Args)
+	innerSpan.SetTag("Path", command.Path)
+	innerSpan.SetTag("Dir", command.Dir)
+	innerSpan.SetTag("String", command.String())
+	Inject(innerCtx, command)
+	return innerSpan, innerCtx
 }
 
 // Injects the span context to an environment variables array
