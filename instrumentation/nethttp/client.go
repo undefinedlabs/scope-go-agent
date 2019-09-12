@@ -189,7 +189,7 @@ func (t *Transport) doRoundTrip(req *http.Request) (*http.Response, error) {
 		return resp, err
 	}
 	ext.HTTPStatusCode.Set(tracer.sp, uint16(resp.StatusCode))
-	if resp.StatusCode >= http.StatusInternalServerError {
+	if resp.StatusCode >= http.StatusBadRequest {
 		ext.Error.Set(tracer.sp, true)
 	}
 	ext.PeerService.Set(tracer.sp, req.URL.Path)
