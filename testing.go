@@ -72,12 +72,12 @@ func startTestFromCaller(t *testing.T, pc uintptr) *Test {
 	}
 
 	span, ctx := opentracing.StartSpanFromContext(context.Background(), t.Name(), opentracing.Tags{
-		"span.kind":  "test",
-		"test.name":  fullTestName,
-		"test.suite": packageName,
-		"test.code":  testCode,
-		"test.framework" : "testing",
-		"test.language" : "go",
+		"span.kind":      "test",
+		"test.name":      fullTestName,
+		"test.suite":     packageName,
+		"test.code":      testCode,
+		"test.framework": "testing",
+		"test.language":  "go",
 	})
 	span.SetBaggageItem("trace.kind", "test")
 
