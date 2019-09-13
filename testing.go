@@ -190,18 +190,20 @@ func stdIOHandler(test *Test, stdio *stdIO, isError bool) {
 		if err != nil {
 			break
 		}
-		if isError {
-			test.span.LogFields(
-				log.String(EventType, LogEvent),
-				log.String(EventMessage, line),
-				log.String(LogEventLevel, LogLevel_ERROR),
-			)
-		} else {
-			test.span.LogFields(
-				log.String(EventType, LogEvent),
-				log.String(EventMessage, line),
-				log.String(LogEventLevel, LogLevel_VERBOSE),
-			)
+		if len(strings.TrimSpace(line)) > 0 {
+			if isError {
+				test.span.LogFields(
+					log.String(EventType, LogEvent),
+					log.String(EventMessage, line),
+					log.String(LogEventLevel, LogLevel_ERROR),
+				)
+			} else {
+				test.span.LogFields(
+					log.String(EventType, LogEvent),
+					log.String(EventMessage, line),
+					log.String(LogEventLevel, LogLevel_VERBOSE),
+				)
+			}
 		}
 		_, _ = stdio.oldIO.WriteString(line)
 	}
