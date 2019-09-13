@@ -11,6 +11,7 @@ import (
 	"runtime"
 	"strconv"
 	"sync"
+	"testing"
 )
 
 type Agent struct {
@@ -51,6 +52,7 @@ func init() {
 	}
 }
 
+// Creates a new scope agent instance
 func NewAgent() *Agent {
 	a := new(Agent)
 	configProfile := GetConfigCurrentProfile()
@@ -144,6 +146,14 @@ func NewAgent() *Agent {
 	return a
 }
 
+// Runs a test suite using the agent
+func (a *Agent) Run(m *testing.M) int {
+	result := m.Run()
+	a.Stop()
+	return result
+}
+
+// Stops the agent
 func (a *Agent) Stop() {
 	if a.debugMode {
 		fmt.Println("Scope agent is stopping gracefully...")
@@ -152,6 +162,14 @@ func (a *Agent) Stop() {
 	_ = a.recorder.t.Wait()
 
 	a.printReport()
+}
+
+// Flushes the pending payloads to the scope backend
+func (a *Agent) Flush() error {
+	if a.debugMode {
+		fmt.Println("Scope agent is flushing all pending spans manually")
+	}
+	return a.recorder.SendSpans()
 }
 
 func (a *Agent) printReport() {
@@ -171,13 +189,6 @@ func (a *Agent) printReport() {
 			}
 		}
 	})
-}
-
-func (a *Agent) Flush() error {
-	if a.debugMode {
-		fmt.Println("Scope agent is flushing all pending spans manually")
-	}
-	return a.recorder.SendSpans()
 }
 
 func generateAgentID() string {
