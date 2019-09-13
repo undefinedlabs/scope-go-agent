@@ -83,9 +83,11 @@ func startTestFromCaller(t *testing.T, pc uintptr) *Test {
 
 	// Replaces stdout and stderr
 	loggerStdIO := newStdIO(&os.Stderr, false)
+	if loggerStdIO != nil && loggerStdIO.writePipe != nil {
+		log2.SetOutput(loggerStdIO.writePipe)
+	}
 	stdOut := newStdIO(&os.Stdout, true)
 	stdErr := newStdIO(&os.Stderr, true)
-	log2.SetOutput(loggerStdIO.writePipe)
 
 	test := &Test{
 		ctx:         ctx,
@@ -263,6 +265,8 @@ func newStdIO(file **os.File, replace bool) *stdIO {
 			}
 		}
 		return stdIO
+	} else {
+		fmt.Println(err)
 	}
 	return nil
 }
@@ -272,9 +276,19 @@ func (stdIO *stdIO) restore(file **os.File, replace bool) {
 	if file != nil {
 		_ = (*file).Sync()
 	}
-	_ = stdIO.readPipe.Sync()
-	_ = stdIO.writePipe.Close()
-	_ = stdIO.readPipe.Close()
+	if stdIO == nil {
+		return
+	}
+	if stdIO.readPipe != nil {
+		_ = stdIO.readPipe.Sync()
+	}
+	if stdIO.writePipe != nil {
+		_ = stdIO.writePipe.Sync()
+		_ = stdIO.writePipe.Close()
+	}
+	if stdIO.readPipe != nil {
+		_ = stdIO.readPipe.Close()
+	}
 	stdIO.sync.Wait()
 	if replace && file != nil {
 		*file = stdIO.oldIO
