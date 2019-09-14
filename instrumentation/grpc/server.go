@@ -1,6 +1,5 @@
 package grpc
 
-
 import (
 	"github.com/opentracing/opentracing-go"
 	"github.com/opentracing/opentracing-go/ext"
@@ -50,6 +49,8 @@ func OpenTracingServerInterceptor(tracer opentracing.Tracer, optFuncs ...Option)
 			gRPCComponentTag,
 		)
 		defer serverSpan.Finish()
+		serverSpan.SetTag(MethodName, info.FullMethod)
+		serverSpan.SetTag(MethodType, "UNITARY")
 
 		ctx = opentracing.ContextWithSpan(ctx, serverSpan)
 		if otgrpcOpts.logPayloads {
@@ -60,6 +61,7 @@ func OpenTracingServerInterceptor(tracer opentracing.Tracer, optFuncs ...Option)
 			if otgrpcOpts.logPayloads {
 				serverSpan.LogFields(log.Object("gRPC response", resp))
 			}
+			serverSpan.SetTag(Status, "OK")
 		} else {
 			SetSpanTags(serverSpan, err, false)
 			serverSpan.LogFields(log.String("event", "error"), log.String("message", err.Error()))
@@ -108,6 +110,14 @@ func OpenTracingStreamServerInterceptor(tracer opentracing.Tracer, optFuncs ...O
 			gRPCComponentTag,
 		)
 		defer serverSpan.Finish()
+		serverSpan.SetTag(MethodName, info.FullMethod)
+		if info.IsClientStream {
+			serverSpan.SetTag(MethodType, "CLIENT_STREAMING")
+		}
+		if info.IsServerStream {
+			serverSpan.SetTag(MethodType, "SERVER_STREAMING")
+		}
+
 		ss = &openTracingServerStream{
 			ServerStream: ss,
 			ctx:          opentracing.ContextWithSpan(ss.Context(), serverSpan),
@@ -139,4 +149,12 @@ func extractSpanContext(ctx context.Context, tracer opentracing.Tracer) (opentra
 		md = metadata.New(nil)
 	}
 	return tracer.Extract(opentracing.HTTPHeaders, metadataReaderWriter{md})
+}
+
+// Get server interceptors
+func GetServerInterceptors(tracer opentracing.Tracer) []grpc.ServerOption {
+	return []grpc.ServerOption {
+		grpc.UnaryInterceptor(OpenTracingServerInterceptor(tracer)),
+		grpc.StreamInterceptor(OpenTracingStreamServerInterceptor(tracer)),
+	}
 }

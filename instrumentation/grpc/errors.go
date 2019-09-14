@@ -58,7 +58,7 @@ func SetSpanTags(span opentracing.Span, err error, client bool) {
 	if s, ok := status.FromError(err); ok {
 		code = s.Code()
 	}
-	span.SetTag("response_code", code)
+	span.SetTag(Status, code)
 	span.SetTag("response_class", c)
 	if err == nil {
 		return

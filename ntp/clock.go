@@ -11,7 +11,7 @@ const (
 )
 
 var (
-	ntpOffset     time.Duration
+	ntpOffset time.Duration
 )
 
 func init() {

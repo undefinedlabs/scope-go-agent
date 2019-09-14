@@ -1,6 +1,5 @@
 package grpc
 
-
 import (
 	"github.com/opentracing/opentracing-go"
 	"github.com/opentracing/opentracing-go/ext"
@@ -54,6 +53,9 @@ func OpenTracingClientInterceptor(tracer opentracing.Tracer, optFuncs ...Option)
 			gRPCComponentTag,
 		)
 		defer clientSpan.Finish()
+		clientSpan.SetTag(MethodName, method)
+		clientSpan.SetTag(MethodType, "UNITARY")
+
 		ctx = injectSpanContext(ctx, tracer, clientSpan)
 		if otgrpcOpts.logPayloads {
 			clientSpan.LogFields(log.Object("gRPC request", req))
@@ -63,6 +65,7 @@ func OpenTracingClientInterceptor(tracer opentracing.Tracer, optFuncs ...Option)
 			if otgrpcOpts.logPayloads {
 				clientSpan.LogFields(log.Object("gRPC response", resp))
 			}
+			clientSpan.SetTag(Status, "OK")
 		} else {
 			SetSpanTags(clientSpan, err, true)
 			clientSpan.LogFields(log.String("event", "error"), log.String("message", err.Error()))
@@ -116,6 +119,9 @@ func OpenTracingStreamClientInterceptor(tracer opentracing.Tracer, optFuncs ...O
 			ext.SpanKindRPCClient,
 			gRPCComponentTag,
 		)
+		clientSpan.SetTag(MethodName, method)
+		clientSpan.SetTag(MethodType, "STREAMING")
+
 		ctx = injectSpanContext(ctx, tracer, clientSpan)
 		cs, err := streamer(ctx, desc, cc, method, opts...)
 		if err != nil {
@@ -123,6 +129,8 @@ func OpenTracingStreamClientInterceptor(tracer opentracing.Tracer, optFuncs ...O
 			SetSpanTags(clientSpan, err, true)
 			clientSpan.Finish()
 			return cs, err
+		} else {
+			clientSpan.SetTag(Status, "OK")
 		}
 		return newOpenTracingClientStream(cs, method, desc, clientSpan, otgrpcOpts), nil
 	}
@@ -146,6 +154,8 @@ func newOpenTracingClientStream(cs grpc.ClientStream, method string, desc *grpc.
 		if err != nil {
 			clientSpan.LogFields(log.String("event", "error"), log.String("message", err.Error()))
 			SetSpanTags(clientSpan, err, true)
+		} else {
+			clientSpan.SetTag(Status, "OK")
 		}
 		if otgrpcOpts.decorator != nil {
 			otgrpcOpts.decorator(clientSpan, method, nil, nil, err)
@@ -164,6 +174,7 @@ func newOpenTracingClientStream(cs grpc.ClientStream, method string, desc *grpc.
 		ClientStream: cs,
 		desc:         desc,
 		finishFunc:   finishFunc,
+		span:         clientSpan,
 	}
 
 	// The `ClientStream` interface allows one to omit calling `Recv` if it's
@@ -182,12 +193,15 @@ type openTracingClientStream struct {
 	grpc.ClientStream
 	desc       *grpc.StreamDesc
 	finishFunc func(error)
+	span       opentracing.Span
 }
 
 func (cs *openTracingClientStream) Header() (metadata.MD, error) {
 	md, err := cs.ClientStream.Header()
 	if err != nil {
 		cs.finishFunc(err)
+	} else {
+		cs.span.SetTag(Headers, md)
 	}
 	return md, err
 }
@@ -237,4 +251,12 @@ func injectSpanContext(ctx context.Context, tracer opentracing.Tracer, clientSpa
 		clientSpan.LogFields(log.String("event", "Tracer.Inject() failed"), log.Error(err))
 	}
 	return metadata.NewOutgoingContext(ctx, md)
+}
+
+// Get client interceptors
+func GetClientInterceptors(tracer opentracing.Tracer) []grpc.DialOption {
+	return []grpc.DialOption {
+		grpc.WithUnaryInterceptor(OpenTracingClientInterceptor(tracer)),
+		grpc.WithStreamInterceptor(OpenTracingStreamClientInterceptor(tracer)),
+	}
 }
