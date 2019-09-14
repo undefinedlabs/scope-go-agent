@@ -8,6 +8,7 @@ import (
 	"github.com/opentracing/opentracing-go/log"
 	"go.undefinedlabs.com/scopeagent/ast"
 	"go.undefinedlabs.com/scopeagent/errors"
+	"go.undefinedlabs.com/scopeagent/instrumentation/process"
 	log2 "log"
 	"os"
 	"runtime"
@@ -80,8 +81,8 @@ func startTestFromCaller(t *testing.T, pc uintptr) *Test {
 		"test.framework": "testing",
 		"test.language":  "go",
 	})
-	if processSpanContext != nil {
-		startOptions = append(startOptions, opentracing.ChildOf(*processSpanContext))
+	if processContext, err := process.ProcessSpanContext(); err == nil {
+		startOptions = append(startOptions, opentracing.ChildOf(processContext))
 	}
 
 	span, ctx := opentracing.StartSpanFromContext(context.Background(), t.Name(), startOptions...)

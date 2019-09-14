@@ -111,6 +111,7 @@ func NewWithOptions(opts Options) opentracing.Tracer {
 	rval.textPropagator = &textMapPropagator{rval}
 	rval.binaryPropagator = &binaryPropagator{rval}
 	rval.accessorPropagator = &accessorPropagator{rval}
+	rval.envVarPropagator = &envVarPropagator{rval}
 	return rval
 }
 
@@ -130,6 +131,7 @@ type tracerImpl struct {
 	textPropagator     *textMapPropagator
 	binaryPropagator   *binaryPropagator
 	accessorPropagator *accessorPropagator
+	envVarPropagator   *envVarPropagator
 }
 
 func (t *tracerImpl) StartSpan(
@@ -240,6 +242,8 @@ func (t *tracerImpl) Inject(sc opentracing.SpanContext, format interface{}, carr
 		return t.textPropagator.Inject(sc, carrier)
 	case opentracing.Binary:
 		return t.binaryPropagator.Inject(sc, carrier)
+	case EnvironmentVariableFormat:
+		return t.envVarPropagator.Inject(sc, carrier)
 	}
 	if _, ok := format.(delegatorType); ok {
 		return t.accessorPropagator.Inject(sc, carrier)
@@ -253,6 +257,8 @@ func (t *tracerImpl) Extract(format interface{}, carrier interface{}) (opentraci
 		return t.textPropagator.Extract(carrier)
 	case opentracing.Binary:
 		return t.binaryPropagator.Extract(carrier)
+	case EnvironmentVariableFormat:
+		return t.envVarPropagator.Extract(carrier)
 	}
 	if _, ok := format.(delegatorType); ok {
 		return t.accessorPropagator.Extract(carrier)
