@@ -56,6 +56,7 @@ func OpenTracingClientInterceptor(tracer opentracing.Tracer, optFuncs ...Option)
 		defer clientSpan.Finish()
 		clientSpan.SetTag(MethodName, method)
 		clientSpan.SetTag(MethodType, "UNITARY")
+		ext.PeerAddress.Set(clientSpan, cc.Target())
 		clientSpan.SetTag("grpc.target", cc.Target())
 
 		ctx = injectSpanContext(ctx, tracer, clientSpan)
@@ -125,6 +126,7 @@ func OpenTracingStreamClientInterceptor(tracer opentracing.Tracer, optFuncs ...O
 		clientSpan.SetTag(MethodName, method)
 		clientSpan.SetTag(MethodType, "STREAMING")
 		clientSpan.SetTag("grpc.target", cc.Target())
+		ext.PeerAddress.Set(clientSpan, cc.Target())
 		clientSpan.SetTag("grpc.streamname", desc.StreamName)
 
 		ctx = injectSpanContext(ctx, tracer, clientSpan)
