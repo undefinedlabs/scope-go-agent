@@ -51,10 +51,12 @@ func OpenTracingClientInterceptor(tracer opentracing.Tracer, optFuncs ...Option)
 			opentracing.ChildOf(parentCtx),
 			ext.SpanKindRPCClient,
 			gRPCComponentTag,
+			gRPCPeerServiceTag,
 		)
 		defer clientSpan.Finish()
 		clientSpan.SetTag(MethodName, method)
 		clientSpan.SetTag(MethodType, "UNITARY")
+		clientSpan.SetTag("grpc.target", cc.Target())
 
 		ctx = injectSpanContext(ctx, tracer, clientSpan)
 		if otgrpcOpts.logPayloads {
@@ -118,9 +120,12 @@ func OpenTracingStreamClientInterceptor(tracer opentracing.Tracer, optFuncs ...O
 			opentracing.ChildOf(parentCtx),
 			ext.SpanKindRPCClient,
 			gRPCComponentTag,
+			gRPCPeerServiceTag,
 		)
 		clientSpan.SetTag(MethodName, method)
 		clientSpan.SetTag(MethodType, "STREAMING")
+		clientSpan.SetTag("grpc.target", cc.Target())
+		clientSpan.SetTag("grpc.streamname", desc.StreamName)
 
 		ctx = injectSpanContext(ctx, tracer, clientSpan)
 		cs, err := streamer(ctx, desc, cc, method, opts...)
@@ -255,7 +260,7 @@ func injectSpanContext(ctx context.Context, tracer opentracing.Tracer, clientSpa
 
 // Get client interceptors
 func GetClientInterceptors(tracer opentracing.Tracer) []grpc.DialOption {
-	return []grpc.DialOption {
+	return []grpc.DialOption{
 		grpc.WithUnaryInterceptor(OpenTracingClientInterceptor(tracer)),
 		grpc.WithStreamInterceptor(OpenTracingStreamClientInterceptor(tracer)),
 	}

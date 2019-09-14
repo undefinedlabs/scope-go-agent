@@ -47,6 +47,7 @@ func OpenTracingServerInterceptor(tracer opentracing.Tracer, optFuncs ...Option)
 			info.FullMethod,
 			ext.RPCServerOption(spanContext),
 			gRPCComponentTag,
+			gRPCPeerServiceTag,
 		)
 		defer serverSpan.Finish()
 		serverSpan.SetTag(MethodName, info.FullMethod)
@@ -108,6 +109,7 @@ func OpenTracingStreamServerInterceptor(tracer opentracing.Tracer, optFuncs ...O
 			info.FullMethod,
 			ext.RPCServerOption(spanContext),
 			gRPCComponentTag,
+			gRPCPeerServiceTag,
 		)
 		defer serverSpan.Finish()
 		serverSpan.SetTag(MethodName, info.FullMethod)
@@ -153,7 +155,7 @@ func extractSpanContext(ctx context.Context, tracer opentracing.Tracer) (opentra
 
 // Get server interceptors
 func GetServerInterceptors(tracer opentracing.Tracer) []grpc.ServerOption {
-	return []grpc.ServerOption {
+	return []grpc.ServerOption{
 		grpc.UnaryInterceptor(OpenTracingServerInterceptor(tracer)),
 		grpc.StreamInterceptor(OpenTracingStreamServerInterceptor(tracer)),
 	}

@@ -9,6 +9,7 @@ import (
 )
 
 var gRPCComponentTag = opentracing.Tag{string(ext.Component), "gRPC"}
+var gRPCPeerServiceTag = opentracing.Tag{string(ext.PeerService), "grpc"}
 
 // metadataReaderWriter satisfies both the opentracing.TextMapReader and
 // opentracing.TextMapWriter interfaces.
