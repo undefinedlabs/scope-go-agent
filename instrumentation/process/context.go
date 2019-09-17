@@ -11,7 +11,7 @@ import (
 
 var (
 	processSpanContext *opentracing.SpanContext
-	once sync.Once
+	once               sync.Once
 )
 
 // Injects a context to the environment variables array

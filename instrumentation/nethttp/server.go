@@ -157,8 +157,6 @@ func middlewareFunc(tr opentracing.Tracer, h http.HandlerFunc, options ...MWOpti
 	return http.HandlerFunc(fn)
 }
 
-
-
 func Middleware(h http.Handler, options ...MWOption) http.Handler {
 	if h == nil {
 		h = http.DefaultServeMux

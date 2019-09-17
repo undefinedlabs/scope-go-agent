@@ -9,7 +9,7 @@ import (
 )
 
 const (
-	environmentKeyPrefix = "CTX_"
+	environmentKeyPrefix      = "CTX_"
 	EnvironmentVariableFormat = 10
 )
 
@@ -99,7 +99,6 @@ func (p *envVarPropagator) Extract(
 		Baggage: decodedBaggage,
 	}, nil
 }
-
 
 // Environment variable names used by the utilities in the Shell and Utilities volume of IEEE Std 1003.1-2001
 // consist solely of uppercase letters, digits, and the '_' (underscore)

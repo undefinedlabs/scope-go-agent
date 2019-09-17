@@ -357,4 +357,3 @@ func (h *Tracer) wroteRequest(info httptrace.WroteRequestInfo) {
 		h.sp.LogFields(log.String("event", "WroteRequest"))
 	}
 }
-
