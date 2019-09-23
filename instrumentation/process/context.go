@@ -33,7 +33,7 @@ func Extract(env *[]string) (opentracing.SpanContext, error) {
 }
 
 // Gets the current span context from the environment variables
-func ProcessSpanContext() (opentracing.SpanContext, error) {
+func SpanContext() (opentracing.SpanContext, error) {
 	once.Do(func() {
 		env := os.Environ()
 		if envCtx, err := Extract(&env); err == nil {
