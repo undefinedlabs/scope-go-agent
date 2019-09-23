@@ -154,7 +154,8 @@ func extractSpanContext(ctx context.Context, tracer opentracing.Tracer) (opentra
 }
 
 // Get server interceptors
-func GetServerInterceptors(tracer opentracing.Tracer) []grpc.ServerOption {
+func GetServerInterceptors() []grpc.ServerOption {
+	tracer := opentracing.GlobalTracer()
 	return []grpc.ServerOption{
 		grpc.UnaryInterceptor(OpenTracingServerInterceptor(tracer)),
 		grpc.StreamInterceptor(OpenTracingStreamServerInterceptor(tracer)),

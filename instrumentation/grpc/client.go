@@ -261,7 +261,8 @@ func injectSpanContext(ctx context.Context, tracer opentracing.Tracer, clientSpa
 }
 
 // Get client interceptors
-func GetClientInterceptors(tracer opentracing.Tracer) []grpc.DialOption {
+func GetClientInterceptors() []grpc.DialOption {
+	tracer := opentracing.GlobalTracer()
 	return []grpc.DialOption{
 		grpc.WithUnaryInterceptor(OpenTracingClientInterceptor(tracer)),
 		grpc.WithStreamInterceptor(OpenTracingStreamClientInterceptor(tracer)),
