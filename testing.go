@@ -16,41 +16,59 @@ import (
 	"testing"
 )
 
-type Test struct {
-	testing.TB
-	ctx              context.Context
-	span             opentracing.Span
-	t                *testing.T
-	stdOut           *stdIO
-	stdErr           *stdIO
-	loggerStdIO      *stdIO
-	failReason       string
-	failReasonSource string
-	skipReason       string
-	skipReasonSource string
-}
-type stdIO struct {
-	oldIO     *os.File
-	readPipe  *os.File
-	writePipe *os.File
-	sync      *sync.WaitGroup
+type (
+	Test struct {
+		testing.TB
+		ctx              context.Context
+		span             opentracing.Span
+		t                *testing.T
+		stdOut           *stdIO
+		stdErr           *stdIO
+		loggerStdIO      *stdIO
+		failReason       string
+		failReasonSource string
+		skipReason       string
+		skipReasonSource string
+	}
+
+	stdIO struct {
+		oldIO     *os.File
+		readPipe  *os.File
+		writePipe *os.File
+		sync      *sync.WaitGroup
+	}
+
+	Option func(*Test)
+)
+
+// Options for starting a new test
+func WithContext(ctx context.Context) Option {
+	return func(test *Test) {
+		test.ctx = ctx
+	}
 }
 
 // Instrument a test
-func InstrumentTest(t *testing.T, f func(ctx context.Context, t *testing.T)) {
-	test := StartTest(t)
+func InstrumentTest(t *testing.T, f func(ctx context.Context, t *testing.T), opts ...Option) {
+	test := StartTest(t, opts...)
 	defer test.End()
 	f(test.Context(), t)
 }
 
 // Starts a new test
-func StartTest(t *testing.T) *Test {
+func StartTest(t *testing.T, opts ...Option) *Test {
 	pc, _, _, _ := runtime.Caller(1)
-	return startTestFromCaller(t, pc)
+	return startTestFromCaller(t, pc, opts...)
 }
 
 // Starts a new test with and uses the caller pc info for Name and Suite
-func startTestFromCaller(t *testing.T, pc uintptr) *Test {
+func startTestFromCaller(t *testing.T, pc uintptr, opts ...Option) *Test {
+	test := &Test{t: t}
+
+	for _, opt := range opts {
+		opt(test)
+	}
+
 	fullTestName := t.Name()
 	testNameSlash := strings.IndexByte(fullTestName, '/')
 	if testNameSlash < 0 {
@@ -81,25 +99,23 @@ func startTestFromCaller(t *testing.T, pc uintptr) *Test {
 		"test.language":  "go",
 	})
 
-	span, ctx := opentracing.StartSpanFromContext(context.Background(), t.Name(), startOptions...)
+	if test.ctx == nil {
+		test.ctx = context.Background()
+	}
+
+	span, ctx := opentracing.StartSpanFromContext(test.ctx, t.Name(), startOptions...)
 	span.SetBaggageItem("trace.kind", "test")
+	test.span = span
+	test.ctx = ctx
 
 	// Replaces stdout and stderr
 	loggerStdIO := newStdIO(&os.Stderr, false)
 	if loggerStdIO != nil && loggerStdIO.writePipe != nil {
 		log2.SetOutput(loggerStdIO.writePipe)
 	}
-	stdOut := newStdIO(&os.Stdout, true)
-	stdErr := newStdIO(&os.Stderr, true)
-
-	test := &Test{
-		ctx:         ctx,
-		span:        span,
-		t:           t,
-		stdOut:      stdOut,
-		stdErr:      stdErr,
-		loggerStdIO: loggerStdIO,
-	}
+	test.loggerStdIO = loggerStdIO
+	test.stdOut = newStdIO(&os.Stdout, true)
+	test.stdErr = newStdIO(&os.Stderr, true)
 
 	// Starts stdIO pipe handlers
 	if test.stdOut != nil {
