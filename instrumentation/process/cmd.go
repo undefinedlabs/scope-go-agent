@@ -10,6 +10,9 @@ import (
 
 // Injects the span context to the command environment variables
 func InjectToCmd(ctx context.Context, command *exec.Cmd) *exec.Cmd {
+	if command.Env == nil {
+		command.Env = []string{}
+	}
 	err := InjectFromContext(ctx, &command.Env)
 	if err != nil {
 		fmt.Println(err)
