@@ -161,3 +161,8 @@ func GetServerInterceptors() []grpc.ServerOption {
 		grpc.StreamInterceptor(OpenTracingStreamServerInterceptor(tracer)),
 	}
 }
+
+func NewServer(opts ...grpc.ServerOption) *grpc.Server {
+	opts = append(opts, GetServerInterceptors()...)
+	return grpc.NewServer(opts...)
+}
