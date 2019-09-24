@@ -45,3 +45,18 @@ func SpanContext() (opentracing.SpanContext, error) {
 	}
 	return *processSpanContext, nil
 }
+
+func StartSpan(operationName string, opts ...opentracing.StartSpanOption) opentracing.Span {
+	if spanCtx, err := SpanContext(); err != nil {
+		opts = append(opts, opentracing.ChildOf(spanCtx))
+	}
+	return opentracing.StartSpan(operationName, opts...)
+}
+
+func StartSpanFromContext(ctx context.Context, operationName string, opts ...opentracing.StartSpanOption) (opentracing.Span, context.Context) {
+	if parentSpan := opentracing.SpanFromContext(ctx); parentSpan != nil {
+		opts = append(opts, opentracing.ChildOf(parentSpan.Context()))
+	}
+	span := StartSpan(operationName, opts...)
+	return span, opentracing.ContextWithSpan(ctx, span)
+}
