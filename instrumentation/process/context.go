@@ -10,7 +10,7 @@ import (
 )
 
 var (
-	processSpanContext *opentracing.SpanContext
+	processSpanContext opentracing.SpanContext
 	once               sync.Once
 )
 
@@ -32,22 +32,19 @@ func Extract(env *[]string) (opentracing.SpanContext, error) {
 	return opentracing.GlobalTracer().Extract(tracer.EnvironmentVariableFormat, env)
 }
 
-// Gets the current span context from the environment variables
-func SpanContext() (opentracing.SpanContext, error) {
+// Gets the current span context from the environment variables, if available
+func SpanContext() opentracing.SpanContext {
 	once.Do(func() {
 		env := os.Environ()
 		if envCtx, err := Extract(&env); err == nil {
-			processSpanContext = &envCtx
+			processSpanContext = envCtx
 		}
 	})
-	if processSpanContext == nil {
-		return nil, errors.New("process span context not found")
-	}
-	return *processSpanContext, nil
+	return processSpanContext
 }
 
 func StartSpan(operationName string, opts ...opentracing.StartSpanOption) opentracing.Span {
-	if spanCtx, err := SpanContext(); err != nil {
+	if spanCtx := SpanContext(); spanCtx != nil {
 		opts = append(opts, opentracing.ChildOf(spanCtx))
 	}
 	return opentracing.StartSpan(operationName, opts...)
