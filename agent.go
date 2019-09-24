@@ -31,7 +31,7 @@ type Agent struct {
 var (
 	GlobalAgent *Agent
 
-	version            = "0.1.0-dev"
+	version            = "0.1.0"
 	defaultApiEndpoint = "https://app.scope.dev"
 
 	printReportOnce sync.Once
