@@ -31,7 +31,8 @@ type Agent struct {
 var (
 	GlobalAgent *Agent
 
-	version = "0.1.0-dev"
+	version            = "0.1.0-dev"
+	defaultApiEndpoint = "https://app.scope.dev"
 
 	printReportOnce sync.Once
 	gitDataOnce     sync.Once
@@ -62,7 +63,7 @@ func NewAgent() *Agent {
 	} else if configProfile != nil {
 		a.scopeEndpoint = configProfile.ApiEndpoint
 	} else {
-		panic(errors.New("Api Endpoint is missing"))
+		a.scopeEndpoint = defaultApiEndpoint
 	}
 
 	if apikey, set := os.LookupEnv("SCOPE_APIKEY"); set && apikey != "" {
@@ -70,7 +71,7 @@ func NewAgent() *Agent {
 	} else if configProfile != nil {
 		a.apiKey = configProfile.ApiKey
 	} else {
-		panic(errors.New("Api Key is missing"))
+		panic(errors.New("Scope API key could not be autodetected"))
 	}
 
 	a.debugMode = getBoolEnv("SCOPE_DEBUG", false)
