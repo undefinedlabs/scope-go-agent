@@ -4,6 +4,7 @@ import (
 	"go.undefinedlabs.com/scopeagent/agent"
 	"go.undefinedlabs.com/scopeagent/instrumentation"
 	scopetesting "go.undefinedlabs.com/scopeagent/instrumentation/testing"
+	"runtime"
 	"testing"
 )
 
@@ -46,6 +47,6 @@ func StartTest(t *testing.T, opts ...scopetesting.Option) *scopetesting.Test {
 			GlobalAgent.PrintReport()
 		}
 	}))
-	test := scopetesting.StartTest(t, opts...)
-	return test
+	pc, _, _, _ := runtime.Caller(1)
+	return scopetesting.StartTestFromCaller(t, pc, opts...)
 }

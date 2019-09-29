@@ -45,21 +45,14 @@ func WithOnPanicHandler(f func(*Test)) Option {
 	}
 }
 
-// Instrument a test
-func InstrumentTest(t *testing.T, f func(ctx context.Context, t *testing.T), opts ...Option) {
-	test := StartTest(t, opts...)
-	defer test.End()
-	f(test.Context(), t)
-}
-
 // Starts a new test
 func StartTest(t *testing.T, opts ...Option) *Test {
 	pc, _, _, _ := runtime.Caller(1)
-	return startTestFromCaller(t, pc, opts...)
+	return StartTestFromCaller(t, pc, opts...)
 }
 
 // Starts a new test with and uses the caller pc info for Name and Suite
-func startTestFromCaller(t *testing.T, pc uintptr, opts ...Option) *Test {
+func StartTestFromCaller(t *testing.T, pc uintptr, opts ...Option) *Test {
 	test := &Test{t: t}
 
 	for _, opt := range opts {
@@ -169,7 +162,7 @@ func (test *Test) Context() context.Context {
 func (test *Test) Run(name string, f func(t *testing.T)) {
 	pc, _, _, _ := runtime.Caller(1)
 	test.t.Run(name, func(childT *testing.T) {
-		childTest := startTestFromCaller(childT, pc)
+		childTest := StartTestFromCaller(childT, pc)
 		defer childTest.End()
 		f(childT)
 	})
