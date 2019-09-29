@@ -99,5 +99,7 @@ func autodetectCI(agent *Agent) {
 		)
 		agent.metadata[tags.Commit] = sha
 		agent.metadata[tags.SourceRoot] = os.Getenv("GITHUB_WORKSPACE")
+	} else {
+		agent.metadata[tags.CI] = false
 	}
 }
