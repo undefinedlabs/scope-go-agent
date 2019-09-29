@@ -31,10 +31,11 @@ func init() {
 }
 
 func Run(m *testing.M) int {
-	result := m.Run()
 	if GlobalAgent != nil {
-		GlobalAgent.Stop()
+		GlobalAgent.SetTestingMode(true)
+		defer GlobalAgent.Stop()
 	}
+	result := m.Run()
 	return result
 }
 
