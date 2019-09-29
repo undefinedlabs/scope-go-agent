@@ -12,21 +12,26 @@ import (
 	"runtime"
 	"sync"
 	"testing"
+	"time"
 )
 
-type Agent struct {
-	Tracer opentracing.Tracer
+type (
+	Agent struct {
+		Tracer opentracing.Tracer
 
-	scopeEndpoint string
-	apiKey        string
+		apiEndpoint string
+		apiKey      string
 
-	agentId     string
-	version     string
-	metadata    map[string]interface{}
-	debugMode   bool
-	testingMode bool
-	recorder    *SpanRecorder
-}
+		agentId     string
+		version     string
+		metadata    map[string]interface{}
+		debugMode   bool
+		testingMode bool
+		recorder    *SpanRecorder
+	}
+
+	Option func(*Agent)
+)
 
 var (
 	version            = "0.1.0"
@@ -35,92 +40,148 @@ var (
 	printReportOnce sync.Once
 	gitDataOnce     sync.Once
 	gitData         *GitData
+
+	testingModeFrequency    = time.Second
+	nonTestingModeFrequency = time.Minute
 )
 
+func WithApiKey(apiKey string) Option {
+	return func(agent *Agent) {
+		agent.apiKey = apiKey
+	}
+}
+
+func WithApiEndpoint(apiEndpoint string) Option {
+	return func(agent *Agent) {
+		agent.apiEndpoint = apiEndpoint
+	}
+}
+
+func WithServiceName(service string) Option {
+	return func(agent *Agent) {
+		agent.metadata[tags.Service] = service
+	}
+}
+
+func WithDebugEnabled() Option {
+	return func(agent *Agent) {
+		agent.debugMode = true
+	}
+}
+
+func WithTestingModeEnabled() Option {
+	return func(agent *Agent) {
+		agent.testingMode = true
+	}
+}
+
+func WithMetadata(values map[string]interface{}) Option {
+	return func(agent *Agent) {
+		for k, v := range values {
+			agent.metadata[k] = v
+		}
+	}
+}
+
 // Creates a new Scope Agent instance
-func NewAgent() (*Agent, error) {
-	var apiKey string
+func NewAgent(options ...Option) (*Agent, error) {
+	agent := new(Agent)
+	agent.metadata = make(map[string]interface{})
+	agent.version = version
+	agent.agentId = generateAgentID()
+
+	for _, opt := range options {
+		opt(agent)
+	}
+
+	agent.debugMode = agent.debugMode || GetBoolEnv("SCOPE_DEBUG", false)
+
 	configProfile := GetConfigCurrentProfile()
-	if apikey, set := os.LookupEnv("SCOPE_APIKEY"); set && apikey != "" {
-		apiKey = apikey
-	} else if configProfile != nil {
-		apiKey = configProfile.ApiKey
-	} else {
-		return nil, errors.New("Scope API key could not be autodetected")
+
+	if agent.apiKey == "" {
+		if apikey, set := os.LookupEnv("SCOPE_APIKEY"); set && apikey != "" {
+			agent.apiKey = apikey
+		} else if configProfile != nil {
+			agent.apiKey = configProfile.ApiKey
+		} else {
+			return nil, errors.New("Scope API key could not be autodetected")
+		}
 	}
 
-	a := new(Agent)
-	a.apiKey = apiKey
-
-	if endpoint, set := os.LookupEnv("SCOPE_API_ENDPOINT"); set && endpoint != "" {
-		a.scopeEndpoint = endpoint
-	} else if configProfile != nil {
-		a.scopeEndpoint = configProfile.ApiEndpoint
-	} else {
-		a.scopeEndpoint = defaultApiEndpoint
+	if agent.apiEndpoint == "" {
+		if endpoint, set := os.LookupEnv("SCOPE_API_ENDPOINT"); set && endpoint != "" {
+			agent.apiEndpoint = endpoint
+		} else if configProfile != nil {
+			agent.apiEndpoint = configProfile.ApiEndpoint
+		} else {
+			agent.apiEndpoint = defaultApiEndpoint
+		}
 	}
-
-	a.debugMode = GetBoolEnv("SCOPE_DEBUG", false)
-	a.version = version
-	a.agentId = generateAgentID()
-
-	a.metadata = make(map[string]interface{})
 
 	// Agent data
-	a.metadata[tags.AgentID] = a.agentId
-	a.metadata[tags.AgentVersion] = version
-	a.metadata[tags.AgentType] = "go"
+	agent.metadata[tags.AgentID] = agent.agentId
+	agent.metadata[tags.AgentVersion] = version
+	agent.metadata[tags.AgentType] = "go"
 
 	// Platform data
-	a.metadata[tags.PlatformName] = runtime.GOOS
-	a.metadata[tags.PlatformArchitecture] = runtime.GOARCH
+	agent.metadata[tags.PlatformName] = runtime.GOOS
+	agent.metadata[tags.PlatformArchitecture] = runtime.GOARCH
 	if runtime.GOARCH == "amd64" {
-		a.metadata[tags.ProcessArchitecture] = "X64"
+		agent.metadata[tags.ProcessArchitecture] = "X64"
 	} else if runtime.GOARCH == "386" {
-		a.metadata[tags.ProcessArchitecture] = "X86"
+		agent.metadata[tags.ProcessArchitecture] = "X86"
 	} else if runtime.GOARCH == "arm" {
-		a.metadata[tags.ProcessArchitecture] = "Arm"
+		agent.metadata[tags.ProcessArchitecture] = "Arm"
 	} else if runtime.GOARCH == "arm64" {
-		a.metadata[tags.ProcessArchitecture] = "Arm64"
+		agent.metadata[tags.ProcessArchitecture] = "Arm64"
 	}
 
 	// Current folder
 	wd, _ := os.Getwd()
-	a.metadata[tags.CurrentFolder] = wd
+	agent.metadata[tags.CurrentFolder] = wd
 
 	// Hostname
 	hostname, _ := os.Hostname()
-	a.metadata[tags.Hostname] = hostname
+	agent.metadata[tags.Hostname] = hostname
 
 	// Go version
-	a.metadata[tags.GoVersion] = runtime.Version()
+	agent.metadata[tags.GoVersion] = runtime.Version()
 
 	// Git data
-	autodetectCI(a)
+	autodetectCI(agent)
 	if repository, set := os.LookupEnv("SCOPE_REPOSITORY"); set {
-		a.metadata[tags.Repository] = repository
+		agent.metadata[tags.Repository] = repository
 	}
 	if commit, set := os.LookupEnv("SCOPE_COMMIT_SHA"); set {
-		a.metadata[tags.Commit] = commit
+		agent.metadata[tags.Commit] = commit
 	}
 	if sourceRoot, set := os.LookupEnv("SCOPE_SOURCE_ROOT"); set {
-		a.metadata[tags.SourceRoot] = sourceRoot
+		agent.metadata[tags.SourceRoot] = sourceRoot
 	}
-	if service, set := os.LookupEnv("SCOPE_SERVICE"); set {
-		a.metadata[tags.Service] = service
-	} else {
-		a.metadata[tags.Service] = "default"
+	if _, ok := agent.metadata[tags.Service]; !ok {
+		if service, set := os.LookupEnv("SCOPE_SERVICE"); set {
+			agent.metadata[tags.Service] = service
+		} else {
+			agent.metadata[tags.Service] = "default"
+		}
 	}
 
 	// Fallback to git command
-	fillFromGitIfEmpty(a)
-	a.metadata[tags.Diff] = GetGitDiff()
-	a.metadata[tags.InContainer] = isRunningInContainer()
+	fillFromGitIfEmpty(agent)
+	agent.metadata[tags.Diff] = GetGitDiff()
+	agent.metadata[tags.InContainer] = isRunningInContainer()
 
-	a.testingMode = GetBoolEnv("SCOPE_TESTING_MODE", true)
-	a.recorder = NewSpanRecorder(a)
-	a.Tracer = tracer.NewWithOptions(tracer.Options{
-		Recorder: a.recorder,
+	agent.recorder = NewSpanRecorder(agent)
+
+	if _, exists := os.LookupEnv("SCOPE_TESTING_MODE"); exists {
+		agent.testingMode = GetBoolEnv("SCOPE_TESTING_MODE", false)
+	} else {
+		agent.testingMode = agent.testingMode || agent.metadata[tags.CI].(bool)
+	}
+	agent.SetTestingMode(agent.testingMode)
+
+	agent.Tracer = tracer.NewWithOptions(tracer.Options{
+		Recorder: agent.recorder,
 		ShouldSample: func(traceID uint64) bool {
 			return true
 		},
@@ -130,7 +191,20 @@ func NewAgent() (*Agent, error) {
 			scopeError.LogErrorInRawSpan(rSpan, r)
 		},
 	})
-	return a, nil
+	return agent, nil
+}
+
+func (a *Agent) SetTestingMode(enabled bool) {
+	a.testingMode = enabled
+	if a.testingMode {
+		a.recorder.ChangeFlushFrequency(testingModeFrequency)
+	} else {
+		a.recorder.ChangeFlushFrequency(nonTestingModeFrequency)
+	}
+}
+
+func (a *Agent) SetAsGlobalTracer() {
+	opentracing.SetGlobalTracer(a.Tracer)
 }
 
 // Runs a test suite using the agent

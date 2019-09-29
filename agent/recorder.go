@@ -19,7 +19,12 @@ type SpanRecorder struct {
 	sync.RWMutex
 	t tomb.Tomb
 
-	agent          *Agent
+	apiKey      string
+	apiEndpoint string
+	version     string
+	debugMode   bool
+	metadata    map[string]interface{}
+
 	spans          []tracer.RawSpan
 	flushFrequency time.Duration
 	totalSend      int
@@ -29,12 +34,12 @@ type SpanRecorder struct {
 
 func NewSpanRecorder(agent *Agent) *SpanRecorder {
 	r := new(SpanRecorder)
-	r.agent = agent
-	if agent.testingMode {
-		r.flushFrequency = 1 * time.Second
-	} else {
-		r.flushFrequency = 60 * time.Second
-	}
+	r.apiEndpoint = agent.apiEndpoint
+	r.apiKey = agent.apiKey
+	r.version = agent.version
+	r.debugMode = agent.debugMode
+	r.metadata = agent.metadata
+	r.flushFrequency = time.Minute
 	r.t.Go(r.loop)
 	return r
 }
@@ -43,9 +48,15 @@ func (r *SpanRecorder) RecordSpan(span tracer.RawSpan) {
 	r.Lock()
 	defer r.Unlock()
 	r.spans = append(r.spans, span)
-	if r.agent.debugMode {
+	if r.debugMode {
 		fmt.Printf("record span: %+v\n", span)
 	}
+}
+
+func (r *SpanRecorder) ChangeFlushFrequency(frequency time.Duration) {
+	r.Lock()
+	defer r.Unlock()
+	r.flushFrequency = frequency
 }
 
 func (r *SpanRecorder) loop() error {
@@ -56,7 +67,7 @@ func (r *SpanRecorder) loop() error {
 		case <-ticker.C:
 			hasSpans := len(r.spans) > 0
 			if hasSpans || time.Now().Sub(cTime) >= r.flushFrequency {
-				if r.agent.debugMode {
+				if r.debugMode {
 					if hasSpans {
 						fmt.Println("Ticker: Sending by buffer")
 					} else {
@@ -126,12 +137,12 @@ func (r *SpanRecorder) SendSpans() error {
 	}
 
 	payload := map[string]interface{}{
-		"metadata": r.agent.metadata,
+		"metadata": r.metadata,
 		"spans":    spans,
 		"events":   events,
 	}
 
-	if r.agent.debugMode {
+	if r.debugMode {
 		jsonPayLoad, _ := json.Marshal(payload)
 		fmt.Printf("Payload: %s\n\n", string(jsonPayLoad))
 	}
@@ -153,7 +164,7 @@ func (r *SpanRecorder) SendSpans() error {
 		r.koSend++
 		return err
 	}
-	url := fmt.Sprintf("%s/%s", r.agent.scopeEndpoint, "api/agent/ingest")
+	url := fmt.Sprintf("%s/%s", r.apiEndpoint, "api/agent/ingest")
 
 	retries := 0
 	payloadSent := false
@@ -161,7 +172,7 @@ func (r *SpanRecorder) SendSpans() error {
 	for {
 		if !payloadSent && retries < 3 {
 			retries++
-			if r.agent.debugMode {
+			if r.debugMode {
 				fmt.Printf("Sending payload [%d try]\n", retries)
 			}
 			req, err := http.NewRequest("POST", url, &buf)
@@ -169,10 +180,10 @@ func (r *SpanRecorder) SendSpans() error {
 				r.koSend++
 				return err
 			}
-			req.Header.Set("User-Agent", fmt.Sprintf("scope-agent-go/%s", r.agent.version))
+			req.Header.Set("User-Agent", fmt.Sprintf("scope-agent-go/%s", r.version))
 			req.Header.Set("Content-Type", "application/msgpack")
 			req.Header.Set("Content-Encoding", "gzip")
-			req.Header.Set("X-Scope-ApiKey", r.agent.apiKey)
+			req.Header.Set("X-Scope-ApiKey", r.apiKey)
 
 			client := &http.Client{}
 			resp, err := client.Do(req)
