@@ -11,7 +11,6 @@ import (
 	"os"
 	"runtime"
 	"sync"
-	"testing"
 	"time"
 )
 
@@ -205,13 +204,6 @@ func (a *Agent) SetTestingMode(enabled bool) {
 
 func (a *Agent) SetAsGlobalTracer() {
 	opentracing.SetGlobalTracer(a.Tracer)
-}
-
-// Runs a test suite using the agent
-func (a *Agent) Run(m *testing.M) int {
-	result := m.Run()
-	a.Stop()
-	return result
 }
 
 // Stops the agent

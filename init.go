@@ -13,7 +13,7 @@ var (
 
 func init() {
 	defaultAgent, err := agent.NewAgent()
-	if err == nil {
+	if err != nil {
 		return
 	}
 
@@ -31,7 +31,11 @@ func init() {
 }
 
 func Run(m *testing.M) int {
-	return GlobalAgent.Run(m)
+	result := m.Run()
+	if GlobalAgent != nil {
+		GlobalAgent.Stop()
+	}
+	return result
 }
 
 func StartTest(t *testing.T, opts ...scopetesting.Option) *scopetesting.Test {
