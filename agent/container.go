@@ -1,4 +1,4 @@
-package scopeagent
+package agent
 
 import (
 	"bufio"

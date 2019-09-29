@@ -1,4 +1,4 @@
-package scopeagent
+package tags
 
 const (
 	AgentType    = "agent.type"
