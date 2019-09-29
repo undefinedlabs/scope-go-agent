@@ -36,8 +36,10 @@ func Run(m *testing.M) int {
 
 func StartTest(t *testing.T, opts ...scopetesting.Option) *scopetesting.Test {
 	opts = append(opts, scopetesting.WithOnPanicHandler(func(test *scopetesting.Test) {
-		_ = GlobalAgent.Flush()
-		GlobalAgent.PrintReport()
+		if GlobalAgent != nil {
+			_ = GlobalAgent.Flush()
+			GlobalAgent.PrintReport()
+		}
 	}))
 	test := scopetesting.StartTest(t, opts...)
 	return test
