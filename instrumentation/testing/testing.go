@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"github.com/opentracing/opentracing-go"
 	"github.com/opentracing/opentracing-go/log"
-	"go.undefinedlabs.com/scopeagent"
 	"go.undefinedlabs.com/scopeagent/ast"
 	"go.undefinedlabs.com/scopeagent/errors"
 	"go.undefinedlabs.com/scopeagent/tags"
@@ -27,6 +26,7 @@ type (
 		failReasonSource string
 		skipReason       string
 		skipReasonSource string
+		onPanicHandler   func(*Test)
 	}
 
 	Option func(*Test)
@@ -36,6 +36,12 @@ type (
 func WithContext(ctx context.Context) Option {
 	return func(test *Test) {
 		test.ctx = ctx
+	}
+}
+
+func WithOnPanicHandler(f func(*Test)) Option {
+	return func(test *Test) {
+		test.onPanicHandler = f
 	}
 }
 
@@ -112,8 +118,9 @@ func (test *Test) End() {
 		test.span.SetTag("error", true)
 		errors.LogError(test.span, r, 1)
 		test.span.Finish()
-		_ = scopeagent.GlobalAgent.Flush()
-		scopeagent.GlobalAgent.PrintReport()
+		if test.onPanicHandler != nil {
+			test.onPanicHandler(test)
+		}
 		panic(r)
 	}
 	if test.t.Failed() {

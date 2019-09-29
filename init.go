@@ -3,6 +3,7 @@ package scopeagent // import "go.undefinedlabs.com/scopeagent"
 import (
 	"go.undefinedlabs.com/scopeagent/agent"
 	"go.undefinedlabs.com/scopeagent/instrumentation"
+	scopetesting "go.undefinedlabs.com/scopeagent/instrumentation/testing"
 	"testing"
 )
 
@@ -31,4 +32,13 @@ func init() {
 
 func Run(m *testing.M) int {
 	return GlobalAgent.Run(m)
+}
+
+func StartTest(t *testing.T, opts ...scopetesting.Option) *scopetesting.Test {
+	opts = append(opts, scopetesting.WithOnPanicHandler(func(test *scopetesting.Test) {
+		_ = GlobalAgent.Flush()
+		GlobalAgent.PrintReport()
+	}))
+	test := scopetesting.StartTest(t, opts...)
+	return test
 }
