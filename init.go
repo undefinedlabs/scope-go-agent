@@ -3,6 +3,7 @@ package scopeagent // import "go.undefinedlabs.com/scopeagent"
 import (
 	"go.undefinedlabs.com/scopeagent/agent"
 	"go.undefinedlabs.com/scopeagent/instrumentation"
+	"testing"
 )
 
 var (
@@ -26,4 +27,8 @@ func init() {
 			panic(err)
 		}
 	}
+}
+
+func Run(m *testing.M) int {
+	return GlobalAgent.Run(m)
 }
