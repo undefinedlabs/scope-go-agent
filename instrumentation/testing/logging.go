@@ -7,6 +7,7 @@ import (
 	"go.undefinedlabs.com/scopeagent/tags"
 	stdlog "log"
 	"os"
+	"regexp"
 	"strings"
 	"sync"
 )
@@ -17,6 +18,8 @@ type stdIO struct {
 	writePipe *os.File
 	sync      *sync.WaitGroup
 }
+
+var LOG_REGEX_TEMPLATE = `^%s(?:(?P<date>\d{4}\/\d{1,2}\/\d{1,2}) )?(?:(?P<time>\d{1,2}:\d{1,2}:\d{1,2}(?:.\d{1,6})?) )?(?:(?:(?P<file>[\w\-. /]+):(?P<line>\d+)): )?(.*)\n?$`
 
 func (test *Test) startCapturingLogs() {
 	// Replaces stdout and stderr
@@ -80,33 +83,27 @@ func stdIOHandler(test *Test, stdio *stdIO, isError bool) {
 func loggerStdIOHandler(test *Test, stdio *stdIO) {
 	stdio.sync.Add(1)
 	defer stdio.sync.Done()
+	commonFields := []log.Field{
+		log.String(tags.EventType, tags.LogEvent),
+		log.String(tags.LogEventLevel, tags.LogLevel_VERBOSE),
+		log.String("log.logger", "std.Logger"),
+	}
 	reader := bufio.NewReader(stdio.readPipe)
+	re := regexp.MustCompile(fmt.Sprintf(LOG_REGEX_TEMPLATE, stdlog.Prefix()))
 	for {
 		line, err := reader.ReadString('\n')
 		if err != nil {
 			break
 		}
-		nLine := line
-		flags := stdlog.Flags()
-		sliceCount := 0
-		if flags&(stdlog.Ldate|stdlog.Ltime|stdlog.Lmicroseconds) != 0 {
-			if flags&stdlog.Ldate != 0 {
-				sliceCount = sliceCount + 11
-			}
-			if flags&(stdlog.Ltime|stdlog.Lmicroseconds) != 0 {
-				sliceCount = sliceCount + 9
-				if flags&stdlog.Lmicroseconds != 0 {
-					sliceCount = sliceCount + 7
-				}
-			}
-			nLine = nLine[sliceCount:]
+		matches := re.FindStringSubmatch(line)
+		file := matches[3]
+		lineNumber := matches[4]
+		message := matches[5]
+		fields := append(commonFields, log.String(tags.EventMessage, message))
+		if file != "" && line != "" {
+			fields = append(fields, log.String(tags.EventSource, fmt.Sprintf("%s:%s", file, lineNumber)))
 		}
-		test.span.LogFields(
-			log.String(tags.EventType, tags.LogEvent),
-			log.String(tags.EventMessage, nLine),
-			log.String(tags.LogEventLevel, tags.LogLevel_VERBOSE),
-			log.String("log.logger", "std.Logger"),
-		)
+		test.span.LogFields(fields...)
 
 		if stdio.oldIO != nil {
 			_, _ = stdio.oldIO.WriteString(line)
