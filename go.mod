@@ -15,7 +15,7 @@ require (
 	github.com/vmihailenco/msgpack v4.0.4+incompatible
 	golang.org/x/net v0.0.0-20190916140828-c8589233b77d
 	google.golang.org/appengine v1.6.2 // indirect
-	google.golang.org/grpc v1.23.1
+	google.golang.org/grpc v1.24.0
 	gopkg.in/check.v1 v1.0.0-20190902080502-41f04d3bba15 // indirect
 	gopkg.in/tomb.v2 v2.0.0-20161208151619-d5d1b5820637
 )
