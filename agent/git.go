@@ -1,8 +1,9 @@
-package scopeagent
+package agent
 
 import (
 	"bufio"
 	"github.com/google/uuid"
+	"go.undefinedlabs.com/scopeagent/tags"
 	"os/exec"
 	"strconv"
 	"strings"
@@ -30,7 +31,7 @@ type DiffFileItem struct {
 }
 
 // Gets the current git data
-func GetCurrentGitData() *GitData {
+func getCurrentGitData() *GitData {
 	var repository, commit, sourceRoot, branch string
 
 	if repoBytes, err := exec.Command("git", "remote", "get-url", "origin").Output(); err == nil {
@@ -94,4 +95,34 @@ func GetGitDiff() *GitDiff {
 		Files:   files,
 	}
 	return &gitDiff
+}
+
+func getGitData() *GitData {
+	gitDataOnce.Do(func() {
+		gitData = getCurrentGitData()
+	})
+	return gitData
+}
+
+func fillFromGitIfEmpty(a *Agent) {
+	if a.metadata[tags.Repository] == nil || a.metadata[tags.Repository] == "" {
+		if git := getGitData(); git != nil {
+			a.metadata[tags.Repository] = git.Repository
+		}
+	}
+	if a.metadata[tags.Commit] == nil || a.metadata[tags.Commit] == "" {
+		if git := getGitData(); git != nil {
+			a.metadata[tags.Commit] = git.Commit
+		}
+	}
+	if a.metadata[tags.SourceRoot] == nil || a.metadata[tags.SourceRoot] == "" {
+		if git := getGitData(); git != nil {
+			a.metadata[tags.SourceRoot] = git.SourceRoot
+		}
+	}
+	if a.metadata[tags.Branch] == nil || a.metadata[tags.Branch] == "" {
+		if git := getGitData(); git != nil {
+			a.metadata[tags.Branch] = git.Branch
+		}
+	}
 }

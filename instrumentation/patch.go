@@ -1,4 +1,4 @@
-package scopeagent
+package instrumentation
 
 import (
 	"go.undefinedlabs.com/scopeagent/instrumentation/nethttp"
