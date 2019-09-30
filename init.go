@@ -40,6 +40,12 @@ func Run(m *testing.M) int {
 	return result
 }
 
+func Stop() {
+	if GlobalAgent != nil {
+		GlobalAgent.Stop()
+	}
+}
+
 func StartTest(t *testing.T, opts ...scopetesting.Option) *scopetesting.Test {
 	opts = append(opts, scopetesting.WithOnPanicHandler(func(test *scopetesting.Test) {
 		if GlobalAgent != nil {
