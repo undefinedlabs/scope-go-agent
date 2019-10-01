@@ -16,7 +16,7 @@ import (
 
 type (
 	Agent struct {
-		Tracer opentracing.Tracer
+		tracer opentracing.Tracer
 
 		apiEndpoint string
 		apiKey      string
@@ -179,7 +179,7 @@ func NewAgent(options ...Option) (*Agent, error) {
 	}
 	agent.SetTestingMode(agent.testingMode)
 
-	agent.Tracer = tracer.NewWithOptions(tracer.Options{
+	agent.tracer = tracer.NewWithOptions(tracer.Options{
 		Recorder: agent.recorder,
 		ShouldSample: func(traceID uint64) bool {
 			return true
@@ -202,8 +202,8 @@ func (a *Agent) SetTestingMode(enabled bool) {
 	}
 }
 
-func (a *Agent) SetAsGlobalTracer() {
-	opentracing.SetGlobalTracer(a.Tracer)
+func (a *Agent) Tracer() opentracing.Tracer {
+	return a.tracer
 }
 
 // Stops the agent

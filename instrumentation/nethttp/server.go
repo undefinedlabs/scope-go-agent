@@ -1,6 +1,7 @@
 package nethttp
 
 import (
+	"go.undefinedlabs.com/scopeagent/instrumentation"
 	"net"
 	"net/http"
 	"net/url"
@@ -167,7 +168,7 @@ func Middleware(h http.Handler, options ...MWOption) http.Handler {
 func MiddlewareFunc(h http.HandlerFunc, options ...MWOption) http.Handler {
 	// Only trace requests that are part of a test trace
 	options = append(options, MWSpanFilter(func(r *http.Request) bool {
-		ctx, err := opentracing.GlobalTracer().Extract(opentracing.HTTPHeaders, opentracing.HTTPHeadersCarrier(r.Header))
+		ctx, err := instrumentation.Tracer().Extract(opentracing.HTTPHeaders, opentracing.HTTPHeadersCarrier(r.Header))
 		if err != nil {
 			return false
 		}
@@ -181,5 +182,5 @@ func MiddlewareFunc(h http.HandlerFunc, options ...MWOption) http.Handler {
 		})
 		return inTest
 	}))
-	return middlewareFunc(opentracing.GlobalTracer(), h, options...)
+	return middlewareFunc(instrumentation.Tracer(), h, options...)
 }

@@ -7,6 +7,7 @@ import (
 	"github.com/opentracing/opentracing-go/log"
 	"go.undefinedlabs.com/scopeagent/ast"
 	"go.undefinedlabs.com/scopeagent/errors"
+	"go.undefinedlabs.com/scopeagent/instrumentation"
 	"go.undefinedlabs.com/scopeagent/tags"
 	"runtime"
 	"strings"
@@ -93,7 +94,7 @@ func StartTestFromCaller(t *testing.T, pc uintptr, opts ...Option) *Test {
 		test.ctx = context.Background()
 	}
 
-	span, ctx := opentracing.StartSpanFromContext(test.ctx, t.Name(), startOptions...)
+	span, ctx := opentracing.StartSpanFromContextWithTracer(test.ctx, instrumentation.Tracer(), t.Name(), startOptions...)
 	span.SetBaggageItem("trace.kind", "test")
 	test.span = span
 	test.ctx = ctx
