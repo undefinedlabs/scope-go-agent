@@ -359,7 +359,6 @@ func (h *Tracer) wroteRequest(info httptrace.WroteRequestInfo) {
 	}
 }
 
-func PatchHttpDefaultClient() error {
+func PatchHttpDefaultClient() {
 	http.DefaultClient = &http.Client{Transport: &Transport{RoundTripper: http.DefaultTransport}}
-	return nil
 }

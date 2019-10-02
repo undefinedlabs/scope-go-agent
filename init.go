@@ -4,7 +4,6 @@ import (
 	"github.com/opentracing/opentracing-go"
 	"go.undefinedlabs.com/scopeagent/agent"
 	"go.undefinedlabs.com/scopeagent/instrumentation"
-	"go.undefinedlabs.com/scopeagent/instrumentation/nethttp"
 	scopetesting "go.undefinedlabs.com/scopeagent/instrumentation/testing"
 	"runtime"
 	"testing"
@@ -12,8 +11,7 @@ import (
 
 var globalAgent *agent.Agent
 
-// Tries to autoinstall the Scope agent if we can autodetect the API key, otherwise does nothing
-// If an agent could be installed, it also applies the autoinstrumentation by default
+// Tries to automatically install the Scope agent if we can autodetect the API key, otherwise does nothing
 func init() {
 	defaultAgent, err := agent.NewAgent()
 	if err != nil {
@@ -25,12 +23,6 @@ func init() {
 
 	if agent.GetBoolEnv("SCOPE_SET_GLOBAL_TRACER", false) {
 		opentracing.SetGlobalTracer(globalAgent.Tracer())
-	}
-
-	if agent.GetBoolEnv("SCOPE_AUTO_INSTRUMENT", true) {
-		if err := PatchAll(); err != nil {
-			panic(err)
-		}
 	}
 }
 
@@ -65,12 +57,4 @@ func StartTest(t *testing.T, opts ...scopetesting.Option) *scopetesting.Test {
 	}))
 	pc, _, _, _ := runtime.Caller(1)
 	return scopetesting.StartTestFromCaller(t, pc, opts...)
-}
-
-// Apply all the available autoinstrumentation
-func PatchAll() error {
-	if err := nethttp.PatchHttpDefaultClient(); err != nil {
-		return err
-	}
-	return nil
 }
