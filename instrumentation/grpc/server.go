@@ -4,6 +4,7 @@ import (
 	"github.com/opentracing/opentracing-go"
 	"github.com/opentracing/opentracing-go/ext"
 	"github.com/opentracing/opentracing-go/log"
+	"go.undefinedlabs.com/scopeagent/instrumentation"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
@@ -155,7 +156,7 @@ func extractSpanContext(ctx context.Context, tracer opentracing.Tracer) (opentra
 
 // Get server interceptors
 func GetServerInterceptors() []grpc.ServerOption {
-	tracer := opentracing.GlobalTracer()
+	tracer := instrumentation.Tracer()
 	return []grpc.ServerOption{
 		grpc.UnaryInterceptor(OpenTracingServerInterceptor(tracer)),
 		grpc.StreamInterceptor(OpenTracingStreamServerInterceptor(tracer)),

@@ -8,8 +8,8 @@ import (
 	"google.golang.org/grpc/metadata"
 )
 
-var gRPCComponentTag = opentracing.Tag{string(ext.Component), "gRPC"}
-var gRPCPeerServiceTag = opentracing.Tag{string(ext.PeerService), "grpc"}
+var gRPCComponentTag = opentracing.Tag{Key: string(ext.Component), Value: "gRPC"}
+var gRPCPeerServiceTag = opentracing.Tag{Key: string(ext.PeerService), Value: "grpc"}
 
 // metadataReaderWriter satisfies both the opentracing.TextMapReader and
 // opentracing.TextMapWriter interfaces.

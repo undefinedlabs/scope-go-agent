@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"github.com/opentracing/opentracing-go"
+	"go.undefinedlabs.com/scopeagent/instrumentation"
 	"go.undefinedlabs.com/scopeagent/tracer"
 	"os"
 	"sync"
@@ -24,12 +25,12 @@ func InjectFromContext(ctx context.Context, env *[]string) error {
 
 // Injects the span context to the environment variables array
 func Inject(sm opentracing.SpanContext, env *[]string) error {
-	return opentracing.GlobalTracer().Inject(sm, tracer.EnvironmentVariableFormat, env)
+	return instrumentation.Tracer().Inject(sm, tracer.EnvironmentVariableFormat, env)
 }
 
 // Extracts the span context from an environment variables array
 func Extract(env *[]string) (opentracing.SpanContext, error) {
-	return opentracing.GlobalTracer().Extract(tracer.EnvironmentVariableFormat, env)
+	return instrumentation.Tracer().Extract(tracer.EnvironmentVariableFormat, env)
 }
 
 // Gets the current span context from the environment variables, if available
@@ -47,7 +48,7 @@ func StartSpan(operationName string, opts ...opentracing.StartSpanOption) opentr
 	if spanCtx := SpanContext(); spanCtx != nil {
 		opts = append(opts, opentracing.ChildOf(spanCtx))
 	}
-	return opentracing.StartSpan(operationName, opts...)
+	return instrumentation.Tracer().StartSpan(operationName, opts...)
 }
 
 func StartSpanFromContext(ctx context.Context, operationName string, opts ...opentracing.StartSpanOption) (opentracing.Span, context.Context) {

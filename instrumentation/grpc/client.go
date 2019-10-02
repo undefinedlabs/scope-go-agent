@@ -4,6 +4,7 @@ import (
 	"github.com/opentracing/opentracing-go"
 	"github.com/opentracing/opentracing-go/ext"
 	"github.com/opentracing/opentracing-go/log"
+	"go.undefinedlabs.com/scopeagent/instrumentation"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
@@ -262,7 +263,7 @@ func injectSpanContext(ctx context.Context, tracer opentracing.Tracer, clientSpa
 
 // Get client interceptors
 func GetClientInterceptors() []grpc.DialOption {
-	tracer := opentracing.GlobalTracer()
+	tracer := instrumentation.Tracer()
 	return []grpc.DialOption{
 		grpc.WithUnaryInterceptor(OpenTracingClientInterceptor(tracer)),
 		grpc.WithStreamInterceptor(OpenTracingStreamClientInterceptor(tracer)),

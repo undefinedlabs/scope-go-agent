@@ -2,6 +2,7 @@ package nethttp
 
 import (
 	"context"
+	"go.undefinedlabs.com/scopeagent/instrumentation"
 	"io"
 	"net"
 	"net/http"
@@ -153,7 +154,7 @@ func (t *Transport) RoundTrip(req *http.Request) (*http.Response, error) {
 		return t.RoundTripper.RoundTrip(req)
 	}
 
-	req, ht := TraceRequest(opentracing.GlobalTracer(), req)
+	req, ht := TraceRequest(instrumentation.Tracer(), req)
 	defer ht.Finish()
 
 	tr := Transport{RoundTripper: t.RoundTripper}
@@ -356,4 +357,9 @@ func (h *Tracer) wroteRequest(info httptrace.WroteRequestInfo) {
 	} else {
 		h.sp.LogFields(log.String("event", "WroteRequest"))
 	}
+}
+
+func PatchHttpDefaultClient() error {
+	http.DefaultClient = &http.Client{Transport: &Transport{RoundTripper: http.DefaultTransport}}
+	return nil
 }
