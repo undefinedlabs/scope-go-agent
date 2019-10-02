@@ -358,7 +358,3 @@ func (h *Tracer) wroteRequest(info httptrace.WroteRequestInfo) {
 		h.sp.LogFields(log.String("event", "WroteRequest"))
 	}
 }
-
-func PatchHttpDefaultClient() {
-	http.DefaultClient = &http.Client{Transport: &Transport{RoundTripper: http.DefaultTransport}}
-}
