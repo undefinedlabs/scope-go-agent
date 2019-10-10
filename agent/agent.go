@@ -6,6 +6,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/opentracing/opentracing-go"
 	scopeError "go.undefinedlabs.com/scopeagent/errors"
+	"go.undefinedlabs.com/scopeagent/instrumentation"
 	"go.undefinedlabs.com/scopeagent/tags"
 	"go.undefinedlabs.com/scopeagent/tracer"
 	"os"
@@ -21,12 +22,13 @@ type (
 		apiEndpoint string
 		apiKey      string
 
-		agentId     string
-		version     string
-		metadata    map[string]interface{}
-		debugMode   bool
-		testingMode bool
-		recorder    *SpanRecorder
+		agentId         string
+		version         string
+		metadata        map[string]interface{}
+		debugMode       bool
+		testingMode     bool
+		setGlobalTracer bool
+		recorder        *SpanRecorder
 	}
 
 	Option func(*Agent)
@@ -74,11 +76,25 @@ func WithTestingModeEnabled() Option {
 	}
 }
 
+func WithSetGlobalTracer() Option {
+	return func(agent *Agent) {
+		agent.setGlobalTracer = true
+	}
+}
+
 func WithMetadata(values map[string]interface{}) Option {
 	return func(agent *Agent) {
 		for k, v := range values {
 			agent.metadata[k] = v
 		}
+	}
+}
+
+func WithGitInfo(repository string, commitSha string, sourceRoot string) Option {
+	return func(agent *Agent) {
+		agent.metadata[tags.Repository] = repository
+		agent.metadata[tags.Commit] = commitSha
+		agent.metadata[tags.SourceRoot] = sourceRoot
 	}
 }
 
@@ -148,15 +164,22 @@ func NewAgent(options ...Option) (*Agent, error) {
 
 	// Git data
 	autodetectCI(agent)
-	if repository, set := os.LookupEnv("SCOPE_REPOSITORY"); set {
-		agent.metadata[tags.Repository] = repository
+	if _, ok := agent.metadata[tags.Repository]; !ok {
+		if repository, set := os.LookupEnv("SCOPE_REPOSITORY"); set {
+			agent.metadata[tags.Repository] = repository
+		}
 	}
-	if commit, set := os.LookupEnv("SCOPE_COMMIT_SHA"); set {
-		agent.metadata[tags.Commit] = commit
+	if _, ok := agent.metadata[tags.Commit]; !ok {
+		if commit, set := os.LookupEnv("SCOPE_COMMIT_SHA"); set {
+			agent.metadata[tags.Commit] = commit
+		}
 	}
-	if sourceRoot, set := os.LookupEnv("SCOPE_SOURCE_ROOT"); set {
-		agent.metadata[tags.SourceRoot] = sourceRoot
+	if _, ok := agent.metadata[tags.SourceRoot]; !ok {
+		if sourceRoot, set := os.LookupEnv("SCOPE_SOURCE_ROOT"); set {
+			agent.metadata[tags.SourceRoot] = sourceRoot
+		}
 	}
+
 	if _, ok := agent.metadata[tags.Service]; !ok {
 		if service, set := os.LookupEnv("SCOPE_SERVICE"); set {
 			agent.metadata[tags.Service] = service
@@ -190,6 +213,13 @@ func NewAgent(options ...Option) (*Agent, error) {
 			scopeError.LogErrorInRawSpan(rSpan, r)
 		},
 	})
+
+	instrumentation.SetTracer(agent.Tracer())
+
+	if agent.setGlobalTracer || GetBoolEnv("SCOPE_SET_GLOBAL_TRACER", false) {
+		opentracing.SetGlobalTracer(agent.Tracer())
+	}
+
 	return agent, nil
 }
 
