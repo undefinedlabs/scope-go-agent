@@ -96,8 +96,8 @@ func (r *SpanRecorder) SendSpans() error {
 	defer r.Unlock()
 
 	r.totalSend = r.totalSend + 1
-	var spans []map[string]interface{}
-	var events []map[string]interface{}
+	spans := []map[string]interface{}{}
+	events := []map[string]interface{}{}
 	for _, span := range r.spans {
 		var parentSpanID string
 		if span.ParentSpanID != 0 {
