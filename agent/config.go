@@ -9,18 +9,18 @@ import (
 	"runtime"
 )
 
-type Config struct {
+type config struct {
 	CurrentProfile string             `json:"currentProfile"`
-	Profiles       map[string]Profile `json:"profiles"`
+	Profiles       map[string]profile `json:"profiles"`
 }
 
-type Profile struct {
+type profile struct {
 	ApiEndpoint string `json:"apiEndpoint"`
 	ApiKey      string `json:"apiKey"`
 	OAuthToken  string `json:"oauthToken"`
 }
 
-func GetConfig() *Config {
+func getDesktopConfig() (*config, error) {
 	currentUser, _ := user.Current()
 	homeDir := currentUser.HomeDir
 	var filePath string
@@ -31,20 +31,20 @@ func GetConfig() *Config {
 	}
 	file, err := os.Open(filePath)
 	if err != nil {
-		return nil
+		return nil, err
 	}
 	defer file.Close()
 	fileBytes, _ := ioutil.ReadAll(file)
-	var config Config
+	var config config
 	if err = json.Unmarshal(fileBytes, &config); err != nil {
-		return nil
+		return nil, err
 	}
-	return &config
+	return &config, nil
 }
 
-func GetConfigCurrentProfile() *Profile {
-	if config := GetConfig(); config != nil && config.Profiles != nil && config.CurrentProfile != "" {
-		profile := config.Profiles[config.CurrentProfile]
+func (c *config) getCurrentProfile() *profile {
+	if c.Profiles != nil && c.CurrentProfile != "" {
+		profile := c.Profiles[c.CurrentProfile]
 		return &profile
 	}
 	return nil

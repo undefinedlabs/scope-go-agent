@@ -53,7 +53,7 @@ func (r *SpanRecorder) RecordSpan(span tracer.RawSpan) {
 	}
 }
 
-func (r *SpanRecorder) ChangeFlushFrequency(frequency time.Duration) {
+func (r *SpanRecorder) changeFlushFrequency(frequency time.Duration) {
 	r.Lock()
 	defer r.Unlock()
 	r.flushFrequency = frequency
@@ -75,13 +75,13 @@ func (r *SpanRecorder) loop() error {
 					}
 				}
 				cTime = time.Now()
-				err := r.SendSpans()
+				err := r.sendSpans()
 				if err != nil {
 					fmt.Printf("%v\n", err)
 				}
 			}
 		case <-r.t.Dying():
-			err := r.SendSpans()
+			err := r.sendSpans()
 			if err != nil {
 				fmt.Printf("%v\n", err)
 			}
@@ -91,7 +91,7 @@ func (r *SpanRecorder) loop() error {
 	}
 }
 
-func (r *SpanRecorder) SendSpans() error {
+func (r *SpanRecorder) sendSpans() error {
 	r.Lock()
 	defer r.Unlock()
 

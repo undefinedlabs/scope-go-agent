@@ -12,20 +12,21 @@ import (
 	"go.undefinedlabs.com/scopeagent/tags"
 )
 
-type GitData struct {
+type gitData struct {
 	Repository string
 	Commit     string
 	SourceRoot string
 	Branch     string
 }
 
-type GitDiff struct {
+type gitDiff struct {
 	Type    string         `json:"type" msgpack:"type"`
 	Version string         `json:"version" msgpack:"version"`
 	Uuid    string         `json:"uuid" msgpack:"uuid"`
-	Files   []DiffFileItem `json:"files" msgpack:"files"`
+	Files   []diffFileItem `json:"files" msgpack:"files"`
 }
-type DiffFileItem struct {
+
+type diffFileItem struct {
 	Path         string  `json:"path" msgpack:"path"`
 	Added        int     `json:"added" msgpack:"added"`
 	Removed      int     `json:"removed" msgpack:"removed"`
@@ -34,7 +35,7 @@ type DiffFileItem struct {
 }
 
 // Gets the current git data
-func getGitData() *GitData {
+func getGitData() *gitData {
 	var repository, commit, sourceRoot, branch string
 
 	if repoBytes, err := exec.Command("git", "remote", "get-url", "origin").Output(); err == nil {
@@ -53,7 +54,7 @@ func getGitData() *GitData {
 		branch = strings.TrimSuffix(string(branchBytes), "\n")
 	}
 
-	return &GitData{
+	return &gitData{
 		Repository: repository,
 		Commit:     commit,
 		SourceRoot: sourceRoot,
@@ -61,7 +62,7 @@ func getGitData() *GitData {
 	}
 }
 
-func getGitDiff() *GitDiff {
+func getGitDiff() *gitDiff {
 	var diff string
 	if diffBytes, err := exec.Command("git", "diff", "--numstat").Output(); err == nil {
 		diff = string(diffBytes)
@@ -70,7 +71,7 @@ func getGitDiff() *GitDiff {
 	}
 
 	reader := bufio.NewReader(strings.NewReader(diff))
-	var files []DiffFileItem
+	var files []diffFileItem
 	for {
 		line, err := reader.ReadString('\n')
 		if err != nil {
@@ -81,7 +82,7 @@ func getGitDiff() *GitDiff {
 		removed, _ := strconv.Atoi(diffItem[1])
 		path := strings.TrimSuffix(diffItem[2], "\n")
 
-		files = append(files, DiffFileItem{
+		files = append(files, diffFileItem{
 			Path:         path,
 			Added:        added,
 			Removed:      removed,
@@ -91,7 +92,7 @@ func getGitDiff() *GitDiff {
 	}
 
 	id, _ := uuid.NewRandom()
-	gitDiff := GitDiff{
+	gitDiff := gitDiff{
 		Type:    "com.undefinedlabs.ugdsf",
 		Version: "0.1.0",
 		Uuid:    id.String(),

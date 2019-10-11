@@ -111,7 +111,11 @@ func NewAgent(options ...Option) (*Agent, error) {
 
 	agent.debugMode = agent.debugMode || getBoolEnv("SCOPE_DEBUG", false)
 
-	configProfile := GetConfigCurrentProfile()
+	var configProfile *profile
+	desktopConfig, err := getDesktopConfig()
+	if err != nil && desktopConfig != nil {
+		configProfile = desktopConfig.getCurrentProfile()
+	}
 
 	if agent.apiKey == "" {
 		if apikey, set := os.LookupEnv("SCOPE_APIKEY"); set && apikey != "" {
@@ -204,9 +208,9 @@ func NewAgent(options ...Option) (*Agent, error) {
 func (a *Agent) SetTestingMode(enabled bool) {
 	a.testingMode = enabled
 	if a.testingMode {
-		a.recorder.ChangeFlushFrequency(testingModeFrequency)
+		a.recorder.changeFlushFrequency(testingModeFrequency)
 	} else {
-		a.recorder.ChangeFlushFrequency(nonTestingModeFrequency)
+		a.recorder.changeFlushFrequency(nonTestingModeFrequency)
 	}
 }
 
@@ -230,7 +234,7 @@ func (a *Agent) Flush() error {
 	if a.debugMode {
 		fmt.Println("Scope agent is flushing all pending spans manually")
 	}
-	return a.recorder.SendSpans()
+	return a.recorder.sendSpans()
 }
 
 func generateAgentID() string {
