@@ -2,11 +2,14 @@ package agent
 
 import (
 	"bufio"
-	"github.com/google/uuid"
-	"go.undefinedlabs.com/scopeagent/tags"
+	"os"
 	"os/exec"
 	"strconv"
 	"strings"
+
+	"github.com/google/uuid"
+
+	"go.undefinedlabs.com/scopeagent/tags"
 )
 
 type GitData struct {
@@ -31,7 +34,7 @@ type DiffFileItem struct {
 }
 
 // Gets the current git data
-func getCurrentGitData() *GitData {
+func getGitData() *GitData {
 	var repository, commit, sourceRoot, branch string
 
 	if repoBytes, err := exec.Command("git", "remote", "get-url", "origin").Output(); err == nil {
@@ -58,7 +61,7 @@ func getCurrentGitData() *GitData {
 	}
 }
 
-func GetGitDiff() *GitDiff {
+func getGitDiff() *GitDiff {
 	var diff string
 	if diffBytes, err := exec.Command("git", "diff", "--numstat").Output(); err == nil {
 		diff = string(diffBytes)
@@ -97,32 +100,48 @@ func GetGitDiff() *GitDiff {
 	return &gitDiff
 }
 
-func getGitData() *GitData {
-	gitDataOnce.Do(func() {
-		gitData = getCurrentGitData()
-	})
-	return gitData
+func getGitInfoFromGitFolder() map[string]interface{} {
+	gitData := getGitData()
+
+	if gitData == nil {
+		return nil
+	}
+
+	gitInfo := map[string]interface{}{}
+
+	if gitData.Repository != "" {
+		gitInfo[tags.Repository] = gitData.Repository
+	}
+	if gitData.Commit != "" {
+		gitInfo[tags.Commit] = gitData.Commit
+	}
+	if gitData.SourceRoot != "" {
+		gitInfo[tags.SourceRoot] = gitData.SourceRoot
+	}
+	if gitData.Branch != "" {
+		gitInfo[tags.Branch] = gitData.Branch
+	}
+
+	return gitInfo
 }
 
-func fillFromGitIfEmpty(a *Agent) {
-	if a.metadata[tags.Repository] == nil || a.metadata[tags.Repository] == "" {
-		if git := getGitData(); git != nil {
-			a.metadata[tags.Repository] = git.Repository
-		}
+func getGitInfoFromEnv() map[string]interface{} {
+	gitInfo := map[string]interface{}{}
+
+	if repository, set := os.LookupEnv("SCOPE_REPOSITORY"); set {
+		gitInfo[tags.Repository] = repository
 	}
-	if a.metadata[tags.Commit] == nil || a.metadata[tags.Commit] == "" {
-		if git := getGitData(); git != nil {
-			a.metadata[tags.Commit] = git.Commit
-		}
+	if commit, set := os.LookupEnv("SCOPE_COMMIT_SHA"); set {
+		gitInfo[tags.Commit] = commit
 	}
-	if a.metadata[tags.SourceRoot] == nil || a.metadata[tags.SourceRoot] == "" {
-		if git := getGitData(); git != nil {
-			a.metadata[tags.SourceRoot] = git.SourceRoot
-		}
+	if sourceRoot, set := os.LookupEnv("SCOPE_SOURCE_ROOT"); set {
+		gitInfo[tags.SourceRoot] = sourceRoot
 	}
-	if a.metadata[tags.Branch] == nil || a.metadata[tags.Branch] == "" {
-		if git := getGitData(); git != nil {
-			a.metadata[tags.Branch] = git.Branch
-		}
+	if service, set := os.LookupEnv("SCOPE_SERVICE"); set {
+		gitInfo[tags.Service] = service
+	} else {
+		gitInfo[tags.Service] = "default"
 	}
+
+	return gitInfo
 }
