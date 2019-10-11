@@ -3,16 +3,18 @@ package agent
 import (
 	"errors"
 	"fmt"
-	"github.com/google/uuid"
-	"github.com/opentracing/opentracing-go"
-	scopeError "go.undefinedlabs.com/scopeagent/errors"
-	"go.undefinedlabs.com/scopeagent/instrumentation"
-	"go.undefinedlabs.com/scopeagent/tags"
-	"go.undefinedlabs.com/scopeagent/tracer"
 	"os"
 	"runtime"
 	"sync"
 	"time"
+
+	"github.com/google/uuid"
+	"github.com/opentracing/opentracing-go"
+
+	scopeError "go.undefinedlabs.com/scopeagent/errors"
+	"go.undefinedlabs.com/scopeagent/instrumentation"
+	"go.undefinedlabs.com/scopeagent/tags"
+	"go.undefinedlabs.com/scopeagent/tracer"
 )
 
 type (
@@ -39,8 +41,6 @@ var (
 	defaultApiEndpoint = "https://app.scope.dev"
 
 	printReportOnce sync.Once
-	gitDataOnce     sync.Once
-	gitData         *GitData
 
 	testingModeFrequency    = time.Second
 	nonTestingModeFrequency = time.Minute
@@ -109,7 +109,7 @@ func NewAgent(options ...Option) (*Agent, error) {
 		opt(agent)
 	}
 
-	agent.debugMode = agent.debugMode || GetBoolEnv("SCOPE_DEBUG", false)
+	agent.debugMode = agent.debugMode || getBoolEnv("SCOPE_DEBUG", false)
 
 	configProfile := GetConfigCurrentProfile()
 
@@ -163,40 +163,18 @@ func NewAgent(options ...Option) (*Agent, error) {
 	agent.metadata[tags.GoVersion] = runtime.Version()
 
 	// Git data
-	autodetectCI(agent)
-	if _, ok := agent.metadata[tags.Repository]; !ok {
-		if repository, set := os.LookupEnv("SCOPE_REPOSITORY"); set {
-			agent.metadata[tags.Repository] = repository
-		}
-	}
-	if _, ok := agent.metadata[tags.Commit]; !ok {
-		if commit, set := os.LookupEnv("SCOPE_COMMIT_SHA"); set {
-			agent.metadata[tags.Commit] = commit
-		}
-	}
-	if _, ok := agent.metadata[tags.SourceRoot]; !ok {
-		if sourceRoot, set := os.LookupEnv("SCOPE_SOURCE_ROOT"); set {
-			agent.metadata[tags.SourceRoot] = sourceRoot
-		}
-	}
+	addToMapIfEmpty(agent.metadata, getGitInfoFromEnv())
+	addToMapIfEmpty(agent.metadata, getCIMetadata())
+	addToMapIfEmpty(agent.metadata, getGitInfoFromGitFolder())
 
-	if _, ok := agent.metadata[tags.Service]; !ok {
-		if service, set := os.LookupEnv("SCOPE_SERVICE"); set {
-			agent.metadata[tags.Service] = service
-		} else {
-			agent.metadata[tags.Service] = "default"
-		}
-	}
+	agent.metadata[tags.Diff] = getGitDiff()
 
-	// Fallback to git command
-	fillFromGitIfEmpty(agent)
-	agent.metadata[tags.Diff] = GetGitDiff()
 	agent.metadata[tags.InContainer] = isRunningInContainer()
 
 	agent.recorder = NewSpanRecorder(agent)
 
-	if _, exists := os.LookupEnv("SCOPE_TESTING_MODE"); exists {
-		agent.testingMode = GetBoolEnv("SCOPE_TESTING_MODE", false)
+	if _, set := os.LookupEnv("SCOPE_TESTING_MODE"); set {
+		agent.testingMode = getBoolEnv("SCOPE_TESTING_MODE", false)
 	} else {
 		agent.testingMode = agent.testingMode || agent.metadata[tags.CI].(bool)
 	}
@@ -216,7 +194,7 @@ func NewAgent(options ...Option) (*Agent, error) {
 
 	instrumentation.SetTracer(agent.Tracer())
 
-	if agent.setGlobalTracer || GetBoolEnv("SCOPE_SET_GLOBAL_TRACER", false) {
+	if agent.setGlobalTracer || getBoolEnv("SCOPE_SET_GLOBAL_TRACER", false) {
 		opentracing.SetGlobalTracer(agent.Tracer())
 	}
 
