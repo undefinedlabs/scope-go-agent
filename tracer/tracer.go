@@ -1,7 +1,6 @@
 package tracer
 
 import (
-	"go.undefinedlabs.com/scopeagent/ntp"
 	"time"
 
 	"github.com/opentracing/opentracing-go"
@@ -161,7 +160,7 @@ func (t *tracerImpl) StartSpanWithOptions(
 	// Start time.
 	startTime := opts.StartTime
 	if startTime.IsZero() {
-		startTime = ntp.Now()
+		startTime = Now()
 	}
 
 	// Tags.
