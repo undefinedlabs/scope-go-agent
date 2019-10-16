@@ -151,7 +151,11 @@ func (t *Transport) RoundTrip(req *http.Request) (*http.Response, error) {
 	// Only trace outgoing requests that are inside an active trace
 	parent := opentracing.SpanFromContext(req.Context())
 	if parent == nil {
-		return t.RoundTripper.RoundTrip(req)
+		rt := t.RoundTripper
+		if rt == nil {
+			rt = http.DefaultTransport
+		}
+		return rt.RoundTrip(req)
 	}
 	req, _ = TraceRequest(instrumentation.Tracer(), req)
 	return t.doRoundTrip(req)
