@@ -2,12 +2,13 @@ package errors
 
 import (
 	"fmt"
+	"strings"
+
 	"github.com/go-errors/errors"
 	"github.com/opentracing/opentracing-go"
 	"github.com/opentracing/opentracing-go/log"
+
 	"go.undefinedlabs.com/scopeagent/tracer"
-	"strings"
-	"time"
 )
 
 const (
@@ -40,7 +41,7 @@ func LogErrorInRawSpan(rawSpan *tracer.RawSpan, recoverData interface{}) {
 		rawSpan.Tags = opentracing.Tags{}
 	}
 	rawSpan.Logs = append(rawSpan.Logs, opentracing.LogRecord{
-		Timestamp: time.Now(),
+		Timestamp: tracer.Now(),
 		Fields:    exceptionFields,
 	})
 	rawSpan.Tags["error"] = true
