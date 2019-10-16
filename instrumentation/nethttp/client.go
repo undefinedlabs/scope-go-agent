@@ -153,12 +153,8 @@ func (t *Transport) RoundTrip(req *http.Request) (*http.Response, error) {
 	if parent == nil {
 		return t.RoundTripper.RoundTrip(req)
 	}
-
-	req, ht := TraceRequest(instrumentation.Tracer(), req)
-	defer ht.Finish()
-
-	tr := Transport{RoundTripper: t.RoundTripper}
-	return tr.doRoundTrip(req)
+	req, _ = TraceRequest(instrumentation.Tracer(), req)
+	return t.doRoundTrip(req)
 }
 
 // RoundTrip implements the RoundTripper interface.
