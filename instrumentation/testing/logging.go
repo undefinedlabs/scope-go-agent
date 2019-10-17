@@ -3,13 +3,16 @@ package testing
 import (
 	"bufio"
 	"fmt"
-	"github.com/opentracing/opentracing-go/log"
-	"go.undefinedlabs.com/scopeagent/tags"
 	stdlog "log"
 	"os"
 	"regexp"
 	"strings"
 	"sync"
+
+	"github.com/opentracing/opentracing-go/log"
+
+	"go.undefinedlabs.com/scopeagent/instrumentation"
+	"go.undefinedlabs.com/scopeagent/tags"
 )
 
 type stdIO struct {
@@ -128,7 +131,7 @@ func newStdIO(file **os.File, replace bool) *stdIO {
 		}
 		return stdIO
 	} else {
-		fmt.Println(err)
+		instrumentation.Logger().Println(err)
 	}
 	return nil
 }

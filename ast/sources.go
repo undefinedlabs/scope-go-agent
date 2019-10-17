@@ -1,7 +1,6 @@
 package ast
 
 import (
-	"fmt"
 	"go/ast"
 	"go/parser"
 	"go/token"
@@ -28,36 +27,34 @@ type CodePos struct {
 }
 
 // Gets the function source code boundaries from the caller method
-func GetFuncSourceFromCaller(skip int) *MethodCodeBoundaries {
+func GetFuncSourceFromCaller(skip int) (*MethodCodeBoundaries, error) {
 	pc, _, _, _ := runtime.Caller(skip + 1)
 	return GetFuncSource(pc)
 }
 
 // Gets the function source code boundaries from a method
-func GetFuncSourceForName(pc uintptr, name string) *MethodCodeBoundaries {
+func GetFuncSourceForName(pc uintptr, name string) (*MethodCodeBoundaries, error) {
 	mFunc := runtime.FuncForPC(pc)
 	mFile, _ := mFunc.FileLine(pc)
 	fileCode, err := getCodesForFile(mFile)
 	if err != nil {
-		fmt.Printf("%v\n", err)
-		return nil
+		return nil, err
 	}
-	return fileCode[name]
+	return fileCode[name], nil
 }
 
 // Gets the function source code boundaries from a method
-func GetFuncSource(pc uintptr) *MethodCodeBoundaries {
+func GetFuncSource(pc uintptr) (*MethodCodeBoundaries, error) {
 	mFunc := runtime.FuncForPC(pc)
 	mFile, _ := mFunc.FileLine(pc)
 	fileCode, err := getCodesForFile(mFile)
 	if err != nil {
-		fmt.Printf("%v\n", err)
-		return nil
+		return nil, err
 	}
 
 	parts := strings.Split(mFunc.Name(), ".")
 	funcName := parts[len(parts)-1]
-	return fileCode[funcName]
+	return fileCode[funcName], nil
 }
 
 func getCodesForFile(file string) (map[string]*MethodCodeBoundaries, error) {

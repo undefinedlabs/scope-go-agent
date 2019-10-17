@@ -2,23 +2,22 @@ package agent
 
 import (
 	"fmt"
-	"os"
 )
 
 func (a *Agent) PrintReport() {
 	printReportOnce.Do(func() {
 		if a.testingMode && a.recorder.totalSend > 0 {
+			fmt.Printf("\n** Scope Test Report **\n")
 			if a.recorder.koSend == 0 {
-				fmt.Printf("\n** Scope Test Report **\n\n")
 				fmt.Println("Access the detailed test report for this build at:")
 				fmt.Printf("   %s/external/v1/results/%s\n\n", a.apiEndpoint, a.agentId)
-			} else if a.recorder.koSend < a.recorder.totalSend {
-				fmt.Printf("\n** Scope Test Report **\n\n")
-				fmt.Println("There was a problem sending data to Scope, partial test report for this build at:")
-				fmt.Printf("   %s/external/v1/results/%s\n\n", a.apiEndpoint, a.agentId)
 			} else {
-				_, _ = fmt.Fprintf(os.Stderr, "\n** Scope Test Report **\n\n")
-				_, _ = fmt.Fprintf(os.Stderr, "There was a problem sending data to Scope\n")
+				fmt.Println("There was a problem sending data to Scope.")
+				if a.recorder.koSend < a.recorder.totalSend {
+					fmt.Println("Partial results for this build are available at:")
+					fmt.Printf("   %s/external/v1/results/%s\n\n", a.apiEndpoint, a.agentId)
+				}
+				fmt.Printf("Check the agent logs at %s for more information.\n\n", a.recorderFilename)
 			}
 		}
 	})

@@ -74,7 +74,7 @@ func StartTestFromCaller(t *testing.T, pc uintptr, opts ...Option) *Test {
 	}
 	packageName := funcFullName[:funcNameIndex-1]
 
-	sourceBounds := ast.GetFuncSourceForName(pc, funcName)
+	sourceBounds, _ := ast.GetFuncSourceForName(pc, funcName)
 	var testCode string
 	if sourceBounds != nil {
 		testCode = fmt.Sprintf("%s:%d:%d", sourceBounds.File, sourceBounds.Start.Line, sourceBounds.End.Line)

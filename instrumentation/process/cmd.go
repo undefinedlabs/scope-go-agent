@@ -2,11 +2,12 @@ package process
 
 import (
 	"context"
-	"fmt"
-	"github.com/opentracing/opentracing-go"
-	"go.undefinedlabs.com/scopeagent/instrumentation"
 	"os/exec"
 	"path/filepath"
+
+	"github.com/opentracing/opentracing-go"
+
+	"go.undefinedlabs.com/scopeagent/instrumentation"
 )
 
 // Injects the span context to the command environment variables
@@ -16,7 +17,7 @@ func InjectToCmd(ctx context.Context, command *exec.Cmd) *exec.Cmd {
 	}
 	err := InjectFromContext(ctx, &command.Env)
 	if err != nil {
-		fmt.Println(err)
+		instrumentation.Logger().Println(err)
 	}
 	return command
 }
