@@ -3,7 +3,6 @@ package agent
 import (
 	"bytes"
 	"compress/gzip"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -58,6 +57,7 @@ func NewSpanRecorder(agent *Agent) *SpanRecorder {
 	return r
 }
 
+// Appends a span to the in-memory buffer for async processing
 func (r *SpanRecorder) RecordSpan(span tracer.RawSpan) {
 	r.Lock()
 	defer r.Unlock()
@@ -105,14 +105,92 @@ func (r *SpanRecorder) loop() error {
 	}
 }
 
+// Sends the spans in the buffer to Scope
 func (r *SpanRecorder) SendSpans() error {
 	r.Lock()
 	defer r.Unlock()
 
 	r.totalSend = r.totalSend + 1
+
+	payload := getPayload(r.spans, r.metadata)
+
+	if r.debugMode {
+		r.logger.Printf("payload: %+v\n\n", payload)
+	}
+
+	buf, err := encodePayload(payload)
+	if err != nil {
+		r.koSend++
+		return err
+	}
+
+	payloadSent := false
+	var lastError error
+	for i := 0; i <= 3; i++ {
+		if r.debugMode {
+			r.logger.Printf("sending payload [%d try]\n", i)
+		}
+		statusCode, err := r.callIngest(buf)
+		if err != nil {
+			if statusCode < 500 {
+				lastError = err
+				break
+			} else {
+				lastError = err
+				time.Sleep(retryBackoff)
+			}
+		} else {
+			payloadSent = true
+			break
+		}
+	}
+
+	r.spans = nil
+	if payloadSent {
+		r.okSend++
+	} else {
+		r.koSend++
+		return lastError
+	}
+
+	return nil
+}
+
+// Sends the encoded `payload` to the Scope ingest endpoint
+func (r *SpanRecorder) callIngest(payload io.Reader) (statusCode int, err error) {
+	req, err := http.NewRequest("POST", r.url, payload)
+	if err != nil {
+		r.koSend++
+		return 0, err
+	}
+	req.Header.Set("User-Agent", fmt.Sprintf("scope-agent-go/%s", r.version))
+	req.Header.Set("Content-Type", "application/msgpack")
+	req.Header.Set("Content-Encoding", "gzip")
+	req.Header.Set("X-Scope-ApiKey", r.apiKey)
+
+	resp, err := r.client.Do(req)
+	if err != nil {
+		r.koSend++
+		return 0, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode >= 400 {
+		body, err := ioutil.ReadAll(resp.Body)
+		if err != nil {
+			return resp.StatusCode, err
+		}
+		return resp.StatusCode, errors.New(fmt.Sprintf("error from API (%s): %s", resp.Status, body))
+	}
+
+	return resp.StatusCode, nil
+}
+
+// Combines `rawSpans` and `metadata` into a payload that the Scope backend can process
+func getPayload(rawSpans []tracer.RawSpan, metadata map[string]interface{}) map[string]interface{} {
 	spans := []map[string]interface{}{}
 	events := []map[string]interface{}{}
-	for _, span := range r.spans {
+	for _, span := range rawSpans {
 		var parentSpanID string
 		if span.ParentSpanID != 0 {
 			parentSpanID = fmt.Sprintf("%x", span.ParentSpanID)
@@ -150,92 +228,29 @@ func (r *SpanRecorder) SendSpans() error {
 		}
 	}
 
-	payload := map[string]interface{}{
-		"metadata": r.metadata,
+	return map[string]interface{}{
+		"metadata": metadata,
 		"spans":    spans,
 		"events":   events,
 	}
+}
 
-	if r.debugMode {
-		jsonPayLoad, _ := json.Marshal(payload)
-		r.logger.Printf("payload: %s\n\n", string(jsonPayLoad))
-	}
-
+// Encodes `payload` using msgpack and compress it with gzip
+func encodePayload(payload map[string]interface{}) (*bytes.Buffer, error) {
 	binaryPayload, err := msgpack.Marshal(payload)
 	if err != nil {
-		r.koSend++
-		return err
+		return nil, err
 	}
 
 	var buf bytes.Buffer
 	zw := gzip.NewWriter(&buf)
 	_, err = zw.Write(binaryPayload)
 	if err != nil {
-		r.koSend++
-		return err
+		return nil, err
 	}
 	if err := zw.Close(); err != nil {
-		r.koSend++
-		return err
+		return nil, err
 	}
 
-	payloadSent := false
-	var lastError error
-	for i := 0; i <= 3; i++ {
-		if r.debugMode {
-			r.logger.Printf("sending payload [%d try]\n", i)
-		}
-		statusCode, err := r.callIngest(&buf)
-		if err != nil {
-			if statusCode < 500 {
-				lastError = err
-				break
-			} else {
-				lastError = err
-				time.Sleep(retryBackoff)
-			}
-		} else {
-			payloadSent = true
-			break
-		}
-	}
-
-	r.spans = nil
-	if payloadSent {
-		r.okSend++
-	} else {
-		r.koSend++
-		return lastError
-	}
-
-	return nil
-}
-
-func (r *SpanRecorder) callIngest(payload io.Reader) (statusCode int, err error) {
-	req, err := http.NewRequest("POST", r.url, payload)
-	if err != nil {
-		r.koSend++
-		return 0, err
-	}
-	req.Header.Set("User-Agent", fmt.Sprintf("scope-agent-go/%s", r.version))
-	req.Header.Set("Content-Type", "application/msgpack")
-	req.Header.Set("Content-Encoding", "gzip")
-	req.Header.Set("X-Scope-ApiKey", r.apiKey)
-
-	resp, err := r.client.Do(req)
-	if err != nil {
-		r.koSend++
-		return 0, err
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode >= 400 {
-		body, err := ioutil.ReadAll(resp.Body)
-		if err != nil {
-			return resp.StatusCode, err
-		}
-		return resp.StatusCode, errors.New(fmt.Sprintf("error from API (%s): %s", resp.Status, body))
-	}
-
-	return resp.StatusCode, nil
+	return &buf, nil
 }
