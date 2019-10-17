@@ -215,7 +215,7 @@ func NewAgent(options ...Option) (*Agent, error) {
 
 func (a *Agent) setupLogging() error {
 	filename := fmt.Sprintf("scope-go-%s-%s.log", time.Now().Format("20060102150405"), a.agentId)
-	dir, err := ioutil.TempDir("scope", "")
+	dir, err := ioutil.TempDir("", "scope")
 	if err != nil {
 		return err
 	}
