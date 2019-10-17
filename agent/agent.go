@@ -3,7 +3,10 @@ package agent
 import (
 	"errors"
 	"fmt"
+	"io/ioutil"
+	"log"
 	"os"
+	"path"
 	"runtime"
 	"sync"
 	"time"
@@ -31,6 +34,8 @@ type (
 		testingMode     bool
 		setGlobalTracer bool
 		recorder        *SpanRecorder
+
+		logger *log.Logger
 	}
 
 	Option func(*Agent)
@@ -192,13 +197,34 @@ func NewAgent(options ...Option) (*Agent, error) {
 		},
 	})
 
-	instrumentation.SetTracer(agent.Tracer())
+	if err := agent.setupLogging(); err != nil {
+		agent.logger = log.New(ioutil.Discard, "", 0)
+	}
+
+	instrumentation.SetTracer(agent.tracer)
+	instrumentation.SetLogger(agent.logger)
 
 	if agent.setGlobalTracer || getBoolEnv("SCOPE_SET_GLOBAL_TRACER", false) {
 		opentracing.SetGlobalTracer(agent.Tracer())
 	}
 
 	return agent, nil
+}
+
+func (a *Agent) setupLogging() error {
+	filename := fmt.Sprintf("scope-go-%s-%s.log", time.Now().Format("20060102150405"), a.agentId)
+	dir, err := ioutil.TempDir("scope", "")
+	if err != nil {
+		return err
+	}
+
+	file, err := os.OpenFile(path.Join(dir, filename), os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
+	if err != nil {
+		return err
+	}
+
+	a.logger = log.New(file, "", log.LstdFlags|log.Lshortfile)
+	return nil
 }
 
 func (a *Agent) SetTestingMode(enabled bool) {
@@ -214,10 +240,14 @@ func (a *Agent) Tracer() opentracing.Tracer {
 	return a.tracer
 }
 
+func (a *Agent) Logger() *log.Logger {
+	return a.logger
+}
+
 // Stops the agent
 func (a *Agent) Stop() {
 	if a.debugMode {
-		fmt.Println("Scope agent is stopping gracefully...")
+		a.logger.Println("Scope agent is stopping gracefully...")
 	}
 	a.recorder.t.Kill(nil)
 	_ = a.recorder.t.Wait()
@@ -228,7 +258,7 @@ func (a *Agent) Stop() {
 // Flushes the pending payloads to the scope backend
 func (a *Agent) Flush() error {
 	if a.debugMode {
-		fmt.Println("Scope agent is flushing all pending spans manually")
+		a.logger.Println("Scope agent is flushing all pending spans manually")
 	}
 	return a.recorder.SendSpans()
 }
