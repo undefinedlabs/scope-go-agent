@@ -116,6 +116,10 @@ func NewAgent(options ...Option) (*Agent, error) {
 		opt(agent)
 	}
 
+	if err := agent.setupLogging(); err != nil {
+		agent.logger = log.New(ioutil.Discard, "", 0)
+	}
+
 	agent.debugMode = agent.debugMode || getBoolEnv("SCOPE_DEBUG", false)
 
 	configProfile := GetConfigCurrentProfile()
@@ -198,10 +202,6 @@ func NewAgent(options ...Option) (*Agent, error) {
 			scopeError.LogErrorInRawSpan(rSpan, r)
 		},
 	})
-
-	if err := agent.setupLogging(); err != nil {
-		agent.logger = log.New(ioutil.Discard, "", 0)
-	}
 
 	instrumentation.SetTracer(agent.tracer)
 	instrumentation.SetLogger(agent.logger)
