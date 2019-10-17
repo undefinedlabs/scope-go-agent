@@ -214,13 +214,14 @@ func NewAgent(options ...Option) (*Agent, error) {
 }
 
 func (a *Agent) setupLogging() error {
-	a.recorderFilename = fmt.Sprintf("scope-go-%s-%s.log", time.Now().Format("20060102150405"), a.agentId)
+	filename := fmt.Sprintf("scope-go-%s-%s.log", time.Now().Format("20060102150405"), a.agentId)
 	dir, err := ioutil.TempDir("scope", "")
 	if err != nil {
 		return err
 	}
+	a.recorderFilename = path.Join(dir, filename)
 
-	file, err := os.OpenFile(path.Join(dir, a.recorderFilename), os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
+	file, err := os.OpenFile(a.recorderFilename, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
 	if err != nil {
 		return err
 	}
