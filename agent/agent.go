@@ -33,7 +33,9 @@ type (
 		debugMode       bool
 		testingMode     bool
 		setGlobalTracer bool
-		recorder        *SpanRecorder
+
+		recorder         *SpanRecorder
+		recorderFilename string
 
 		logger *log.Logger
 	}
@@ -212,13 +214,13 @@ func NewAgent(options ...Option) (*Agent, error) {
 }
 
 func (a *Agent) setupLogging() error {
-	filename := fmt.Sprintf("scope-go-%s-%s.log", time.Now().Format("20060102150405"), a.agentId)
+	a.recorderFilename = fmt.Sprintf("scope-go-%s-%s.log", time.Now().Format("20060102150405"), a.agentId)
 	dir, err := ioutil.TempDir("scope", "")
 	if err != nil {
 		return err
 	}
 
-	file, err := os.OpenFile(path.Join(dir, filename), os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
+	file, err := os.OpenFile(path.Join(dir, a.recorderFilename), os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
 	if err != nil {
 		return err
 	}
