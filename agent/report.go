@@ -17,7 +17,7 @@ func (a *Agent) PrintReport() {
 					fmt.Println("Partial results for this build are available at:")
 					fmt.Printf("   %s/external/v1/results/%s\n\n", a.apiEndpoint, a.agentId)
 				}
-				fmt.Printf("Check the agent logs at %s for more information.\n", a.recorderFilename)
+				fmt.Printf("Check the agent logs at %s for more information.\n\n", a.recorderFilename)
 			}
 		}
 	})
