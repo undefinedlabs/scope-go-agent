@@ -44,7 +44,14 @@ func SpanContext() opentracing.SpanContext {
 	return processSpanContext
 }
 
-func StartSpan(operationName string, opts ...opentracing.StartSpanOption) opentracing.Span {
+func StartSpan(opts ...opentracing.StartSpanOption) opentracing.Span {
+	if spanCtx := SpanContext(); spanCtx != nil {
+		opts = append(opts, opentracing.ChildOf(spanCtx))
+	}
+	return instrumentation.Tracer().StartSpan(getOperationNameFromArgs(os.Args), opts...)
+}
+
+func StartSpanWithOperationName(operationName string, opts ...opentracing.StartSpanOption) opentracing.Span {
 	if spanCtx := SpanContext(); spanCtx != nil {
 		opts = append(opts, opentracing.ChildOf(spanCtx))
 	}
@@ -55,6 +62,6 @@ func StartSpanFromContext(ctx context.Context, operationName string, opts ...ope
 	if parentSpan := opentracing.SpanFromContext(ctx); parentSpan != nil {
 		opts = append(opts, opentracing.ChildOf(parentSpan.Context()))
 	}
-	span := StartSpan(operationName, opts...)
+	span := StartSpanWithOperationName(operationName, opts...)
 	return span, opentracing.ContextWithSpan(ctx, span)
 }
