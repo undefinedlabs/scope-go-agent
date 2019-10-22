@@ -2,8 +2,10 @@ package process
 
 import (
 	"context"
+	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 
 	"github.com/opentracing/opentracing-go"
 
@@ -24,7 +26,22 @@ func InjectToCmd(ctx context.Context, command *exec.Cmd) *exec.Cmd {
 
 // Injects a new span context to the command environment variables
 func InjectToCmdWithSpan(ctx context.Context, command *exec.Cmd) (opentracing.Span, context.Context) {
-	innerSpan, innerCtx := opentracing.StartSpanFromContextWithTracer(ctx, instrumentation.Tracer(), "Exec: "+filepath.Base(command.Args[0]))
+
+	var operationNameBuilder = new(strings.Builder)
+	operationNameBuilder.WriteString("Exec: ")
+	operationNameBuilder.WriteString(filepath.Base(command.Args[0]))
+	operationNameBuilder.WriteByte(' ')
+	for _, item := range command.Args[1:] {
+		if strings.ContainsAny(item, " ") {
+			operationNameBuilder.WriteByte('"')
+			operationNameBuilder.WriteString(item)
+			operationNameBuilder.WriteByte('"')
+		} else {
+			operationNameBuilder.WriteString(item)
+		}
+	}
+
+	innerSpan, innerCtx := opentracing.StartSpanFromContextWithTracer(ctx, instrumentation.Tracer(), operationNameBuilder.String())
 	innerSpan.SetTag("Args", command.Args)
 	innerSpan.SetTag("Path", command.Path)
 	innerSpan.SetTag("Dir", command.Dir)
