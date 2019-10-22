@@ -2,7 +2,6 @@ package process
 
 import (
 	"context"
-	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
@@ -39,6 +38,7 @@ func InjectToCmdWithSpan(ctx context.Context, command *exec.Cmd) (opentracing.Sp
 		} else {
 			operationNameBuilder.WriteString(item)
 		}
+		operationNameBuilder.WriteByte(' ')
 	}
 
 	innerSpan, innerCtx := opentracing.StartSpanFromContextWithTracer(ctx, instrumentation.Tracer(), operationNameBuilder.String())
