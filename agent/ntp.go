@@ -32,7 +32,7 @@ func getNTPOffset() (time.Duration, error) {
 	return 0, ntpError
 }
 
-// Apply the NTP offset to the given time
+// Applies the NTP offset to the given time
 func (r *SpanRecorder) applyNTPOffset(t time.Time) time.Time {
 	once.Do(func() {
 		if r.debugMode {
