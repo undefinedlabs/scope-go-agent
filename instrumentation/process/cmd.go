@@ -43,7 +43,7 @@ func getOperationNameFromArgs(args []string) string {
 	operationNameBuilder.WriteRune(' ')
 	for _, item := range args[1:] {
 		if strings.ContainsAny(item, " ") {
-			operationNameBuilder.WriteByte('"')
+			operationNameBuilder.WriteRune('"')
 			operationNameBuilder.WriteString(item)
 			operationNameBuilder.WriteByte('"')
 		} else {
