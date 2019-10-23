@@ -112,7 +112,7 @@ func (r *SpanRecorder) SendSpans() error {
 
 	r.totalSend = r.totalSend + 1
 
-	payload := getPayload(r.spans, r.metadata)
+	payload := r.getPayload(r.spans, r.metadata)
 
 	if r.debugMode {
 		r.logger.Printf("payload: %+v\n\n", payload)
@@ -187,7 +187,7 @@ func (r *SpanRecorder) callIngest(payload io.Reader) (statusCode int, err error)
 }
 
 // Combines `rawSpans` and `metadata` into a payload that the Scope backend can process
-func getPayload(rawSpans []tracer.RawSpan, metadata map[string]interface{}) map[string]interface{} {
+func (r *SpanRecorder) getPayload(rawSpans []tracer.RawSpan, metadata map[string]interface{}) map[string]interface{} {
 	spans := []map[string]interface{}{}
 	events := []map[string]interface{}{}
 	for _, span := range rawSpans {
@@ -203,7 +203,7 @@ func getPayload(rawSpans []tracer.RawSpan, metadata map[string]interface{}) map[
 			},
 			"parent_span_id": parentSpanID,
 			"operation":      span.Operation,
-			"start":          span.Start.Format(time.RFC3339Nano),
+			"start":          r.applyNTPOffset(span.Start).Format(time.RFC3339Nano),
 			"duration":       span.Duration.Nanoseconds(),
 			"tags":           span.Tags,
 		})
@@ -222,7 +222,7 @@ func getPayload(rawSpans []tracer.RawSpan, metadata map[string]interface{}) map[
 					"span_id":  fmt.Sprintf("%x", span.Context.SpanID),
 					"event_id": eventId.String(),
 				},
-				"timestamp": event.Timestamp.Format(time.RFC3339Nano),
+				"timestamp": r.applyNTPOffset(event.Timestamp).Format(time.RFC3339Nano),
 				"fields":    fields,
 			})
 		}
