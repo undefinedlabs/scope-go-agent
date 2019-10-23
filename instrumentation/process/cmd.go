@@ -40,7 +40,7 @@ func getOperationNameFromArgs(args []string) string {
 	}
 	var operationNameBuilder = new(strings.Builder)
 	operationNameBuilder.WriteString(filepath.Base(args[0]))
-	operationNameBuilder.WriteByte(' ')
+	operationNameBuilder.WriteRune(' ')
 	for _, item := range args[1:] {
 		if strings.ContainsAny(item, " ") {
 			operationNameBuilder.WriteByte('"')
