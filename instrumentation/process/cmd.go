@@ -49,7 +49,7 @@ func getOperationNameFromArgs(args []string) string {
 		} else {
 			operationNameBuilder.WriteString(item)
 		}
-		operationNameBuilder.WriteByte(' ')
+		operationNameBuilder.WriteRune(' ')
 	}
 	return operationNameBuilder.String()
 }
