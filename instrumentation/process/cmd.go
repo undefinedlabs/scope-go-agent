@@ -45,7 +45,7 @@ func getOperationNameFromArgs(args []string) string {
 		if strings.ContainsAny(item, " ") {
 			operationNameBuilder.WriteRune('"')
 			operationNameBuilder.WriteString(item)
-			operationNameBuilder.WriteByte('"')
+			operationNameBuilder.WriteRune('"')
 		} else {
 			operationNameBuilder.WriteString(item)
 		}
