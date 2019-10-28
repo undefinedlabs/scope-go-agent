@@ -9,9 +9,12 @@ import (
 	"go.undefinedlabs.com/scopeagent/errors"
 	"go.undefinedlabs.com/scopeagent/instrumentation"
 	"go.undefinedlabs.com/scopeagent/tags"
+	"reflect"
+	"regexp"
 	"runtime"
 	"strings"
 	"testing"
+	"unsafe"
 )
 
 type (
@@ -32,6 +35,8 @@ type (
 
 	Option func(*Test)
 )
+
+var TESTING_LOG_REGEX = regexp.MustCompile(`(?m) {4}(?:(?:(?P<file>[\w\/\.]+):(?P<line>\d+)): )?(.*)`)
 
 // Options for starting a new test
 func WithContext(ctx context.Context) Option {
@@ -106,6 +111,8 @@ func StartTestFromCaller(t *testing.T, pc uintptr, opts ...Option) *Test {
 
 // Ends the current test
 func (test *Test) End() {
+	test.extractTestLoggerOutput()
+
 	if r := recover(); r != nil {
 		test.stopCapturingLogs()
 		test.span.SetTag("test.status", "ERROR")
@@ -152,6 +159,54 @@ func (test *Test) End() {
 
 	test.stopCapturingLogs()
 	test.span.Finish()
+}
+
+func (test *Test) extractTestLoggerOutput() {
+	output, _ := extractTestOutput(test.t)
+	outStr := string(*output)
+	var logArray []map[string]interface{}
+	for _, match := range TESTING_LOG_REGEX.FindAllString(outStr, -1) {
+		matches := TESTING_LOG_REGEX.FindStringSubmatch(match)
+
+		if matches[1] == "" {
+			msg := matches[3]
+			if strings.Index(msg, "    ") == 0 {
+				msg = msg[4:]
+			}
+			if len(logArray) > 0 {
+				logItem := logArray[len(logArray)-1]
+				logItem["message"] = logItem["message"].(string) + "\n" + msg
+			}
+		} else {
+			logItem := map[string]interface{}{
+				"file":    matches[1],
+				"line":    matches[2],
+				"message": matches[3],
+			}
+			logArray = append(logArray, logItem)
+		}
+	}
+
+	commonFields := []log.Field{
+		log.String(tags.EventType, tags.LogEvent),
+		log.String(tags.LogEventLevel, tags.LogLevel_VERBOSE),
+		log.String("log.logger", "test.Logger"),
+	}
+	for _, item := range logArray {
+		fields := append(commonFields, log.String(tags.EventMessage, item["message"].(string)))
+		fields = append(fields, log.String(tags.EventSource, fmt.Sprintf("%s:%s", item["file"].(string), item["line"].(string))))
+		test.span.LogFields(fields...)
+	}
+}
+
+func extractTestOutput(t *testing.T) (*[]byte, error) {
+	val := reflect.Indirect(reflect.ValueOf(t))
+	member := val.FieldByName("output")
+	if member.IsValid() {
+		ptrToY := unsafe.Pointer(member.UnsafeAddr())
+		return (*[]byte)(ptrToY), nil
+	}
+	return nil, nil
 }
 
 // Gets the test context
