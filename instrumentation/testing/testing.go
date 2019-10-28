@@ -235,7 +235,7 @@ func StartBenchmark(b *testing.B, pc uintptr, benchFunc func(b *testing.B)) {
 	span.SetBaggageItem("trace.kind", "test")
 	span.SetTag("test.type", "benchmark")
 	avg := math.Round((float64(results.T.Nanoseconds()) / float64(results.N)) * 100) / 100
-	span.SetTag("benchmark.numbers", results.N)
+	span.SetTag("benchmark.nums", results.N)
 	span.SetTag("benchmark.duration.avg", avg)
 	span.SetTag("benchmark.duration.total", results.T.Nanoseconds())
 	span.SetTag("benchmark.memory.avgAllocations", results.AllocsPerOp())
