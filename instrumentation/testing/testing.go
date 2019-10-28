@@ -234,7 +234,7 @@ func StartBenchmark(b *testing.B, pc uintptr, benchFunc func(b *testing.B)) {
 	span, _ := opentracing.StartSpanFromContextWithTracer(context.Background(), instrumentation.Tracer(), b.Name(), startOptions...)
 	span.SetBaggageItem("trace.kind", "test")
 	span.SetTag("test.type", "benchmark")
-	avg := math.Round((float64(results.T.Nanoseconds()) / float64(results.N)) * 100) / 100
+	avg := math.Round((float64(results.T.Nanoseconds())/float64(results.N))*100) / 100
 	span.SetTag("benchmark.runs", results.N)
 	span.SetTag("benchmark.duration.avg", avg)
 	span.SetTag("benchmark.duration.total", results.T.Nanoseconds())
@@ -246,6 +246,6 @@ func StartBenchmark(b *testing.B, pc uintptr, benchFunc func(b *testing.B)) {
 		span.SetTag("test.status", "FAIL")
 	}
 	span.FinishWithOptions(opentracing.FinishOptions{
-		FinishTime:  endTime,
+		FinishTime: endTime,
 	})
 }
