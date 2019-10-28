@@ -191,7 +191,7 @@ func StartBenchmark(b *testing.B, pc uintptr, benchFunc func(b *testing.B)) {
 	b.ResetTimer()
 	b.ReportAllocs()
 	startTime := time.Now()
-	result := b.Run("Scope", func(b1 *testing.B) {
+	result := b.Run("*", func(b1 *testing.B) {
 		benchFunc(b1)
 		bChild = b1
 	})
