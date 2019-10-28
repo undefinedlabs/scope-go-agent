@@ -190,7 +190,7 @@ func StartBenchmark(b *testing.B, pc uintptr, benchFunc func(b *testing.B)) {
 	b.ResetTimer()
 	b.ReportAllocs()
 	startTime := time.Now()
-	b.Run("Scope", func(b1 *testing.B) {
+	result := b.Run("Scope", func(b1 *testing.B) {
 		benchFunc(b1)
 		bChild = b1
 	})
@@ -239,6 +239,11 @@ func StartBenchmark(b *testing.B, pc uintptr, benchFunc func(b *testing.B)) {
 	span.SetTag("benchmark.duration.total", results.T.Nanoseconds())
 	span.SetTag("benchmark.memory.avgAllocations", results.AllocsPerOp())
 	span.SetTag("benchmark.memory.avgBytesAllocations", results.AllocedBytesPerOp())
+	if result {
+		span.SetTag("test.status", "PASS")
+	} else {
+		span.SetTag("test.status", "FAIL")
+	}
 	span.FinishWithOptions(opentracing.FinishOptions{
 		FinishTime:  endTime,
 	})
