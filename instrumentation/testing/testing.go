@@ -2,6 +2,7 @@ package testing
 
 import (
 	"context"
+	stdErrors "errors"
 	"fmt"
 	"github.com/opentracing/opentracing-go"
 	"github.com/opentracing/opentracing-go/log"
@@ -9,9 +10,12 @@ import (
 	"go.undefinedlabs.com/scopeagent/errors"
 	"go.undefinedlabs.com/scopeagent/instrumentation"
 	"go.undefinedlabs.com/scopeagent/tags"
+	"reflect"
 	"runtime"
 	"strings"
 	"testing"
+	"time"
+	"unsafe"
 )
 
 type (
@@ -166,5 +170,78 @@ func (test *Test) Run(name string, f func(t *testing.T)) {
 		childTest := StartTestFromCaller(childT, pc)
 		defer childTest.End()
 		f(childT)
+	})
+}
+
+//Extract benchmark result from the private result field in testing.B
+func extractBenchmarkResult(b *testing.B) (*testing.BenchmarkResult, error) {
+	val := reflect.Indirect(reflect.ValueOf(b))
+	member := val.FieldByName("result")
+	if member.IsValid() {
+		ptrToY := unsafe.Pointer(member.UnsafeAddr())
+		return (*testing.BenchmarkResult)(ptrToY), nil
+	}
+	return nil, stdErrors.New("result can't be retrieved")
+}
+
+// Starts a new benchmark
+func StartBenchmark(b *testing.B, benchFunc func(b *testing.B)) {
+	pc, _, _, _ := runtime.Caller(1)
+
+	var bChild *testing.B
+	b.ResetTimer()
+	b.ReportAllocs()
+	startTime := time.Now()
+	b.Run("Scope", func(b1 *testing.B) {
+		benchFunc(b1)
+		bChild = b1
+	})
+	endTime := time.Now()
+	results, err := extractBenchmarkResult(bChild)
+	if err != nil {
+		panic(err)
+	}
+
+	fullTestName := b.Name()
+	testNameSlash := strings.IndexByte(fullTestName, '/')
+	if testNameSlash < 0 {
+		testNameSlash = len(fullTestName)
+	}
+	funcName := fullTestName[:testNameSlash]
+
+	funcFullName := runtime.FuncForPC(pc).Name()
+	funcNameIndex := strings.LastIndex(funcFullName, funcName)
+	if funcNameIndex < 1 {
+		funcNameIndex = len(funcFullName)
+	}
+	packageName := funcFullName[:funcNameIndex-1]
+
+	sourceBounds, _ := ast.GetFuncSourceForName(pc, funcName)
+	var testCode string
+	if sourceBounds != nil {
+		testCode = fmt.Sprintf("%s:%d:%d", sourceBounds.File, sourceBounds.Start.Line, sourceBounds.End.Line)
+	}
+
+	var startOptions []opentracing.StartSpanOption
+	startOptions = append(startOptions, opentracing.Tags{
+		"span.kind":      "test",
+		"test.name":      fullTestName,
+		"test.suite":     packageName,
+		"test.code":      testCode,
+		"test.framework": "benchmark",
+		"test.language":  "go",
+	}, opentracing.StartTime(startTime))
+
+	span, _ := opentracing.StartSpanFromContextWithTracer(context.Background(), instrumentation.Tracer(), b.Name(), startOptions...)
+	span.SetBaggageItem("trace.kind", "test")
+	span.SetTag("test.type", "benchmark")
+	avg := float32(results.T.Nanoseconds()) / float32(results.N)
+	span.SetTag("benchmark.numbers", results.N)
+	span.SetTag("benchmark.duration.avg", avg)
+	span.SetTag("benchmark.duration.total", results.T.Nanoseconds())
+	span.SetTag("benchmark.memory.avgAllocations", results.AllocsPerOp())
+	span.SetTag("benchmark.memory.avgBytesAllocations", results.AllocedBytesPerOp())
+	span.FinishWithOptions(opentracing.FinishOptions{
+		FinishTime:  endTime,
 	})
 }
