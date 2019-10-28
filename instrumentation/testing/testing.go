@@ -162,7 +162,10 @@ func (test *Test) End() {
 }
 
 func (test *Test) extractTestLoggerOutput() {
-	output, _ := extractTestOutput(test.t)
+	output := extractTestOutput(test.t)
+	if output == nil {
+		return
+	}
 	outStr := string(*output)
 	var logArray []map[string]interface{}
 	for _, match := range TESTING_LOG_REGEX.FindAllString(outStr, -1) {
@@ -199,14 +202,14 @@ func (test *Test) extractTestLoggerOutput() {
 	}
 }
 
-func extractTestOutput(t *testing.T) (*[]byte, error) {
+func extractTestOutput(t *testing.T) *[]byte {
 	val := reflect.Indirect(reflect.ValueOf(t))
 	member := val.FieldByName("output")
 	if member.IsValid() {
 		ptrToY := unsafe.Pointer(member.UnsafeAddr())
-		return (*[]byte)(ptrToY), nil
+		return (*[]byte)(ptrToY)
 	}
-	return nil, nil
+	return nil
 }
 
 // Gets the test context
