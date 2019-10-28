@@ -33,3 +33,9 @@ func StartTest(t *testing.T, opts ...scopetesting.Option) *scopetesting.Test {
 	pc, _, _, _ := runtime.Caller(1)
 	return scopetesting.StartTestFromCaller(t, pc, opts...)
 }
+
+// Instruments the given benchmark
+func StartBenchmark(b *testing.B, benchFunc func(b *testing.B)) {
+	pc, _, _, _ := runtime.Caller(1)
+	scopetesting.StartBenchmark(b, pc, benchFunc)
+}
