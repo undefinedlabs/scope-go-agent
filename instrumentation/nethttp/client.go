@@ -187,7 +187,7 @@ func (t *Transport) doRoundTrip(req *http.Request) (*http.Response, error) {
 	}
 
 	if t.PayloadInstrumentation {
-		rqPayload := getRequestPayload(req, 512)
+		rqPayload := getRequestPayload(req, payloadBufferSize)
 		tracer.sp.SetTag("http.request_payload", rqPayload)
 	} else {
 		tracer.sp.SetTag("http.request_payload.unavailable", "disabled")
@@ -196,7 +196,7 @@ func (t *Transport) doRoundTrip(req *http.Request) (*http.Response, error) {
 	resp, err := rt.RoundTrip(req)
 
 	if t.PayloadInstrumentation {
-		rsPayLoad := getResponsePayload(resp, 512)
+		rsPayLoad := getResponsePayload(resp, payloadBufferSize)
 		tracer.sp.SetTag("http.response_payload", rsPayLoad)
 	} else {
 		tracer.sp.SetTag("http.response_payload.unavailable", "disabled")
