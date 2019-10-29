@@ -243,7 +243,8 @@ func getResponsePayload(resp *http.Response, bufferSize int) string {
 	var rsPayLoad string
 	if resp.Body != nil {
 		rsBodyBuffer := make([]byte, bufferSize)
-		if len, err := resp.Body.Read(rsBodyBuffer); err == nil {
+		len, _ := resp.Body.Read(rsBodyBuffer)
+		if len > 0 {
 			if len < bufferSize {
 				rsBodyBuffer = rsBodyBuffer[:len]
 			}
