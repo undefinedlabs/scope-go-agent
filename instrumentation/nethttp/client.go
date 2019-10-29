@@ -240,7 +240,7 @@ func getRequestPayload(req *http.Request, bufferSize int) string {
 
 // Gets the response payload
 func getResponsePayload(resp *http.Response, bufferSize int) string {
-	var rsPayLoad string
+	var rsPayload string
 	if resp.Body != nil {
 		rsBodyBuffer := make([]byte, bufferSize)
 		len, _ := resp.Body.Read(rsBodyBuffer)
@@ -249,7 +249,7 @@ func getResponsePayload(resp *http.Response, bufferSize int) string {
 				rsBodyBuffer = rsBodyBuffer[:len]
 			}
 			rsRunes := bytes.Runes(rsBodyBuffer)
-			rsPayLoad = string(rsRunes)
+			rsPayload = string(rsRunes)
 			resp.Body = struct {
 				io.Reader
 				io.Closer
@@ -259,7 +259,7 @@ func getResponsePayload(resp *http.Response, bufferSize int) string {
 			}
 		}
 	}
-	return rsPayLoad
+	return rsPayload
 }
 
 // Tracer holds tracing details for one HTTP request.

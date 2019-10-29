@@ -7,9 +7,13 @@ import (
 
 type statusCodeTracker struct {
 	http.ResponseWriter
-	status      int
-	wroteheader bool
+	status                 int
+	wroteheader            bool
+	payloadInstrumentation bool
+	payloadBuffer          []byte
 }
+
+var payloadBufferSize = 512
 
 func (w *statusCodeTracker) WriteHeader(status int) {
 	w.status = status
@@ -21,6 +25,17 @@ func (w *statusCodeTracker) Write(b []byte) (int, error) {
 	if !w.wroteheader {
 		w.wroteheader = true
 		w.status = 200
+	}
+	if w.payloadInstrumentation {
+		payloadSize := len(w.payloadBuffer)
+		if payloadSize < payloadBufferSize {
+			bufferMissing := payloadBufferSize - payloadSize
+			if bufferMissing < len(b) {
+				w.payloadBuffer = append(w.payloadBuffer, b[:bufferMissing]...)
+			} else {
+				w.payloadBuffer = append(w.payloadBuffer, b...)
+			}
+		}
 	}
 	return w.ResponseWriter.Write(b)
 }

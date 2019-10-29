@@ -1,6 +1,7 @@
 package nethttp
 
 import (
+	"bytes"
 	"go.undefinedlabs.com/scopeagent/instrumentation"
 	"net"
 	"net/http"
@@ -13,11 +14,12 @@ import (
 )
 
 type mwOptions struct {
-	opNameFunc    func(r *http.Request) string
-	spanFilter    func(r *http.Request) bool
-	spanObserver  func(span opentracing.Span, r *http.Request)
-	urlTagFunc    func(u *url.URL) string
-	componentName string
+	opNameFunc             func(r *http.Request) string
+	spanFilter             func(r *http.Request) bool
+	spanObserver           func(span opentracing.Span, r *http.Request)
+	urlTagFunc             func(u *url.URL) string
+	componentName          string
+	payloadInstrumentation bool
 }
 
 // MWOption controls the behavior of the Middleware.
@@ -62,6 +64,13 @@ func MWSpanObserver(f func(span opentracing.Span, r *http.Request)) MWOption {
 func MWURLTagFunc(f func(u *url.URL) string) MWOption {
 	return func(options *mwOptions) {
 		options.urlTagFunc = f
+	}
+}
+
+// Enable payload instrumentation
+func MWPayloadInstrumentation() MWOption {
+	return func(options *mwOptions) {
+		options.payloadInstrumentation = true
 	}
 }
 
@@ -143,12 +152,20 @@ func middlewareFunc(tr opentracing.Tracer, h http.HandlerFunc, options ...MWOpti
 		}
 
 		sct := &statusCodeTracker{ResponseWriter: w}
+		sct.payloadInstrumentation = opts.payloadInstrumentation
 		r = r.WithContext(opentracing.ContextWithSpan(r.Context(), sp))
 
 		defer func() {
 			ext.HTTPStatusCode.Set(sp, uint16(sct.status))
 			if sct.status >= http.StatusBadRequest || !sct.wroteheader {
 				ext.Error.Set(sp, true)
+			}
+			if sct.payloadInstrumentation {
+				rsRunes := bytes.Runes(sct.payloadBuffer)
+				rsPayload := string(rsRunes)
+				sp.SetTag("http.response_payload", rsPayload)
+			} else {
+				sp.SetTag("http.response_payload.unavailable", "disabled")
 			}
 			sp.Finish()
 		}()
