@@ -185,7 +185,7 @@ func extractBenchmarkResult(b *testing.B) (*testing.BenchmarkResult, error) {
 	return nil, stdErrors.New("result can't be retrieved")
 }
 
-// Starts a new benchmark using a pc s a caller
+// Starts a new benchmark using a pc as caller
 func StartBenchmark(b *testing.B, pc uintptr, benchFunc func(b *testing.B)) {
 	var bChild *testing.B
 	b.ResetTimer()
