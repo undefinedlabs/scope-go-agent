@@ -67,10 +67,10 @@ func StartTestFromCaller(t *testing.T, pc uintptr, opts ...Option) *Test {
 
 	fullTestName := t.Name()
 	testNameSlash := strings.IndexByte(fullTestName, '/')
-	if testNameSlash < 0 {
-		testNameSlash = len(fullTestName)
+	funcName := fullTestName
+	if testNameSlash >= 0 {
+		funcName = fullTestName[:testNameSlash]
 	}
-	funcName := fullTestName[:testNameSlash]
 
 	funcFullName := runtime.FuncForPC(pc).Name()
 	funcNameIndex := strings.LastIndex(funcFullName, funcName)
@@ -205,10 +205,10 @@ func StartBenchmark(b *testing.B, pc uintptr, benchFunc func(b *testing.B)) {
 	// to search the func source code bounds and to calculate the package name.
 	fullTestName := b.Name()
 	testNameSlash := strings.IndexByte(fullTestName, '/')
-	if testNameSlash < 0 {
-		testNameSlash = len(fullTestName)
+	funcName := fullTestName
+	if testNameSlash >= 0 {
+		funcName = fullTestName[:testNameSlash]
 	}
-	funcName := fullTestName[:testNameSlash]
 
 	funcFullName := runtime.FuncForPC(pc).Name()
 	funcNameIndex := strings.LastIndex(funcFullName, funcName)
