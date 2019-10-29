@@ -241,7 +241,6 @@ func StartBenchmark(b *testing.B, pc uintptr, benchFunc func(b *testing.B)) {
 	avg := math.Round((float64(results.T.Nanoseconds())/float64(results.N))*100) / 100
 	span.SetTag("benchmark.runs", results.N)
 	span.SetTag("benchmark.duration.avg", avg)
-	span.SetTag("benchmark.duration.total", results.T.Nanoseconds())
 	span.SetTag("benchmark.memory.avg_allocations", results.AllocsPerOp())
 	span.SetTag("benchmark.memory.avg_bytes_allocations", results.AllocedBytesPerOp())
 	if result {
