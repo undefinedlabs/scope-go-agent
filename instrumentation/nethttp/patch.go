@@ -12,3 +12,12 @@ func PatchHttpDefaultClient() {
 		http.DefaultClient = &http.Client{Transport: &Transport{RoundTripper: http.DefaultTransport}}
 	})
 }
+
+func PatchHttpDefaultClientWithPayload() {
+	once.Do(func() {
+		http.DefaultClient = &http.Client{Transport: &Transport{
+			RoundTripper:           http.DefaultTransport,
+			PayloadInstrumentation: true,
+		}}
+	})
+}
