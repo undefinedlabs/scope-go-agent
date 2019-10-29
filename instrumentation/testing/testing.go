@@ -238,7 +238,7 @@ func StartBenchmark(b *testing.B, pc uintptr, benchFunc func(b *testing.B)) {
 	span.SetTag("benchmark.runs", results.N)
 	span.SetTag("benchmark.duration.avg", avg)
 	span.SetTag("benchmark.duration.total", results.T.Nanoseconds())
-	span.SetTag("benchmark.memory.avgAllocations", results.AllocsPerOp())
+	span.SetTag("benchmark.memory.avg_allocations", results.AllocsPerOp())
 	span.SetTag("benchmark.memory.avgBytesAllocations", results.AllocedBytesPerOp())
 	if result {
 		span.SetTag("test.status", "PASS")
