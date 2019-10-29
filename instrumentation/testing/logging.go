@@ -22,7 +22,7 @@ type stdIO struct {
 	sync      *sync.WaitGroup
 }
 
-var LOG_REGEX_TEMPLATE = `^%s(?:(?P<date>\d{4}\/\d{1,2}\/\d{1,2}) )?(?:(?P<time>\d{1,2}:\d{1,2}:\d{1,2}(?:.\d{1,6})?) )?(?:(?:(?P<file>[\w\-. /]+):(?P<line>\d+)): )?(.*)\n?$`
+var LOG_REGEX_TEMPLATE = `^%s(?:(?P<date>\d{4}\/\d{1,2}\/\d{1,2}) )?(?:(?P<time>\d{1,2}:\d{1,2}:\d{1,2}(?:.\d{1,6})?) )?(?:(?:(?P<file>[\w\-. /\\:]+):(?P<line>\d+)): )?(.*)\n?$`
 
 func (test *Test) startCapturingLogs() {
 	// Replaces stdout and stderr
