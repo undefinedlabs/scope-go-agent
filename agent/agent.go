@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
+	"net/url"
 	"os"
 	"path"
 	"runtime"
@@ -125,7 +126,15 @@ func NewAgent(options ...Option) (*Agent, error) {
 	configProfile := GetConfigCurrentProfile()
 
 	if agent.apiKey == "" {
-		if apikey, set := os.LookupEnv("SCOPE_APIKEY"); set && apikey != "" {
+		if dsn, set := os.LookupEnv("SCOPE_DSN"); set && dsn != "" {
+			dsnApiKey, dsnApiEndpoint, dsnErr := parseDSN(dsn)
+			if dsnErr != nil {
+				agent.logger.Printf("Error parsing dsn value: %v\n", dsnErr)
+			} else {
+				agent.apiKey = dsnApiKey
+				agent.apiEndpoint = dsnApiEndpoint
+			}
+		} else if apikey, set := os.LookupEnv("SCOPE_APIKEY"); set && apikey != "" {
 			agent.apiKey = apikey
 		} else if configProfile != nil {
 			agent.apiKey = configProfile.ApiKey
@@ -135,7 +144,15 @@ func NewAgent(options ...Option) (*Agent, error) {
 	}
 
 	if agent.apiEndpoint == "" {
-		if endpoint, set := os.LookupEnv("SCOPE_API_ENDPOINT"); set && endpoint != "" {
+		if dsn, set := os.LookupEnv("SCOPE_DSN"); set && dsn != "" {
+			dsnApiKey, dsnApiEndpoint, dsnErr := parseDSN(dsn)
+			if dsnErr != nil {
+				agent.logger.Printf("Error parsing dsn value: %v\n", dsnErr)
+			} else {
+				agent.apiKey = dsnApiKey
+				agent.apiEndpoint = dsnApiEndpoint
+			}
+		} else if endpoint, set := os.LookupEnv("SCOPE_API_ENDPOINT"); set && endpoint != "" {
 			agent.apiEndpoint = endpoint
 		} else if configProfile != nil {
 			agent.apiEndpoint = configProfile.ApiEndpoint
@@ -272,4 +289,17 @@ func generateAgentID() string {
 		panic(err)
 	}
 	return agentId.String()
+}
+
+func parseDSN(dsnString string) (apiKey string, apiEndpoint string, err error) {
+	uri, err := url.Parse(dsnString)
+	if err != nil {
+		return "", "", err
+	}
+	if uri.User != nil {
+		apiKey = uri.User.Username()
+	}
+	uri.User = nil
+	apiEndpoint = uri.String()
+	return
 }
