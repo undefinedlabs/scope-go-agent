@@ -188,17 +188,17 @@ func extractBenchmarkResult(b *testing.B) (*testing.BenchmarkResult, error) {
 // Starts a new benchmark using a pc as caller
 func StartBenchmark(b *testing.B, pc uintptr, benchFunc func(b *testing.B)) {
 	var bChild *testing.B
-	b.ResetTimer()
 	b.ReportAllocs()
+	b.ResetTimer()
 	startTime := time.Now()
 	result := b.Run("*", func(b1 *testing.B) {
 		benchFunc(b1)
 		bChild = b1
 	})
-	endTime := time.Now()
 	results, err := extractBenchmarkResult(bChild)
 	if err != nil {
-		panic(err)
+		instrumentation.Logger().Printf("Error while extracting the benchmark result object: %v\n", err)
+		return
 	}
 
 	// Extracting the benchmark func name (by removing any possible sub-benchmark suffix `{bench_func}/{sub_benchmark}`)
@@ -248,6 +248,6 @@ func StartBenchmark(b *testing.B, pc uintptr, benchFunc func(b *testing.B)) {
 		span.SetTag("test.status", "FAIL")
 	}
 	span.FinishWithOptions(opentracing.FinishOptions{
-		FinishTime: endTime,
+		FinishTime: startTime.Add(results.T),
 	})
 }
