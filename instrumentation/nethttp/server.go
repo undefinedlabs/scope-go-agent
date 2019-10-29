@@ -155,18 +155,19 @@ func middlewareFunc(tr opentracing.Tracer, h http.HandlerFunc, options ...MWOpti
 		sct.payloadInstrumentation = opts.payloadInstrumentation
 		r = r.WithContext(opentracing.ContextWithSpan(r.Context(), sp))
 
-		if opts.payloadInstrumentation {
-			rqPayload := getRequestPayload(r, payloadBufferSize)
-			sp.SetTag("http.request_payload", rqPayload)
-		} else {
-			sp.SetTag("http.request_payload.unavailable", "disabled")
-		}
-
 		defer func() {
 			ext.HTTPStatusCode.Set(sp, uint16(sct.status))
 			if sct.status >= http.StatusBadRequest || !sct.wroteheader {
 				ext.Error.Set(sp, true)
 			}
+
+			if sct.payloadInstrumentation {
+				rqPayload := getRequestPayload(r, payloadBufferSize)
+				sp.SetTag("http.request_payload", rqPayload)
+			} else {
+				sp.SetTag("http.request_payload.unavailable", "disabled")
+			}
+
 			if sct.payloadInstrumentation {
 				rsRunes := bytes.Runes(sct.payloadBuffer)
 				rsPayload := string(rsRunes)
