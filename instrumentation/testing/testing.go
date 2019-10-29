@@ -201,6 +201,8 @@ func StartBenchmark(b *testing.B, pc uintptr, benchFunc func(b *testing.B)) {
 		panic(err)
 	}
 
+	// Extracting the benchmark func name (by removing any possible sub-benchmark suffix `{bench_func}/{sub_benchmark}`)
+	// to search the func source code bounds and to calculate the package name.
 	fullTestName := b.Name()
 	testNameSlash := strings.IndexByte(fullTestName, '/')
 	if testNameSlash < 0 {
@@ -227,13 +229,13 @@ func StartBenchmark(b *testing.B, pc uintptr, benchFunc func(b *testing.B)) {
 		"test.name":      fullTestName,
 		"test.suite":     packageName,
 		"test.code":      testCode,
-		"test.framework": "benchmark",
+		"test.framework": "testing",
 		"test.language":  "go",
+		"test.type":      "benchmark",
 	}, opentracing.StartTime(startTime))
 
 	span, _ := opentracing.StartSpanFromContextWithTracer(context.Background(), instrumentation.Tracer(), b.Name(), startOptions...)
 	span.SetBaggageItem("trace.kind", "test")
-	span.SetTag("test.type", "benchmark")
 	avg := math.Round((float64(results.T.Nanoseconds())/float64(results.N))*100) / 100
 	span.SetTag("benchmark.runs", results.N)
 	span.SetTag("benchmark.duration.avg", avg)
