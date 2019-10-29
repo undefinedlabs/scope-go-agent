@@ -65,6 +65,8 @@ func StartTestFromCaller(t *testing.T, pc uintptr, opts ...Option) *Test {
 		opt(test)
 	}
 
+	// Extracting the benchmark func name (by removing any possible sub-benchmark suffix `{bench_func}/{sub_benchmark}`)
+	// to search the func source code bounds and to calculate the package name.
 	fullTestName := t.Name()
 	testNameSlash := strings.IndexByte(fullTestName, '/')
 	funcName := fullTestName
