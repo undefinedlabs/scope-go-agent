@@ -222,7 +222,7 @@ func (t *Transport) doRoundTrip(req *http.Request) (*http.Response, error) {
 // Gets the request payload
 func getRequestPayload(req *http.Request, bufferSize int) string {
 	var rqPayload string
-	if req.Body != nil {
+	if req.Body != nil && req.Body != http.NoBody {
 		rqBody, rqErr := req.GetBody()
 		if rqErr == nil {
 			rqBodyBuffer := make([]byte, bufferSize)
@@ -241,7 +241,7 @@ func getRequestPayload(req *http.Request, bufferSize int) string {
 // Gets the response payload
 func getResponsePayload(resp *http.Response, bufferSize int) string {
 	var rsPayload string
-	if resp.Body != nil {
+	if resp.Body != nil && resp.Body != http.NoBody {
 		rsBodyBuffer := make([]byte, bufferSize)
 		len, _ := resp.Body.Read(rsBodyBuffer)
 		if len > 0 {
