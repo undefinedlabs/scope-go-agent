@@ -83,7 +83,7 @@ func (c *instrumentedConn) Begin() (driver.Tx, error) {
 // value is true to either set the read-only transaction property if supported
 // or return an error if it is not supported.
 func (c *instrumentedConn) BeginTx(ctx context.Context, opts driver.TxOptions) (driver.Tx, error) {
-	s := c.configuration.newSpan("BeginTx", ctx)
+	s := c.configuration.newSpan("BeginTx", c.configuration, ctx)
 	if connBeginTx, ok := c.conn.(driver.ConnBeginTx); ok {
 		tx, err := connBeginTx.BeginTx(ctx, opts)
 		if err != nil {
@@ -125,7 +125,7 @@ func (c *instrumentedConn) Exec(query string, args []driver.Value) (driver.Resul
 //
 // ExecerContext must honor the context timeout and return when the context is canceled.
 func (c *instrumentedConn) ExecContext(ctx context.Context, query string, args []driver.NamedValue) (driver.Result, error) {
-	s := c.configuration.newSpan("ExecContext", ctx)
+	s := c.configuration.newSpan("ExecContext", c.configuration, ctx)
 	s.SetTag("query", query)
 	defer s.Finish()
 	if execerContext, ok := c.conn.(driver.ExecerContext); ok {
@@ -148,7 +148,7 @@ func (c *instrumentedConn) ExecContext(ctx context.Context, query string, args [
 // the Conn from pool.
 func (c *instrumentedConn) Ping(ctx context.Context) error {
 	if pinger, ok := c.conn.(driver.Pinger); ok {
-		s := c.configuration.newSpan("Ping", ctx)
+		s := c.configuration.newSpan("Ping", c.configuration, ctx)
 		defer s.Finish()
 		return pinger.Ping(ctx)
 	}
@@ -182,7 +182,7 @@ func (c *instrumentedConn) Query(query string, args []driver.Value) (driver.Rows
 //
 // QueryerContext must honor the context timeout and return when the context is canceled.
 func (c *instrumentedConn) QueryContext(ctx context.Context, query string, args []driver.NamedValue) (rows driver.Rows, err error) {
-	s := c.configuration.newSpan("QueryContext", ctx)
+	s := c.configuration.newSpan("QueryContext", c.configuration, ctx)
 	s.SetTag("query", query)
 	defer s.Finish()
 	if queryerContext, ok := c.conn.(driver.QueryerContext); ok {

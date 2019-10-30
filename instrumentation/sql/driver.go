@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"github.com/opentracing/opentracing-go"
 	"go.undefinedlabs.com/scopeagent/instrumentation"
+	"reflect"
 )
 
 type (
@@ -19,6 +20,7 @@ type (
 	driverConfiguration struct {
 		t          opentracing.Tracer
 		statements bool
+		connString string
 	}
 
 	Option func(*instrumentedDriver)
@@ -56,12 +58,13 @@ func WrapDriver(d driver.Driver, options ...Option) driver.Driver {
 // The returned connection is only used by one goroutine at a
 // time.
 func (w *instrumentedDriver) Open(name string) (driver.Conn, error) {
-
-	fmt.Println(name)
 	conn, err := w.driver.Open(name)
 	if err != nil {
 		return nil, err
 	}
+	typeName := reflect.TypeOf(w.driver)
+	fmt.Println(typeName)
+	w.configuration.connString = name
 	return &instrumentedConn{conn: conn, configuration: w.configuration}, nil
 }
 
@@ -79,7 +82,7 @@ func namedValueToValue(named []driver.NamedValue) ([]driver.Value, error) {
 }
 
 // newSpan creates a new opentracing.Span instance from the given context.
-func (t *driverConfiguration) newSpan(operationName string, ctx context.Context) opentracing.Span {
+func (t *driverConfiguration) newSpan(operationName string, c *driverConfiguration, ctx context.Context) opentracing.Span {
 	var opts []opentracing.StartSpanOption
 	parent := opentracing.SpanFromContext(ctx)
 	if parent != nil {
@@ -90,6 +93,7 @@ func (t *driverConfiguration) newSpan(operationName string, ctx context.Context)
 		"component": "database/sql/driver",
 		"db.method": "",
 		"span.kind": "client",
+		"db.conn":   c.connString,
 	})
 	span := t.t.StartSpan(operationName, opts...)
 	return span
