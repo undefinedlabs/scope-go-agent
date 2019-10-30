@@ -125,7 +125,7 @@ func NewAgent(options ...Option) (*Agent, error) {
 
 	configProfile := GetConfigCurrentProfile()
 
-	if agent.apiKey == "" {
+	if agent.apiKey == "" || agent.apiEndpoint == "" {
 		if dsn, set := os.LookupEnv("SCOPE_DSN"); set && dsn != "" {
 			dsnApiKey, dsnApiEndpoint, dsnErr := parseDSN(dsn)
 			if dsnErr != nil {
@@ -134,7 +134,11 @@ func NewAgent(options ...Option) (*Agent, error) {
 				agent.apiKey = dsnApiKey
 				agent.apiEndpoint = dsnApiEndpoint
 			}
-		} else if apikey, set := os.LookupEnv("SCOPE_APIKEY"); set && apikey != "" {
+		}
+	}
+
+	if agent.apiKey == "" {
+		if apikey, set := os.LookupEnv("SCOPE_APIKEY"); set && apikey != "" {
 			agent.apiKey = apikey
 		} else if configProfile != nil {
 			agent.apiKey = configProfile.ApiKey
@@ -144,15 +148,7 @@ func NewAgent(options ...Option) (*Agent, error) {
 	}
 
 	if agent.apiEndpoint == "" {
-		if dsn, set := os.LookupEnv("SCOPE_DSN"); set && dsn != "" {
-			dsnApiKey, dsnApiEndpoint, dsnErr := parseDSN(dsn)
-			if dsnErr != nil {
-				agent.logger.Printf("Error parsing dsn value: %v\n", dsnErr)
-			} else {
-				agent.apiKey = dsnApiKey
-				agent.apiEndpoint = dsnApiEndpoint
-			}
-		} else if endpoint, set := os.LookupEnv("SCOPE_API_ENDPOINT"); set && endpoint != "" {
+		if endpoint, set := os.LookupEnv("SCOPE_API_ENDPOINT"); set && endpoint != "" {
 			agent.apiEndpoint = endpoint
 		} else if configProfile != nil {
 			agent.apiEndpoint = configProfile.ApiEndpoint
