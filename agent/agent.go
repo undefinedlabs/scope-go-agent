@@ -129,7 +129,7 @@ func NewAgent(options ...Option) (*Agent, error) {
 		if dsn, set := os.LookupEnv("SCOPE_DSN"); set && dsn != "" {
 			dsnApiKey, dsnApiEndpoint, dsnErr := parseDSN(dsn)
 			if dsnErr != nil {
-				agent.logger.Printf("Error parsing dsn value: %v\n", dsnErr)
+				agent.logger.Printf("Error parsing dsn value: %v", dsnErr)
 			} else {
 				agent.apiKey = dsnApiKey
 				agent.apiEndpoint = dsnApiEndpoint
