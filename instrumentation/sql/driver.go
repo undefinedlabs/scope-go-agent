@@ -4,9 +4,11 @@ import (
 	"context"
 	"database/sql/driver"
 	"errors"
+	"fmt"
 	"github.com/opentracing/opentracing-go"
 	"go.undefinedlabs.com/scopeagent/instrumentation"
 	"reflect"
+	"strings"
 )
 
 type (
@@ -107,6 +109,26 @@ func (t *driverConfiguration) newSpan(operationName string, query string, c *dri
 		opts = append(opts, opentracing.Tags{
 			"db.prepare_statement": query,
 		})
+
+		stIndex := strings.IndexRune(query, ' ')
+		if stIndex >= 0 {
+			operationName = fmt.Sprintf("%s:%s", c.peerService, strings.ToUpper(query[:stIndex]))
+		}
+/*
+		query = strings.ToUpper(query)
+		if strings.Index(query, "INSERT") >= 0 {
+			operationName = fmt.Sprintf("%s:%s", c.peerService, "INSERT")
+		} else if strings.Index(query, "UPDATE") >= 0 {
+			operationName = fmt.Sprintf("%s:%s", c.peerService, "UPDATE")
+		} else if strings.Index(query, "SELECT") >= 0 {
+			operationName = fmt.Sprintf("%s:%s", c.peerService, "SELECT")
+		} else {
+			stIndex := strings.IndexRune(query, ' ')
+			if stIndex >= 0 {
+				operationName = fmt.Sprintf("%s:%s", c.peerService, query[:stIndex])
+			}
+		}
+ */
 	}
 	span := t.t.StartSpan(operationName, opts...)
 	return span
