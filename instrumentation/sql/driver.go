@@ -4,11 +4,9 @@ import (
 	"context"
 	"database/sql/driver"
 	"errors"
-	"fmt"
 	"github.com/opentracing/opentracing-go"
 	"go.undefinedlabs.com/scopeagent/instrumentation"
 	"reflect"
-	"strings"
 )
 
 type (
