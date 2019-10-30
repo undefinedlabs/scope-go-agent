@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
+	"net/url"
 	"os"
 	"path"
 	"runtime"
@@ -123,6 +124,18 @@ func NewAgent(options ...Option) (*Agent, error) {
 	agent.debugMode = agent.debugMode || getBoolEnv("SCOPE_DEBUG", false)
 
 	configProfile := GetConfigCurrentProfile()
+
+	if agent.apiKey == "" || agent.apiEndpoint == "" {
+		if dsn, set := os.LookupEnv("SCOPE_DSN"); set && dsn != "" {
+			dsnApiKey, dsnApiEndpoint, dsnErr := parseDSN(dsn)
+			if dsnErr != nil {
+				agent.logger.Printf("Error parsing dsn value: %v", dsnErr)
+			} else {
+				agent.apiKey = dsnApiKey
+				agent.apiEndpoint = dsnApiEndpoint
+			}
+		}
+	}
 
 	if agent.apiKey == "" {
 		if apikey, set := os.LookupEnv("SCOPE_APIKEY"); set && apikey != "" {
@@ -272,4 +285,17 @@ func generateAgentID() string {
 		panic(err)
 	}
 	return agentId.String()
+}
+
+func parseDSN(dsnString string) (apiKey string, apiEndpoint string, err error) {
+	uri, err := url.Parse(dsnString)
+	if err != nil {
+		return "", "", err
+	}
+	if uri.User != nil {
+		apiKey = uri.User.Username()
+	}
+	uri.User = nil
+	apiEndpoint = uri.String()
+	return
 }
