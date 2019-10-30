@@ -123,7 +123,7 @@ func (t *driverConfiguration) newSpan(operationName string, query string, args [
 		for _, item := range args {
 			name := item.Name
 			if name == "" {
-				name = fmt.Sprintf("$%i", item.Ordinal)
+				name = fmt.Sprintf("$%v", item.Ordinal)
 			}
 			dbParams[name] = map[string]interface{}{
 				"type":  reflect.TypeOf(item.Value).String(),

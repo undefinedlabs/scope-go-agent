@@ -36,7 +36,11 @@ func fillPostgresDriverData(name string, w *instrumentedDriver) {
 		w.configuration.host = host
 	}
 
-	w.configuration.connString = fmt.Sprint(o)
+	cStringBuilder := strings.Builder{}
+	for key, value := range o {
+		cStringBuilder.WriteString(fmt.Sprintf("%v=%v ", key, value))
+	}
+	w.configuration.connString = cStringBuilder.String()
 }
 
 // postgress ParseURL no longer needs to be used by clients of this library since supplying a URL as a
