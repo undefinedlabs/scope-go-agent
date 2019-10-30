@@ -8,6 +8,37 @@ import (
 	"strings"
 )
 
+func fillPostgresDriverData(name string, w *instrumentedDriver) {
+	w.configuration.peerService = "postgresql"
+
+	dsn := name
+	if strings.HasPrefix(name, "postgres://") || strings.HasPrefix(name, "postgresql://") {
+		if pDsn, err := postgresParseURL(name); err == nil {
+			dsn = pDsn
+		}
+	}
+	o := make(values)
+	o["host"] = "localhost"
+	o["port"] = "5432"
+	_ = parseOpts(dsn, o)
+	o["password"] = "******"
+
+	if user, ok := o["user"]; ok {
+		w.configuration.user = user
+	}
+	if port, ok := o["port"]; ok {
+		w.configuration.port = port
+	}
+	if dbname, ok := o["dbname"]; ok {
+		w.configuration.instance = dbname
+	}
+	if host, ok := o["host"]; ok {
+		w.configuration.host = host
+	}
+
+	w.configuration.connString = fmt.Sprint(o)
+}
+
 // postgress ParseURL no longer needs to be used by clients of this library since supplying a URL as a
 // connection string to sql.Open() is now supported:
 //

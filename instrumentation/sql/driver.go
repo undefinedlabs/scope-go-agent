@@ -24,6 +24,10 @@ type (
 		connString    string
 		componentName string
 		peerService   string
+		user          string
+		port          string
+		instance      string
+		host          string
 	}
 
 	Option func(*instrumentedDriver)
@@ -90,12 +94,16 @@ func (t *driverConfiguration) newSpan(operationName string, query string, c *dri
 		opts = append(opts, opentracing.ChildOf(parent.Context()))
 	}
 	opts = append(opts, opentracing.Tags{
-		"db.type":      "sql",
-		"component":    c.componentName,
-		"db.method":    "",
-		"span.kind":    "client",
-		"db.conn":      c.connString,
-		"peer.service": c.peerService,
+		"db.type":       "sql",
+		"component":     c.componentName,
+		"db.method":     "",
+		"span.kind":     "client",
+		"db.conn":       c.connString,
+		"peer.service":  c.peerService,
+		"db.user":       c.user,
+		"peer.port":     c.port,
+		"db.instance":   c.instance,
+		"peer.hostname": c.host,
 	})
 	if query != "" {
 		opts = append(opts, opentracing.Tags{
@@ -113,21 +121,7 @@ func (w *instrumentedDriver) fillDriverData(name string) {
 	// Postgres detection
 	if w.configuration.componentName == "pq.Driver" || w.configuration.componentName == "stdlib.Driver" ||
 		w.configuration.componentName == "pgsqldriver.postgresDriver" {
-		w.configuration.peerService = "postgresql"
-
-		dsn := name
-		if strings.HasPrefix(name, "postgres://") || strings.HasPrefix(name, "postgresql://") {
-			if pDsn, err := postgresParseURL(name); err == nil {
-				dsn = pDsn
-			}
-		}
-		o := make(values)
-		o["host"] = "localhost"
-		o["port"] = "5432"
-		_ = parseOpts(dsn, o)
-		o["password"] = "******"
-
-		w.configuration.connString = fmt.Sprint(o)
+		fillPostgresDriverData(name, w)
 	}
 
 }
