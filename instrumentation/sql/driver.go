@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql/driver"
 	"errors"
-	"fmt"
 	"github.com/opentracing/opentracing-go"
 	"go.undefinedlabs.com/scopeagent/instrumentation"
 	"reflect"
@@ -21,6 +20,8 @@ type (
 		t          opentracing.Tracer
 		statements bool
 		connString string
+		componentName string
+		peerService string
 	}
 
 	Option func(*instrumentedDriver)
@@ -62,9 +63,11 @@ func (w *instrumentedDriver) Open(name string) (driver.Conn, error) {
 	if err != nil {
 		return nil, err
 	}
-	typeName := reflect.TypeOf(w.driver)
-	fmt.Println(typeName)
 	w.configuration.connString = name
+	w.configuration.componentName = reflect.TypeOf(w.driver).Elem().String()
+	if w.configuration.componentName == "pq.Driver" {
+		w.configuration.peerService = "postgresql"
+	}
 	return &instrumentedConn{conn: conn, configuration: w.configuration}, nil
 }
 
@@ -90,7 +93,7 @@ func (t *driverConfiguration) newSpan(operationName string, c *driverConfigurati
 	}
 	opts = append(opts, opentracing.Tags{
 		"db.type":   "sql",
-		"component": "database/sql/driver",
+		"component": c.componentName,
 		"db.method": "",
 		"span.kind": "client",
 		"db.conn":   c.connString,
