@@ -26,6 +26,23 @@ func (c *instrumentedConn) Prepare(query string) (driver.Stmt, error) {
 	}, nil
 }
 
+// PrepareContext returns a prepared statement, bound to this connection.
+// context is for the preparation of the statement,
+// it must not store the context within the statement itself.
+func (c *instrumentedConn) PrepareContext(ctx context.Context, query string) (driver.Stmt, error) {
+	if connPrepareContext, ok := c.conn.(driver.ConnPrepareContext); ok {
+		stmt, err := connPrepareContext.PrepareContext(ctx, query)
+		if err != nil {
+			return nil, err
+		}
+		return &instrumentedStmt{
+			stmt:          stmt,
+			configuration: c.configuration,
+		}, nil
+	}
+	return c.conn.Prepare(query)
+}
+
 // Close invalidates and potentially stops any current
 // prepared statements and transactions, marking this
 // connection as no longer in use.
@@ -79,23 +96,6 @@ func (c *instrumentedConn) BeginTx(ctx context.Context, opts driver.TxOptions) (
 		}, nil
 	}
 	return c.conn.Begin()
-}
-
-// PrepareContext returns a prepared statement, bound to this connection.
-// context is for the preparation of the statement,
-// it must not store the context within the statement itself.
-func (c *instrumentedConn) PrepareContext(ctx context.Context, query string) (driver.Stmt, error) {
-	if connPrepareContext, ok := c.conn.(driver.ConnPrepareContext); ok {
-		stmt, err := connPrepareContext.PrepareContext(ctx, query)
-		if err != nil {
-			return nil, err
-		}
-		return &instrumentedStmt{
-			stmt:          stmt,
-			configuration: c.configuration,
-		}, nil
-	}
-	return c.conn.Prepare(query)
 }
 
 // Execer is an optional interface that may be implemented by a Conn.

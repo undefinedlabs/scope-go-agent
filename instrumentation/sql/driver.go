@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql/driver"
 	"errors"
+	"fmt"
 	"github.com/opentracing/opentracing-go"
 	"go.undefinedlabs.com/scopeagent/instrumentation"
 )
@@ -55,6 +56,8 @@ func WrapDriver(d driver.Driver, options ...Option) driver.Driver {
 // The returned connection is only used by one goroutine at a
 // time.
 func (w *instrumentedDriver) Open(name string) (driver.Conn, error) {
+	
+	fmt.Println(name)
 	conn, err := w.driver.Open(name)
 	if err != nil {
 		return nil, err
@@ -77,11 +80,17 @@ func namedValueToValue(named []driver.NamedValue) ([]driver.Value, error) {
 
 // newSpan creates a new opentracing.Span instance from the given context.
 func (t *driverConfiguration) newSpan(operationName string, ctx context.Context) opentracing.Span {
-	var opts []opentracing.StartSpanOption
+	var opts []opentracing.StartSpansOption
 	parent := opentracing.SpanFromContext(ctx)
 	if parent != nil {
 		opts = append(opts, opentracing.ChildOf(parent.Context()))
 	}
+	opts = append(opts, opentracing.Tags{
+		"db.type":   "sql",
+		"component": "database/sql/driver",
+		"db.method": "",
+		"span.kind": "client",
+	})
 	span := t.t.StartSpan(operationName, opts...)
 	return span
 }
