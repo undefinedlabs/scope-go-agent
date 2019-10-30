@@ -56,7 +56,7 @@ func WrapDriver(d driver.Driver, options ...Option) driver.Driver {
 // The returned connection is only used by one goroutine at a
 // time.
 func (w *instrumentedDriver) Open(name string) (driver.Conn, error) {
-	
+
 	fmt.Println(name)
 	conn, err := w.driver.Open(name)
 	if err != nil {
@@ -80,7 +80,7 @@ func namedValueToValue(named []driver.NamedValue) ([]driver.Value, error) {
 
 // newSpan creates a new opentracing.Span instance from the given context.
 func (t *driverConfiguration) newSpan(operationName string, ctx context.Context) opentracing.Span {
-	var opts []opentracing.StartSpansOption
+	var opts []opentracing.StartSpanOption
 	parent := opentracing.SpanFromContext(ctx)
 	if parent != nil {
 		opts = append(opts, opentracing.ChildOf(parent.Context()))
