@@ -96,7 +96,6 @@ func (t *driverConfiguration) newSpan(operationName string, query string, c *dri
 	opts = append(opts, opentracing.Tags{
 		"db.type":       "sql",
 		"component":     c.componentName,
-		"db.method":     "",
 		"span.kind":     "client",
 		"db.conn":       c.connString,
 		"peer.service":  c.peerService,
@@ -106,13 +105,16 @@ func (t *driverConfiguration) newSpan(operationName string, query string, c *dri
 		"peer.hostname": c.host,
 	})
 	if query != "" {
+		stIndex := strings.IndexRune(query, ' ')
+		var method string
+		if stIndex >= 0 {
+			method = strings.ToUpper(query[:stIndex])
+		}
 		opts = append(opts, opentracing.Tags{
 			"db.prepare_statement": query,
+			"db.method":            method,
 		})
-		stIndex := strings.IndexRune(query, ' ')
-		if stIndex >= 0 {
-			operationName = fmt.Sprintf("%s:%s", c.peerService, strings.ToUpper(query[:stIndex]))
-		}
+		operationName = fmt.Sprintf("%s:%s", c.peerService, method)
 	} else {
 		operationName = fmt.Sprintf("%s:%s", c.peerService, strings.ToUpper(operationName))
 	}
