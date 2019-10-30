@@ -121,7 +121,11 @@ func (t *driverConfiguration) newSpan(operationName string, query string, args [
 	if args != nil && len(args) > 0 {
 		dbParams := map[string]interface{}{}
 		for _, item := range args {
-			dbParams[item.Name] = map[string]interface{}{
+			name := item.Name
+			if name == "" {
+				name = fmt.Sprintf("$%i", item.Ordinal)
+			}
+			dbParams[name] = map[string]interface{}{
 				"type":  reflect.TypeOf(item.Value).String(),
 				"value": item.Value,
 			}

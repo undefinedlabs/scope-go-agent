@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql/driver"
 	"errors"
-	"fmt"
 )
 
 type instrumentedConn struct {
@@ -184,7 +183,6 @@ func (c *instrumentedConn) Query(query string, args []driver.Value) (driver.Rows
 func (c *instrumentedConn) QueryContext(ctx context.Context, query string, args []driver.NamedValue) (rows driver.Rows, err error) {
 	s := c.configuration.newSpan("QueryContext", query, args, c.configuration, ctx)
 	defer s.Finish()
-	fmt.Println(args)
 	if queryerContext, ok := c.conn.(driver.QueryerContext); ok {
 		rows, err := queryerContext.QueryContext(ctx, query, args)
 		return rows, err
