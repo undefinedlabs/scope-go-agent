@@ -87,7 +87,7 @@ func namedValueToValue(named []driver.NamedValue) ([]driver.Value, error) {
 }
 
 // newSpan creates a new opentracing.Span instance from the given context.
-func (t *driverConfiguration) newSpan(operationName string, query string, c *driverConfiguration, ctx context.Context) opentracing.Span {
+func (t *driverConfiguration) newSpan(operationName string, query string, args []driver.NamedValue, c *driverConfiguration, ctx context.Context) opentracing.Span {
 	var opts []opentracing.StartSpanOption
 	parent := opentracing.SpanFromContext(ctx)
 	if parent != nil {
@@ -117,6 +117,18 @@ func (t *driverConfiguration) newSpan(operationName string, query string, c *dri
 		operationName = fmt.Sprintf("%s:%s", c.peerService, method)
 	} else {
 		operationName = fmt.Sprintf("%s:%s", c.peerService, strings.ToUpper(operationName))
+	}
+	if args != nil && len(args) > 0 {
+		dbParams := map[string]interface{}{}
+		for _, item := range args {
+			dbParams[item.Name] = map[string]interface{}{
+				"type":  reflect.TypeOf(item.Value).String(),
+				"value": item.Value,
+			}
+		}
+		opts = append(opts, opentracing.Tags{
+			"db.params": dbParams,
+		})
 	}
 	span := t.t.StartSpan(operationName, opts...)
 	return span

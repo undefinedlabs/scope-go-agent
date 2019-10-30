@@ -52,7 +52,7 @@ func (s *instrumentedStmt) Query(args []driver.Value) (driver.Rows, error) {
 //
 // ExecContext must honor the context timeout and return when it is canceled.
 func (s *instrumentedStmt) ExecContext(ctx context.Context, query string, args []driver.NamedValue) (driver.Result, error) {
-	span := s.configuration.newSpan("ExecContext", query, s.configuration, ctx)
+	span := s.configuration.newSpan("ExecContext", query, args, s.configuration, ctx)
 	defer span.Finish()
 	if execerContext, ok := s.stmt.(driver.ExecerContext); ok {
 		return execerContext.ExecContext(ctx, query, args)
@@ -69,7 +69,7 @@ func (s *instrumentedStmt) ExecContext(ctx context.Context, query string, args [
 //
 // QueryContext must honor the context timeout and return when it is canceled.
 func (s *instrumentedStmt) QueryContext(ctx context.Context, query string, args []driver.NamedValue) (rows driver.Rows, err error) {
-	span := s.configuration.newSpan("QueryContext", query, s.configuration, ctx)
+	span := s.configuration.newSpan("QueryContext", query, args, s.configuration, ctx)
 	defer span.Finish()
 	if queryerContext, ok := s.stmt.(driver.QueryerContext); ok {
 		rows, err := queryerContext.QueryContext(ctx, query, args)
