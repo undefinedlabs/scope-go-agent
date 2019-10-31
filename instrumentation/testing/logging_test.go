@@ -31,7 +31,6 @@ func TestLoggingRegex(t *goTest.T) {
 		{"2009/01/23 c:/a/b/c/d.go:23: message", "2009/01/23", "", "c:/a/b/c/d.go", "23", "message"},
 		{"c:/a/b/c/d.go:23: message", "", "", "c:/a/b/c/d.go", "23", "message"},
 
-
 		{"2009/01/23 01:23:23.123123 c:\\a\\b\\c\\d.go:23: message", "2009/01/23", "01:23:23.123123", "c:\\a\\b\\c\\d.go", "23", "message"},
 		{"2009/01/23 01:23:23 c:\\a\\b\\c\\d.go:23: message", "2009/01/23", "01:23:23", "c:\\a\\b\\c\\d.go", "23", "message"},
 		{"2009/01/23 c:\\a\\b\\c\\d.go:23: message", "2009/01/23", "", "c:\\a\\b\\c\\d.go", "23", "message"},
@@ -43,7 +42,7 @@ func TestLoggingRegex(t *goTest.T) {
 		t.Run(fmt.Sprintf("Value %v", i), func(st *goTest.T) {
 			matches := re.FindStringSubmatch(logline[0])
 
-			for idx := 0; idx <= 5; idx ++ {
+			for idx := 0; idx <= 5; idx++ {
 				if matches[idx] != logline[idx] {
 					t.Fatalf("Error in line[%v]: %v. Value expected: %v, Actual value: %v", i, logline[0], logline[idx], matches[idx])
 				}
