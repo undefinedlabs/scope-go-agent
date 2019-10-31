@@ -69,7 +69,7 @@ func (w *instrumentedDriver) Open(name string) (driver.Conn, error) {
 	if err != nil {
 		return nil, err
 	}
-	w.fillDriverData(name)
+	w.callVendorsExtensions(name)
 	return &instrumentedConn{conn: conn, configuration: w.configuration}, nil
 }
 
@@ -138,7 +138,7 @@ func (t *driverConfiguration) newSpan(operationName string, query string, args [
 	return span
 }
 
-func (w *instrumentedDriver) fillDriverData(name string) {
+func (w *instrumentedDriver) callVendorsExtensions(name string) {
 	w.configuration.connString = name
 	w.configuration.componentName = reflect.TypeOf(w.driver).Elem().String()
 	for _, vendor := range vendorExtensions {

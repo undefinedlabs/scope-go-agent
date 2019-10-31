@@ -9,4 +9,6 @@ type vendorExtension interface {
 	ProcessConnectionString(connectionString string, configuration *driverConfiguration)
 }
 
+type values map[string]string
+
 var vendorExtensions []vendorExtension

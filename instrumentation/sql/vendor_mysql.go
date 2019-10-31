@@ -13,9 +13,7 @@ func init() {
 
 // Gets if the extension is compatible with the component name
 func (ext *mysqlExtension) IsCompatible(componentName string) bool {
-	return componentName == "mysql.MySQLDriver" ||
-		componentName == "godrv.Driver" ||
-		componentName == "driver.driver"
+	return componentName == "mysql.MySQLDriver"
 }
 
 // Complete the missing driver data from the connection string
@@ -31,9 +29,9 @@ func (ext *mysqlExtension) ProcessConnectionString(connectionString string, conf
 }
 
 // ParseDSN parses the DSN string to a Config
-func (ext *mysqlExtension) parseDSN(dsn string) *map[string]string {
+func (ext *mysqlExtension) parseDSN(dsn string) *values {
 	// New config with some default values
-	tmpCfg := map[string]string{}
+	tmpCfg := values{}
 
 	// [user[:password]@][net[(addr)]]/dbname[?param1=value1&paramN=valueN]
 	// Find the last '/' (since the password or the net addr might contain a '/')
@@ -102,7 +100,7 @@ func (ext *mysqlExtension) parseDSN(dsn string) *map[string]string {
 
 // parseDSNParams parses the DSN "query string"
 // Values must be url.QueryEscape'ed
-func (ext *mysqlExtension) parseDSNParams(cfg *map[string]string, params string) {
+func (ext *mysqlExtension) parseDSNParams(cfg *values, params string) {
 	for _, v := range strings.Split(params, "&") {
 		param := strings.SplitN(v, "=", 2)
 		if len(param) != 2 {
@@ -112,7 +110,7 @@ func (ext *mysqlExtension) parseDSNParams(cfg *map[string]string, params string)
 	}
 }
 
-func (ext *mysqlExtension) normalize(cfg *map[string]string) {
+func (ext *mysqlExtension) normalize(cfg *values) {
 	// Set default network if empty
 	if (*cfg)["Net"] == "" {
 		(*cfg)["Net"] = "tcp"
