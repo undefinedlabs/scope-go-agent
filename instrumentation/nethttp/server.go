@@ -109,7 +109,7 @@ func middleware(tr opentracing.Tracer, h http.Handler, options ...MWOption) http
 func middlewareFunc(tr opentracing.Tracer, h http.HandlerFunc, options ...MWOption) http.HandlerFunc {
 	opts := mwOptions{
 		opNameFunc: func(r *http.Request) string {
-			return "SERVER HTTP " + r.Method
+			return "HTTP " + r.Method
 		},
 		spanFilter:   func(r *http.Request) bool { return true },
 		spanObserver: func(span opentracing.Span, r *http.Request) {},
