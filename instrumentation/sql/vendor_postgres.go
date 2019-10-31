@@ -40,7 +40,6 @@ func (ext *postgresExtension) ProcessConnectionString(connectionString string, c
 	o["host"] = "localhost"
 	o["port"] = "5432"
 	_ = ext.parseOpts(dsn, o)
-	o["password"] = "******"
 
 	if user, ok := o["user"]; ok {
 		configuration.user = user
@@ -55,11 +54,7 @@ func (ext *postgresExtension) ProcessConnectionString(connectionString string, c
 		configuration.host = host
 	}
 
-	cStringBuilder := strings.Builder{}
-	for key, value := range o {
-		cStringBuilder.WriteString(fmt.Sprintf("%v=%v ", key, value))
-	}
-	configuration.connString = strings.TrimSpace(cStringBuilder.String())
+	configuration.connString = strings.ReplaceAll(connectionString, o["password"], "******")
 }
 
 // postgress ParseURL no longer needs to be used by clients of this library since supplying a URL as a
