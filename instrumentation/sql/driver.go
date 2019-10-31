@@ -110,16 +110,10 @@ func (t *driverConfiguration) newSpan(operationName string, query string, args [
 		if stIndex >= 0 {
 			method = strings.ToUpper(query[:stIndex])
 		}
-		if c.statements {
-			opts = append(opts, opentracing.Tags{
-				"db.prepare_statement": query,
-				"db.method":            method,
-			})
-		} else {
-			opts = append(opts, opentracing.Tags{
-				"db.method": method,
-			})
-		}
+		opts = append(opts, opentracing.Tags{
+			"db.prepare_statement": query,
+			"db.method":            method,
+		})
 		operationName = fmt.Sprintf("%s:%s", c.peerService, method)
 	} else {
 		operationName = fmt.Sprintf("%s:%s", c.peerService, strings.ToUpper(operationName))
