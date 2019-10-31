@@ -95,8 +95,8 @@ func (t *driverConfiguration) newSpan(operationName string, query string, args [
 	}
 	opts = append(opts, opentracing.Tags{
 		"db.type":       "sql",
-		"component":     c.componentName,
 		"span.kind":     "client",
+		"component":     c.componentName,
 		"db.conn":       c.connString,
 		"peer.service":  c.peerService,
 		"db.user":       c.user,
@@ -141,10 +141,10 @@ func (t *driverConfiguration) newSpan(operationName string, query string, args [
 func (w *instrumentedDriver) fillDriverData(name string) {
 	w.configuration.connString = name
 	w.configuration.componentName = reflect.TypeOf(w.driver).Elem().String()
-
-	// Postgres detection
-	if w.configuration.componentName == "pq.Driver" || w.configuration.componentName == "stdlib.Driver" ||
-		w.configuration.componentName == "pgsqldriver.postgresDriver" {
-		fillPostgresDriverData(name, w)
+	for _, vendor := range vendorExtensions {
+		if vendor.IsCompatible(w.configuration.componentName) {
+			vendor.ProcessConnectionString(name, w.configuration)
+			break
+		}
 	}
 }

@@ -8,12 +8,26 @@ import (
 	"strings"
 )
 
-func fillPostgresDriverData(name string, w *instrumentedDriver) {
-	w.configuration.peerService = "postgresql"
+type postgresExtension struct{}
 
-	dsn := name
-	if strings.HasPrefix(name, "postgres://") || strings.HasPrefix(name, "postgresql://") {
-		if pDsn, err := postgresParseURL(name); err == nil {
+func init() {
+	vendorExtensions = append(vendorExtensions, &postgresExtension{})
+}
+
+// Gets if the extension is compatible with the component name
+func (ext *postgresExtension) IsCompatible(componentName string) bool {
+	return componentName == "pq.Driver" ||
+		componentName == "stdlib.Driver" ||
+		componentName == "pgsqldriver.postgresDriver"
+}
+
+// Complete the missing driver data from the connection string
+func (ext *postgresExtension) ProcessConnectionString(connectionString string, configuration *driverConfiguration) {
+	configuration.peerService = "postgresql"
+
+	dsn := connectionString
+	if strings.HasPrefix(connectionString, "postgres://") || strings.HasPrefix(connectionString, "postgresql://") {
+		if pDsn, err := ext.parseUrl(connectionString); err == nil {
 			dsn = pDsn
 		}
 	}
@@ -24,23 +38,23 @@ func fillPostgresDriverData(name string, w *instrumentedDriver) {
 	o["password"] = "******"
 
 	if user, ok := o["user"]; ok {
-		w.configuration.user = user
+		configuration.user = user
 	}
 	if port, ok := o["port"]; ok {
-		w.configuration.port = port
+		configuration.port = port
 	}
 	if dbname, ok := o["dbname"]; ok {
-		w.configuration.instance = dbname
+		configuration.instance = dbname
 	}
 	if host, ok := o["host"]; ok {
-		w.configuration.host = host
+		configuration.host = host
 	}
 
 	cStringBuilder := strings.Builder{}
 	for key, value := range o {
 		cStringBuilder.WriteString(fmt.Sprintf("%v=%v ", key, value))
 	}
-	w.configuration.connString = cStringBuilder.String()
+	configuration.connString = cStringBuilder.String()
 }
 
 // postgress ParseURL no longer needs to be used by clients of this library since supplying a URL as a
@@ -64,7 +78,7 @@ func fillPostgresDriverData(name string, w *instrumentedDriver) {
 //	"postgres://"
 //
 // This will be blank, causing driver.Open to use all of the defaults
-func postgresParseURL(url string) (string, error) {
+func (ext *postgresExtension) parseUrl(url string) (string, error) {
 	u, err := nurl.Parse(url)
 	if err != nil {
 		return "", err
