@@ -5,7 +5,7 @@ import (
 	"net/http"
 )
 
-type statusCodeTracker struct {
+type responseTracker struct {
 	http.ResponseWriter
 	status                 int
 	wroteheader            bool
@@ -15,13 +15,13 @@ type statusCodeTracker struct {
 
 var payloadBufferSize = 512
 
-func (w *statusCodeTracker) WriteHeader(status int) {
+func (w *responseTracker) WriteHeader(status int) {
 	w.status = status
 	w.wroteheader = true
 	w.ResponseWriter.WriteHeader(status)
 }
 
-func (w *statusCodeTracker) Write(b []byte) (int, error) {
+func (w *responseTracker) Write(b []byte) (int, error) {
 	if !w.wroteheader {
 		w.wroteheader = true
 		w.status = 200
@@ -44,7 +44,7 @@ func (w *statusCodeTracker) Write(b []byte) (int, error) {
 // ResponseWriter and only implements the same combination of additional
 // interfaces as the original.  This implementation is based on
 // https://github.com/felixge/httpsnoop.
-func (w *statusCodeTracker) wrappedResponseWriter() http.ResponseWriter {
+func (w *responseTracker) wrappedResponseWriter() http.ResponseWriter {
 	var (
 		hj, i0 = w.ResponseWriter.(http.Hijacker)
 		cn, i1 = w.ResponseWriter.(http.CloseNotifier)

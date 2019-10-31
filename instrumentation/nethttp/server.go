@@ -2,7 +2,6 @@ package nethttp
 
 import (
 	"bytes"
-	"go.undefinedlabs.com/scopeagent/instrumentation"
 	"net"
 	"net/http"
 	"net/url"
@@ -11,6 +10,8 @@ import (
 
 	"github.com/opentracing/opentracing-go"
 	"github.com/opentracing/opentracing-go/ext"
+
+	"go.undefinedlabs.com/scopeagent/instrumentation"
 )
 
 type mwOptions struct {
@@ -151,25 +152,25 @@ func middlewareFunc(tr opentracing.Tracer, h http.HandlerFunc, options ...MWOpti
 			}
 		}
 
-		sct := &statusCodeTracker{ResponseWriter: w}
-		sct.payloadInstrumentation = opts.payloadInstrumentation
+		rtracker := &responseTracker{ResponseWriter: w}
+		rtracker.payloadInstrumentation = opts.payloadInstrumentation
 		r = r.WithContext(opentracing.ContextWithSpan(r.Context(), sp))
 
 		defer func() {
-			ext.HTTPStatusCode.Set(sp, uint16(sct.status))
-			if sct.status >= http.StatusBadRequest || !sct.wroteheader {
+			ext.HTTPStatusCode.Set(sp, uint16(rtracker.status))
+			if rtracker.status >= http.StatusBadRequest || !rtracker.wroteheader {
 				ext.Error.Set(sp, true)
 			}
 
-			if sct.payloadInstrumentation {
+			if rtracker.payloadInstrumentation {
 				rqPayload := getRequestPayload(r, payloadBufferSize)
 				sp.SetTag("http.request_payload", rqPayload)
 			} else {
 				sp.SetTag("http.request_payload.unavailable", "disabled")
 			}
 
-			if sct.payloadInstrumentation {
-				rsRunes := bytes.Runes(sct.payloadBuffer)
+			if rtracker.payloadInstrumentation {
+				rsRunes := bytes.Runes(rtracker.payloadBuffer)
 				rsPayload := string(rsRunes)
 				sp.SetTag("http.response_payload", rsPayload)
 			} else {
@@ -178,7 +179,7 @@ func middlewareFunc(tr opentracing.Tracer, h http.HandlerFunc, options ...MWOpti
 			sp.Finish()
 		}()
 
-		h(sct.wrappedResponseWriter(), r)
+		h(rtracker.wrappedResponseWriter(), r)
 	}
 	return http.HandlerFunc(fn)
 }

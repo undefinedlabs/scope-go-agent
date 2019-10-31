@@ -3,16 +3,18 @@ package nethttp
 import (
 	"bytes"
 	"context"
-	"github.com/opentracing/opentracing-go"
-	"github.com/opentracing/opentracing-go/ext"
-	"github.com/opentracing/opentracing-go/log"
-	"go.undefinedlabs.com/scopeagent/instrumentation"
 	"io"
 	"net"
 	"net/http"
 	"net/http/httptrace"
 	"strconv"
 	"strings"
+
+	"github.com/opentracing/opentracing-go"
+	"github.com/opentracing/opentracing-go/ext"
+	"github.com/opentracing/opentracing-go/log"
+
+	"go.undefinedlabs.com/scopeagent/instrumentation"
 )
 
 type contextKey int
