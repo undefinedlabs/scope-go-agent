@@ -54,7 +54,7 @@ func (ext *postgresExtension) ProcessConnectionString(connectionString string, c
 	for key, value := range o {
 		cStringBuilder.WriteString(fmt.Sprintf("%v=%v ", key, value))
 	}
-	configuration.connString = cStringBuilder.String()
+	configuration.connString = strings.TrimSpace(cStringBuilder.String())
 }
 
 // postgress ParseURL no longer needs to be used by clients of this library since supplying a URL as a

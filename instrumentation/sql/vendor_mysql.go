@@ -20,14 +20,14 @@ func (ext *mysqlExtension) IsCompatible(componentName string) bool {
 
 // Complete the missing driver data from the connection string
 func (ext *mysqlExtension) ProcessConnectionString(connectionString string, configuration *driverConfiguration) {
-	configuration.peerService = "postgresql"
+	configuration.peerService = "mysql"
 
 	dsn := *ext.parseDSN(connectionString)
 	configuration.user = dsn["User"]
 	configuration.port = dsn["Port"]
 	configuration.instance = dsn["DBName"]
 	configuration.host = dsn["Host"]
-	configuration.connString = connectionString
+	configuration.connString = strings.ReplaceAll(connectionString, dsn["Passwd"], "******")
 }
 
 // ParseDSN parses the DSN string to a Config
@@ -130,7 +130,7 @@ func (ext *mysqlExtension) normalize(cfg *map[string]string) {
 		(*cfg)["Addr"] = ext.ensureHavePort((*cfg)["Addr"])
 	}
 
-	if host, port, err := net.SplitHostPort((*cfg)["Addr"]); err != nil {
+	if host, port, err := net.SplitHostPort((*cfg)["Addr"]); err == nil {
 		(*cfg)["Host"] = host
 		(*cfg)["Port"] = port
 	}
