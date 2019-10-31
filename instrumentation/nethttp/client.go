@@ -1,8 +1,8 @@
 package nethttp
 
 import (
+	"bytes"
 	"context"
-	"go.undefinedlabs.com/scopeagent/instrumentation"
 	"io"
 	"net"
 	"net/http"
@@ -13,6 +13,8 @@ import (
 	"github.com/opentracing/opentracing-go"
 	"github.com/opentracing/opentracing-go/ext"
 	"github.com/opentracing/opentracing-go/log"
+
+	"go.undefinedlabs.com/scopeagent/instrumentation"
 )
 
 type contextKey int
@@ -30,6 +32,9 @@ type Transport struct {
 	// The actual RoundTripper to use for the request. A nil
 	// RoundTripper defaults to http.DefaultTransport.
 	http.RoundTripper
+
+	// Enable payload instrumentation
+	PayloadInstrumentation bool
 }
 
 type clientOptions struct {
@@ -183,7 +188,21 @@ func (t *Transport) doRoundTrip(req *http.Request) (*http.Response, error) {
 		tracer.sp.Tracer().Inject(tracer.sp.Context(), opentracing.HTTPHeaders, carrier)
 	}
 
+	if t.PayloadInstrumentation {
+		rqPayload := getRequestPayload(req, payloadBufferSize)
+		tracer.sp.SetTag("http.request_payload", rqPayload)
+	} else {
+		tracer.sp.SetTag("http.request_payload.unavailable", "disabled")
+	}
+
 	resp, err := rt.RoundTrip(req)
+
+	if t.PayloadInstrumentation {
+		rsPayLoad := getResponsePayload(resp, payloadBufferSize)
+		tracer.sp.SetTag("http.response_payload", rsPayLoad)
+	} else {
+		tracer.sp.SetTag("http.response_payload.unavailable", "disabled")
+	}
 
 	if err != nil {
 		tracer.sp.Finish()
@@ -200,6 +219,49 @@ func (t *Transport) doRoundTrip(req *http.Request) (*http.Response, error) {
 		resp.Body = closeTracker{resp.Body, tracer.sp}
 	}
 	return resp, nil
+}
+
+// Gets the request payload
+func getRequestPayload(req *http.Request, bufferSize int) string {
+	var rqPayload string
+	if req.Body != nil && req.Body != http.NoBody {
+		rqBody, rqErr := req.GetBody()
+		if rqErr == nil {
+			rqBodyBuffer := make([]byte, bufferSize)
+			if len, err := rqBody.Read(rqBodyBuffer); err == nil && len > 0 {
+				if len < bufferSize {
+					rqBodyBuffer = rqBodyBuffer[:len]
+				}
+				rqRunes := bytes.Runes(rqBodyBuffer)
+				rqPayload = string(rqRunes)
+			}
+		}
+	}
+	return rqPayload
+}
+
+// Gets the response payload
+func getResponsePayload(resp *http.Response, bufferSize int) string {
+	var rsPayload string
+	if resp.Body != nil && resp.Body != http.NoBody {
+		rsBodyBuffer := make([]byte, bufferSize)
+		len, _ := resp.Body.Read(rsBodyBuffer)
+		if len > 0 {
+			if len < bufferSize {
+				rsBodyBuffer = rsBodyBuffer[:len]
+			}
+			rsRunes := bytes.Runes(rsBodyBuffer)
+			rsPayload = string(rsRunes)
+			resp.Body = struct {
+				io.Reader
+				io.Closer
+			}{
+				io.MultiReader(bytes.NewReader(rsBodyBuffer), resp.Body),
+				resp.Body,
+			}
+		}
+	}
+	return rsPayload
 }
 
 // Tracer holds tracing details for one HTTP request.
