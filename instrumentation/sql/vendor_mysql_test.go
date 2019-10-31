@@ -21,6 +21,8 @@ func TestMySqlDSNParser(t *testing.T) {
 		t.Fatal("Host invalid.")
 	}
 	if dConf.connString != "testUser:******@tcp(localhost:3306)/dbname" {
-		t.Fatal("Connection string invalid.")
+		t.Fatalf("Connection string invalid, expected: %s, actual: %s",
+			"testUser:******@tcp(localhost:3306)/dbname",
+			dConf.connString)
 	}
 }

@@ -21,6 +21,8 @@ func TestPostgresDSNParser(t *testing.T) {
 		t.Fatal("Host invalid.")
 	}
 	if dConf.connString != "host=localhost port=5432 user=testUser password=****** dbname=dbname" {
-		t.Fatal("Connection string invalid.")
+		t.Fatalf("Connection string invalid, expected: %s, actual: %s",
+			"host=localhost port=5432 user=testUser password=****** dbname=dbname",
+			dConf.connString)
 	}
 }
