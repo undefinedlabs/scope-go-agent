@@ -3,14 +3,18 @@ package agent
 import (
 	"fmt"
 	"go.undefinedlabs.com/scopeagent/runner"
+	"os"
 	"testing"
 )
 
 func TestMain(m *testing.M) {
-	runner.Run(m, "repo", "br", "cmmt", "default")
+	os.Exit(runner.Run(m, "repo", "br", "cmmt", "default"))
 }
 
 func TestDsnParser(t *testing.T) {
+	runner.TestStart(t)
+	defer runner.TestEnd(t)
+	
 	dsnValues := [][]string{
 		{"https://4432432432432423@shared.scope.dev", "4432432432432423", "https://shared.scope.dev"},
 		{"http://4432432432432423@shared.scope.dev", "4432432432432423", "http://shared.scope.dev"},

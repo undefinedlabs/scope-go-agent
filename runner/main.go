@@ -61,6 +61,14 @@ func Run(m *testing.M, repository string, branch string, commit string, serviceN
 	return runner.Run()
 }
 
+func TestStart(t *testing.T) {
+	runner.TestStart(t)
+}
+func TestEnd(t *testing.T) {
+	runner.TestEnd(t)
+}
+
+
 func (r *testRunner) Run() int {
 	if r.configuration == nil || r.configuration.Tests == nil {
 		return r.m.Run()
