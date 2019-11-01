@@ -48,7 +48,7 @@ func Run(m *testing.M, repository string, branch string, commit string, serviceN
 }
 
 func getRunner(m *testing.M, repository string, branch string, commit string, serviceName string) *testRunner {
-	cfgLoader = &dummySessionLoader{}
+	cfgLoader = &dummySessionLoader{} // Need to be replaced with the actual configuration loader
 	runner := &testRunner{
 		m:           m,
 		repository:  repository,
