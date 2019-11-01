@@ -14,7 +14,7 @@ func TestMain(m *testing.M) {
 func TestDsnParser(t *testing.T) {
 	runner.TestStart(t)
 	defer runner.TestEnd(t)
-	
+
 	dsnValues := [][]string{
 		{"https://4432432432432423@shared.scope.dev", "4432432432432423", "https://shared.scope.dev"},
 		{"http://4432432432432423@shared.scope.dev", "4432432432432423", "http://shared.scope.dev"},
@@ -43,9 +43,11 @@ func TestDsnParser(t *testing.T) {
 }
 
 func TestSkipped(t *testing.T) {
-
+	runner.TestStart(t)
+	defer runner.TestEnd(t)
 }
 
 func TestFirstTest(t *testing.T) {
-
+	runner.TestStart(t)
+	defer runner.TestEnd(t)
 }
