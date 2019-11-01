@@ -2,8 +2,13 @@ package agent
 
 import (
 	"fmt"
+	"go.undefinedlabs.com/scopeagent/runner"
 	"testing"
 )
+
+func TestMain(m *testing.M) {
+	runner.Run(m)
+}
 
 func TestDsnParser(t *testing.T) {
 	dsnValues := [][]string{
