@@ -14,28 +14,34 @@ type (
 		intTests      *[]testing.InternalTest
 		intBenchmarks *[]testing.InternalBenchmark
 
-		tests      []testDescriptor
-		benchmarks []benchmarkDescriptor
+		tests      *map[string]*testDescriptor
+		benchmarks *map[string]*benchmarkDescriptor
 
 		repository    string
 		branch        string
 		commit        string
 		serviceName   string
 		configuration *testRunnerSession
+
+		exitCode int
 	}
 	testDescriptor struct {
-		test    testing.InternalTest
-		fqn     string
-		ran     int
-		failed  bool
-		skipped bool
+		test           testing.InternalTest
+		fqn            string
+		ran            int
+		failed         bool
+		skipped        bool
+		retryOnFailure bool
+		added          bool
 	}
 	benchmarkDescriptor struct {
-		benchmark testing.InternalBenchmark
-		fqn       string
-		ran       int
-		failed    bool
-		skipped   bool
+		benchmark      testing.InternalBenchmark
+		fqn            string
+		ran            int
+		failed         bool
+		skipped        bool
+		retryOnFailure bool
+		added          bool
 	}
 )
 
@@ -43,11 +49,6 @@ var runner *testRunner
 var cfgLoader sessionLoader
 
 func Run(m *testing.M, repository string, branch string, commit string, serviceName string) int {
-	runner = getRunner(m, repository, branch, commit, serviceName)
-	return runner.Run()
-}
-
-func getRunner(m *testing.M, repository string, branch string, commit string, serviceName string) *testRunner {
 	cfgLoader = &dummySessionLoader{} // Need to be replaced with the actual configuration loader
 	runner := &testRunner{
 		m:           m,
@@ -57,34 +58,89 @@ func getRunner(m *testing.M, repository string, branch string, commit string, se
 		serviceName: serviceName,
 	}
 	runner.init()
-	return runner
+	return runner.Run()
 }
 
 func (r *testRunner) Run() int {
-	return r.m.Run()
+	if r.configuration == nil || r.configuration.Tests == nil {
+		return r.m.Run()
+	}
+
+	tests := make([]testing.InternalTest, 0)
+	benchmarks := make([]testing.InternalBenchmark, 0)
+
+	// Tests and Benchmarks selection and order
+	for _, iTest := range r.configuration.Tests {
+		if desc, ok := (*r.tests)[iTest.Fqn]; ok {
+			if iTest.Skip {
+				desc.skipped = true
+			} else {
+				tests = append(tests, desc.test)
+				desc.added = true
+			}
+			desc.retryOnFailure = iTest.RetryOnFailure
+		}
+		if desc, ok := (*r.benchmarks)[iTest.Fqn]; ok {
+			if iTest.Skip {
+				desc.skipped = true
+			} else {
+				benchmarks = append(benchmarks, desc.benchmark)
+				desc.added = true
+			}
+			desc.retryOnFailure = iTest.RetryOnFailure
+		}
+	}
+	for _, value := range *r.tests {
+		if value.added || value.skipped {
+			continue
+		}
+		value.added = true
+		tests = append(tests, value.test)
+	}
+	for _, value := range *r.benchmarks {
+		if value.added || value.skipped {
+			continue
+		}
+		value.added = true
+		benchmarks = append(benchmarks, value.benchmark)
+	}
+	*r.intTests = tests
+	*r.intBenchmarks = benchmarks
+	r.exitCode = r.m.Run()
+
+	return r.exitCode
 }
 
 func (r *testRunner) init() {
 	if tPointer, err := r.getFieldPointer("tests"); err == nil {
 		r.intTests = (*[]testing.InternalTest)(tPointer)
+		r.tests = &map[string]*testDescriptor{}
 		for _, test := range *r.intTests {
-			r.tests = append(r.tests, testDescriptor{
-				test:   test,
-				fqn:    r.getFqnOfTest(test.F),
-				ran:    0,
-				failed: false,
-			})
+			fqn := r.getFqnOfTest(test.F)
+			(*r.tests)[fqn] = &testDescriptor{
+				test:           test,
+				fqn:            fqn,
+				ran:            0,
+				failed:         false,
+				retryOnFailure: true,
+				added:          false,
+			}
 		}
 	}
 	if bPointer, err := r.getFieldPointer("benchmarks"); err == nil {
 		r.intBenchmarks = (*[]testing.InternalBenchmark)(bPointer)
+		r.benchmarks = &map[string]*benchmarkDescriptor{}
+
 		for _, benchmark := range *r.intBenchmarks {
-			r.benchmarks = append(r.benchmarks, benchmarkDescriptor{
-				benchmark: benchmark,
-				fqn:       r.getFqnOfBenchmark(benchmark.F),
-				ran:       0,
-				failed:    false,
-			})
+			fqn := r.getFqnOfBenchmark(benchmark.F)
+			(*r.benchmarks)[fqn] = &benchmarkDescriptor{
+				benchmark:      benchmark,
+				fqn:            fqn,
+				ran:            0,
+				failed:         false,
+				retryOnFailure: true,
+				added:          false,
+			}
 		}
 	}
 	r.configuration = cfgLoader.LoadSessionConfiguration(r.repository, r.branch, r.commit, r.serviceName)
