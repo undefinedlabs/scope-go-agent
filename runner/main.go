@@ -111,6 +111,13 @@ func (r *testRunner) Run() int {
 	return r.exitCode
 }
 
+func (r *testRunner) TestStart(t *testing.T) {
+
+}
+func (r *testRunner) TestEnd(t *testing.T) {
+
+}
+
 func (r *testRunner) init() {
 	if tPointer, err := r.getFieldPointer("tests"); err == nil {
 		r.intTests = (*[]testing.InternalTest)(tPointer)
