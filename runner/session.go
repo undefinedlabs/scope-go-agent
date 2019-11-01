@@ -6,8 +6,7 @@ type (
 		Rules runnerRules "json:`rules`"
 	}
 	testItem struct {
-		Suite          string "json:`suite`"
-		Name           string "json:`name`"
+		Fqn            string "json:`fqn`"
 		Skip           bool   "json:`skip`"
 		RetryOnFailure bool   "json:`retryOnFailure`"
 	}
@@ -28,15 +27,24 @@ func (l *dummySessionLoader) LoadSessionConfiguration(repository string, branch 
 	return &testRunnerSession{
 		Tests: []testItem{
 			{
-				Suite:          "go.undefinedlabs.com/scopeagent/agent",
-				Name:           "TestDsnParser",
+				Fqn:            "go.undefinedlabs.com/scopeagent/agent.TestFirstTest",
 				Skip:           false,
+				RetryOnFailure: true,
+			},
+			{
+				Fqn:            "go.undefinedlabs.com/scopeagent/agent.TestDsnParser",
+				Skip:           false,
+				RetryOnFailure: true,
+			},
+			{
+				Fqn:            "go.undefinedlabs.com/scopeagent/agent.TestSkipped",
+				Skip:           true,
 				RetryOnFailure: true,
 			},
 		},
 		Rules: runnerRules{
 			FailureRetries: 4,
-			PassRetries:    0,
+			PassRetries:    1,
 		},
 	}
 }

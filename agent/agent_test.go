@@ -7,7 +7,7 @@ import (
 )
 
 func TestMain(m *testing.M) {
-	runner.Run(m)
+	runner.Run(m, "repo", "br", "cmmt", "default")
 }
 
 func TestDsnParser(t *testing.T) {
@@ -36,4 +36,12 @@ func TestDsnParser(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestSkipped(t *testing.T) {
+
+}
+
+func TestFirstTest(t *testing.T) {
+
 }

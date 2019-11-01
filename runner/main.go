@@ -4,7 +4,6 @@ import (
 	"errors"
 	"reflect"
 	"runtime"
-	"strings"
 	"testing"
 	"unsafe"
 )
@@ -17,31 +16,45 @@ type (
 
 		tests      []testDescriptor
 		benchmarks []benchmarkDescriptor
+
+		repository    string
+		branch        string
+		commit        string
+		serviceName   string
+		configuration *testRunnerSession
 	}
 	testDescriptor struct {
-		test        testing.InternalTest
-		packageName string
-		ran         bool
-		failed      bool
+		test    testing.InternalTest
+		fqn     string
+		ran     int
+		failed  bool
+		skipped bool
 	}
 	benchmarkDescriptor struct {
-		benchmark   testing.InternalBenchmark
-		packageName string
-		ran         bool
-		failed      bool
+		benchmark testing.InternalBenchmark
+		fqn       string
+		ran       int
+		failed    bool
+		skipped   bool
 	}
 )
 
 var runner *testRunner
+var cfgLoader sessionLoader
 
-func Run(m *testing.M) int {
-	runner = getRunner(m)
+func Run(m *testing.M, repository string, branch string, commit string, serviceName string) int {
+	runner = getRunner(m, repository, branch, commit, serviceName)
 	return runner.Run()
 }
 
-func getRunner(m *testing.M) *testRunner {
+func getRunner(m *testing.M, repository string, branch string, commit string, serviceName string) *testRunner {
+	cfgLoader = &dummySessionLoader{}
 	runner := &testRunner{
-		m: m,
+		m:           m,
+		repository:  repository,
+		branch:      branch,
+		commit:      commit,
+		serviceName: serviceName,
 	}
 	runner.init()
 	return runner
@@ -55,39 +68,26 @@ func (r *testRunner) init() {
 	if tPointer, err := r.getFieldPointer("tests"); err == nil {
 		r.intTests = (*[]testing.InternalTest)(tPointer)
 		for _, test := range *r.intTests {
-			funcVal := runtime.FuncForPC(reflect.ValueOf(test.F).Pointer())
-			funcFullName := funcVal.Name()
-			funcNameIndex := strings.LastIndex(funcFullName, test.Name)
-			if funcNameIndex < 1 {
-				funcNameIndex = len(funcFullName)
-			}
 			r.tests = append(r.tests, testDescriptor{
-				test:        test,
-				packageName: funcFullName[:funcNameIndex-1],
-				ran:         false,
-				failed:      false,
+				test:   test,
+				fqn:    r.getFqnOfTest(test.F),
+				ran:    0,
+				failed: false,
 			})
 		}
 	}
 	if bPointer, err := r.getFieldPointer("benchmarks"); err == nil {
 		r.intBenchmarks = (*[]testing.InternalBenchmark)(bPointer)
 		for _, benchmark := range *r.intBenchmarks {
-			funcVal := runtime.FuncForPC(reflect.ValueOf(benchmark.F).Pointer())
-			funcFullName := funcVal.Name()
-			funcNameIndex := strings.LastIndex(funcFullName, benchmark.Name)
-			if funcNameIndex < 1 {
-				funcNameIndex = len(funcFullName)
-			}
 			r.benchmarks = append(r.benchmarks, benchmarkDescriptor{
-				benchmark:   benchmark,
-				packageName: funcFullName[:funcNameIndex-1],
-				ran:         false,
-				failed:      false,
+				benchmark: benchmark,
+				fqn:       r.getFqnOfBenchmark(benchmark.F),
+				ran:       0,
+				failed:    false,
 			})
 		}
 	}
-
-
+	r.configuration = cfgLoader.LoadSessionConfiguration(r.repository, r.branch, r.commit, r.serviceName)
 }
 
 func (r *testRunner) getFieldPointer(fieldName string) (unsafe.Pointer, error) {
@@ -100,4 +100,12 @@ func (r *testRunner) getFieldPointer(fieldName string) (unsafe.Pointer, error) {
 	return nil, errors.New("field can't be retrieved")
 }
 
-type ()
+func (r *testRunner) getFqnOfTest(tFunc func(*testing.T)) string {
+	funcVal := runtime.FuncForPC(reflect.ValueOf(tFunc).Pointer())
+	return funcVal.Name()
+}
+
+func (r *testRunner) getFqnOfBenchmark(bFunc func(*testing.B)) string {
+	funcVal := runtime.FuncForPC(reflect.ValueOf(bFunc).Pointer())
+	return funcVal.Name()
+}
