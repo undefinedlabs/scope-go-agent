@@ -2,10 +2,12 @@ package runner
 
 import (
 	"errors"
+	"fmt"
 	"reflect"
 	"runtime"
 	"strconv"
 	"testing"
+	"time"
 	"unsafe"
 )
 
@@ -44,6 +46,17 @@ type (
 		retryOnFailure bool
 		added          bool
 	}
+	internalTestResult struct {
+		ran        bool      // Test or benchmark (or one of its subtests) was executed.
+		failed     bool      // Test or benchmark has failed.
+		skipped    bool      // Test of benchmark has been skipped.
+		done       bool      // Test is finished and all subtests have completed.
+		finished   bool      // Test function has completed.
+		raceErrors int       // number of races detected during test
+		name       string    // Name of test or benchmark.
+		start      time.Time // Time test or benchmark started
+		duration   time.Duration
+	}
 )
 
 var runner *testRunner
@@ -78,7 +91,7 @@ func (r *testRunner) Run() int {
 			} else {
 				tests = append(tests, testing.InternalTest{
 					Name: desc.fqn,
-					F: r.testProcessor,
+					F:    r.testProcessor,
 				})
 				desc.added = true
 			}
@@ -124,13 +137,21 @@ func (r *testRunner) testProcessor(t *testing.T) {
 		run := 1
 		for {
 			var innerTest *testing.T
-			t.Run("Run:" + strconv.Itoa(run), func(it *testing.T) {
+			t.Run("Run:"+strconv.Itoa(run), func(it *testing.T) {
 				it.Helper()
 				innerTest = it
 				item.test.F(it)
 			})
-			r.getTestResultsInfo(innerTest)
-			//fmt.Println(innerTest)
+			innerTestInfo := r.getTestResultsInfo(innerTest)
+			fmt.Println("ran", innerTestInfo.ran)
+			fmt.Println("failed", innerTestInfo.failed)
+			fmt.Println("skipped", innerTestInfo.skipped)
+			fmt.Println("done", innerTestInfo.done)
+			fmt.Println("finished", innerTestInfo.finished)
+			fmt.Println("raceErrors", innerTestInfo.raceErrors)
+			fmt.Println("name", innerTestInfo.name)
+			fmt.Println("start", innerTestInfo.start)
+			fmt.Println("duration", innerTestInfo.duration)
 			run++
 			if run > 4 {
 				break
@@ -143,7 +164,7 @@ func (r *testRunner) testProcessor(t *testing.T) {
 }
 
 func (r *testRunner) init() {
-	if tPointer, err := r.getFieldPointer("tests"); err == nil {
+	if tPointer, err := r.getFieldPointerOfM("tests"); err == nil {
 		r.intTests = (*[]testing.InternalTest)(tPointer)
 		r.tests = &map[string]*testDescriptor{}
 		for _, test := range *r.intTests {
@@ -158,7 +179,7 @@ func (r *testRunner) init() {
 			}
 		}
 	}
-	if bPointer, err := r.getFieldPointer("benchmarks"); err == nil {
+	if bPointer, err := r.getFieldPointerOfM("benchmarks"); err == nil {
 		r.intBenchmarks = (*[]testing.InternalBenchmark)(bPointer)
 		r.benchmarks = &map[string]*benchmarkDescriptor{}
 
@@ -177,7 +198,7 @@ func (r *testRunner) init() {
 	r.configuration = cfgLoader.LoadSessionConfiguration(r.repository, r.branch, r.commit, r.serviceName)
 }
 
-func (r *testRunner) getFieldPointer(fieldName string) (unsafe.Pointer, error) {
+func (r *testRunner) getFieldPointerOfM(fieldName string) (unsafe.Pointer, error) {
 	val := reflect.Indirect(reflect.ValueOf(r.m))
 	member := val.FieldByName(fieldName)
 	if member.IsValid() {
@@ -197,6 +218,44 @@ func (r *testRunner) getFqnOfBenchmark(bFunc func(*testing.B)) string {
 	return funcVal.Name()
 }
 
-func (r *testRunner) getTestResultsInfo(t *testing.T) {
+func getFieldPointerOfT(t *testing.T, fieldName string) (unsafe.Pointer, error) {
+	val := reflect.Indirect(reflect.ValueOf(t))
+	member := val.FieldByName(fieldName)
+	if member.IsValid() {
+		ptrToY := unsafe.Pointer(member.UnsafeAddr())
+		return ptrToY, nil
+	}
+	return nil, errors.New("field can't be retrieved")
+}
 
+func (r *testRunner) getTestResultsInfo(t *testing.T) *internalTestResult {
+	iTestResults := &internalTestResult{}
+	if ptr, err := getFieldPointerOfT(t, "ran"); err == nil {
+		iTestResults.ran = *(*bool)(ptr)
+	}
+	if ptr, err := getFieldPointerOfT(t, "failed"); err == nil {
+		iTestResults.failed = *(*bool)(ptr)
+	}
+	if ptr, err := getFieldPointerOfT(t, "skipped"); err == nil {
+		iTestResults.skipped = *(*bool)(ptr)
+	}
+	if ptr, err := getFieldPointerOfT(t, "done"); err == nil {
+		iTestResults.done = *(*bool)(ptr)
+	}
+	if ptr, err := getFieldPointerOfT(t, "finished"); err == nil {
+		iTestResults.finished = *(*bool)(ptr)
+	}
+	if ptr, err := getFieldPointerOfT(t, "raceErrors"); err == nil {
+		iTestResults.raceErrors = *(*int)(ptr)
+	}
+	if ptr, err := getFieldPointerOfT(t, "name"); err == nil {
+		iTestResults.name = *(*string)(ptr)
+	}
+	if ptr, err := getFieldPointerOfT(t, "start"); err == nil {
+		iTestResults.start = *(*time.Time)(ptr)
+	}
+	if ptr, err := getFieldPointerOfT(t, "duration"); err == nil {
+		iTestResults.duration = *(*time.Duration)(ptr)
+	}
+	return iTestResults
 }
