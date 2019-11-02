@@ -76,7 +76,6 @@ func (r *testRunner) Run() int {
 			if iTest.Skip {
 				desc.skipped = true
 			} else {
-				//tests = append(tests, desc.test)
 				tests = append(tests, testing.InternalTest{
 					Name: desc.fqn,
 					F: r.testProcessor,
@@ -100,7 +99,6 @@ func (r *testRunner) Run() int {
 			continue
 		}
 		value.added = true
-		//tests = append(tests, value.test)
 		tests = append(tests, testing.InternalTest{
 			Name: value.fqn,
 			F:    r.testProcessor,
@@ -131,8 +129,8 @@ func (r *testRunner) testProcessor(t *testing.T) {
 				innerTest = it
 				item.test.F(it)
 			})
+			r.getTestResultsInfo(innerTest)
 			//fmt.Println(innerTest)
-			_ = innerTest
 			run++
 			if run > 4 {
 				break
@@ -197,4 +195,8 @@ func (r *testRunner) getFqnOfTest(tFunc func(*testing.T)) string {
 func (r *testRunner) getFqnOfBenchmark(bFunc func(*testing.B)) string {
 	funcVal := runtime.FuncForPC(reflect.ValueOf(bFunc).Pointer())
 	return funcVal.Name()
+}
+
+func (r *testRunner) getTestResultsInfo(t *testing.T) {
+
 }
