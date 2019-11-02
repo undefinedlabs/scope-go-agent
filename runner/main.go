@@ -2,6 +2,7 @@ package runner
 
 import (
 	"errors"
+	"fmt"
 	"reflect"
 	"runtime"
 	"testing"
@@ -61,14 +62,6 @@ func Run(m *testing.M, repository string, branch string, commit string, serviceN
 	return runner.Run()
 }
 
-func TestStart(t *testing.T) {
-	runner.TestStart(t)
-}
-func TestEnd(t *testing.T) {
-	runner.TestEnd(t)
-}
-
-
 func (r *testRunner) Run() int {
 	if r.configuration == nil || r.configuration.Tests == nil {
 		return r.m.Run()
@@ -83,7 +76,11 @@ func (r *testRunner) Run() int {
 			if iTest.Skip {
 				desc.skipped = true
 			} else {
-				tests = append(tests, desc.test)
+				//tests = append(tests, desc.test)
+				tests = append(tests, testing.InternalTest{
+					Name: desc.fqn,
+					F: r.testProcessor,
+				})
 				desc.added = true
 			}
 			desc.retryOnFailure = iTest.RetryOnFailure
@@ -103,7 +100,11 @@ func (r *testRunner) Run() int {
 			continue
 		}
 		value.added = true
-		tests = append(tests, value.test)
+		//tests = append(tests, value.test)
+		tests = append(tests, testing.InternalTest{
+			Name: value.fqn,
+			F:    r.testProcessor,
+		})
 	}
 	for _, value := range *r.benchmarks {
 		if value.added || value.skipped {
@@ -119,11 +120,15 @@ func (r *testRunner) Run() int {
 	return r.exitCode
 }
 
-func (r *testRunner) TestStart(t *testing.T) {
-
-}
-func (r *testRunner) TestEnd(t *testing.T) {
-
+func (r *testRunner) testProcessor(t *testing.T) {
+	t.Helper()
+	if item, ok := (*r.tests)[t.Name()]; ok {
+		fmt.Println(t)
+		fmt.Println(item)
+		t.Run("", item.test.F)
+	} else {
+		t.FailNow()
+	}
 }
 
 func (r *testRunner) init() {
