@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"reflect"
 	"runtime"
+	"strconv"
 	"testing"
 	"unsafe"
 )
@@ -123,9 +124,21 @@ func (r *testRunner) Run() int {
 func (r *testRunner) testProcessor(t *testing.T) {
 	t.Helper()
 	if item, ok := (*r.tests)[t.Name()]; ok {
-		fmt.Println(t)
-		fmt.Println(item)
-		t.Run("", item.test.F)
+		run := 1
+		for {
+			var innerTest *testing.T
+			t.Run("Run:" + strconv.Itoa(run), func(it *testing.T) {
+				it.Helper()
+				innerTest = it
+				item.test.F(it)
+			})
+			fmt.Println(innerTest)
+			run++
+			if run > 4 {
+				break
+			}
+		}
+
 	} else {
 		t.FailNow()
 	}
