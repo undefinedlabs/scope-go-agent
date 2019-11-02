@@ -2,7 +2,6 @@ package runner
 
 import (
 	"errors"
-	"fmt"
 	"reflect"
 	"runtime"
 	"strconv"
@@ -132,7 +131,8 @@ func (r *testRunner) testProcessor(t *testing.T) {
 				innerTest = it
 				item.test.F(it)
 			})
-			fmt.Println(innerTest)
+			//fmt.Println(innerTest)
+			_ = innerTest
 			run++
 			if run > 4 {
 				break
