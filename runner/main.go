@@ -21,6 +21,8 @@ type (
 		tests      *map[string]*testDescriptor
 		benchmarks *map[string]*benchmarkDescriptor
 
+		sessionLoader sessionLoader
+
 		repository    string
 		branch        string
 		commit        string
@@ -69,18 +71,17 @@ type (
 )
 
 var runner *testRunner
-var cfgLoader sessionLoader
 var runnerRegexName *regexp.Regexp
 
 // Runs a test suite
 func Run(m *testing.M, repository string, branch string, commit string, serviceName string) int {
-	cfgLoader = &dummySessionLoader{} // Need to be replaced with the actual configuration loader
 	runner := &testRunner{
 		m:           m,
 		repository:  repository,
 		branch:      branch,
 		commit:      commit,
 		serviceName: serviceName,
+		sessionLoader: &dummySessionLoader{}, // Need to be replaced with the actual configuration loader
 	}
 	runner.init()
 	return runner.Run()
@@ -292,7 +293,7 @@ func (r *testRunner) init() {
 			}
 		}
 	}
-	r.configuration = cfgLoader.LoadSessionConfiguration(r.repository, r.branch, r.commit, r.serviceName)
+	r.configuration = r.sessionLoader.LoadSessionConfiguration(r.repository, r.branch, r.commit, r.serviceName)
 }
 
 func (r *testRunner) getFieldPointerOfM(fieldName string) (unsafe.Pointer, error) {

@@ -71,7 +71,7 @@ func (l *dummySessionLoader) LoadSessionConfiguration(repository string, branch 
 				Fqn:                        "go.undefinedlabs.com/scopeagent.TestError",
 				Skip:                       false,
 				RetryOnFailure:             true,
-				IncludeStatusInTestResults: true,
+				IncludeStatusInTestResults: false,
 			},
 		},
 		Rules: runnerRules{
@@ -79,7 +79,7 @@ func (l *dummySessionLoader) LoadSessionConfiguration(repository string, branch 
 			PassRetries:  1,
 			ErrorRetries: 1,
 			ExitOnFail:   false,
-			ExitOnError:  true,
+			ExitOnError:  false,
 		},
 	}
 }
