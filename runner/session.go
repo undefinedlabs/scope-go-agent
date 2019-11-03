@@ -16,6 +16,7 @@ type (
 		FailRetries  int  "json:`failRetries`"
 		PassRetries  int  "json:`passRetries`"
 		ErrorRetries int  "json:`errorRetries`"
+		ExitOnFail  bool "json:`exitOnFail`"
 		ExitOnError  bool "json:`exitOnError`"
 	}
 
@@ -83,6 +84,7 @@ func (l *dummySessionLoader) LoadSessionConfiguration(repository string, branch 
 			FailRetries:  3,
 			PassRetries:  1,
 			ErrorRetries: 1,
+			ExitOnFail: true,
 			ExitOnError:  true,
 		},
 	}

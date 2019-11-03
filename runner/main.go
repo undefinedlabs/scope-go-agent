@@ -83,6 +83,7 @@ func Run(m *testing.M, repository string, branch string, commit string, serviceN
 	return runner.Run()
 }
 
+// Runs the test suite
 func (r *testRunner) Run() int {
 	if r.configuration == nil || r.configuration.Tests == nil {
 		return r.m.Run()
@@ -119,6 +120,8 @@ func (r *testRunner) Run() int {
 			desc.includeStatusInTestResults = iTest.IncludeStatusInTestResults
 		}
 	}
+
+	//Insert missing tests and benchmarks at the end of the list
 	for _, value := range *r.tests {
 		if value.added || value.skipped {
 			continue
@@ -136,6 +139,8 @@ func (r *testRunner) Run() int {
 		value.added = true
 		benchmarks = append(benchmarks, value.benchmark)
 	}
+
+	// Replace internal tests and benchmark and Run
 	*r.intTests = tests
 	*r.intBenchmarks = benchmarks
 	r.m.Run()
@@ -143,10 +148,12 @@ func (r *testRunner) Run() int {
 	return r.exitCode
 }
 
+// Internal test processor, each test calls the processor in order to handle retries, process exiting and exitcodes
 func (r *testRunner) testProcessor(t *testing.T) {
 	t.Helper()
 	if item, ok := (*r.tests)[t.Name()]; ok {
 		run := 1
+
 		rules := r.configuration.Rules
 		if item.rules != nil {
 			rules = *item.rules
@@ -172,10 +179,10 @@ func (r *testRunner) testProcessor(t *testing.T) {
 			})
 			innerTestInfo := r.getTestResultsInfo(innerTest)
 			if rc != nil {
-				if (!item.retryOnFailure || rules.ErrorRetries == 0) && rules.ExitOnError {
+				if rules.ExitOnError && (!item.retryOnFailure || rules.ErrorRetries == 0) {
 					panic(rc)
 				}
-				fmt.Println("Recovered:", rc)
+				fmt.Println("PANIC RECOVER:", rc)
 				item.error = true
 			}
 			item.skipped = innerTestInfo.skipped
@@ -184,6 +191,7 @@ func (r *testRunner) testProcessor(t *testing.T) {
 				break
 			}
 			maxLoop := rules.PassRetries
+			// Current run failure
 			if innerTestInfo.failed {
 				item.failed = true
 				if !item.retryOnFailure {
@@ -191,17 +199,21 @@ func (r *testRunner) testProcessor(t *testing.T) {
 				}
 				maxLoop = rules.FailRetries
 			}
+			// Current run ok but previous with fail -> Flaky
 			if !innerTestInfo.failed && item.failed {
 				item.failed = false
 				item.flaky = true
 				maxLoop = rules.FailRetries
 			}
+			// Already flaky
 			if item.flaky {
 				maxLoop = rules.FailRetries
 			}
+			// Error - Panic
 			if item.error {
 				maxLoop = rules.ErrorRetries
 			}
+
 			if run > maxLoop {
 				break
 			}
@@ -209,6 +221,9 @@ func (r *testRunner) testProcessor(t *testing.T) {
 		}
 		if item.flaky {
 			fmt.Println("*** FLAKY", item.fqn)
+		}
+		if item.failed && rules.ExitOnFail {
+			panic(fmt.Sprintf("Test '%s' has been failed.", item.fqn))
 		}
 		if item.error && rules.ExitOnError {
 			panic(rc)
