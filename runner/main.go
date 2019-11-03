@@ -152,8 +152,13 @@ func (r *testRunner) Run() int {
 func (r *testRunner) testProcessor(t *testing.T) {
 	t.Helper()
 	if item, ok := (*r.tests)[t.Name()]; ok {
-		run := 1
 
+		//Sets the original test name
+		if pointer, err := getFieldPointerOfT(t, "name"); err == nil {
+			*(*string)(pointer) = item.test.Name
+		}
+
+		run := 1
 		rules := r.configuration.Rules
 		if item.rules != nil {
 			rules = *item.rules
@@ -175,6 +180,7 @@ func (r *testRunner) testProcessor(t *testing.T) {
 				}()
 				it.Helper()
 				innerTest = it
+				fmt.Println(it.Name())
 				item.test.F(it)
 			})
 			innerTestInfo := r.getTestResultsInfo(innerTest)
