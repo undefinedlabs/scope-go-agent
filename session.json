@@ -1,0 +1,55 @@
+{
+  "tests": [
+    {
+      "fqn": "go.undefinedlabs.com/scopeagent.TestFirstTest",
+      "skip": false,
+      "retryOnFailure": true,
+      "includeStatusInTestResults": true,
+      "rules": {
+        "failRetries": 0,
+        "passRetries": 0,
+        "errorRetries": 0,
+        "exitOnFail": false,
+        "exitOnError": false
+      }
+    },
+    {
+      "fqn": "go.undefinedlabs.com/scopeagent.TestSkipped",
+      "skip": true,
+      "retryOnFailure": true,
+      "includeStatusInTestResults": true
+    },
+    {
+      "fqn": "go.undefinedlabs.com/scopeagent.TestFlaky",
+      "skip": false,
+      "retryOnFailure": true,
+      "includeStatusInTestResults": false
+    },
+    {
+      "fqn": "go.undefinedlabs.com/scopeagent.TestFail",
+      "skip": false,
+      "retryOnFailure": true,
+      "includeStatusInTestResults": false,
+      "rules": {
+        "failRetries": 4,
+        "passRetries": 0,
+        "errorRetries": 0,
+        "exitOnFail": false,
+        "exitOnError": false
+      }
+    },
+    {
+      "fqn": "go.undefinedlabs.com/scopeagent.TestError",
+      "skip": false,
+      "retryOnFailure": true,
+      "includeStatusInTestResults": false
+    }
+  ],
+  "rules": {
+    "failRetries": 3,
+    "passRetries": 1,
+    "errorRetries": 1,
+    "exitOnFail": false,
+    "exitOnError": true
+  }
+}

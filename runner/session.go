@@ -1,35 +1,42 @@
 package runner
 
+import (
+	"bufio"
+	"encoding/json"
+	"io/ioutil"
+	"os"
+)
+
 type (
 	testRunnerSession struct {
-		Tests []testItem  "json:`tests`"
-		Rules runnerRules "json:`rules`"
+		Tests []testItem  `json:"tests,omitempty"`
+		Rules runnerRules `json:"rules,omitempty"`
 	}
 	testItem struct {
-		Fqn                        string       "json:`fqn`"
-		Skip                       bool         "json:`skip`"
-		RetryOnFailure             bool         "json:`retryOnFailure`"
-		IncludeStatusInTestResults bool         "json:`includeStatusInTestResults`"
-		Rules                      *runnerRules "json:`rules`"
+		Fqn                        string       `json:"fqn"`
+		Skip                       bool         `json:"skip"`
+		RetryOnFailure             bool         `json:"retryOnFailure"`
+		IncludeStatusInTestResults bool         `json:"includeStatusInTestResults"`
+		Rules                      *runnerRules `json:"rules,omitempty"`
 	}
 	runnerRules struct {
-		FailRetries  int  "json:`failRetries`"
-		PassRetries  int  "json:`passRetries`"
-		ErrorRetries int  "json:`errorRetries`"
-		ExitOnFail   bool "json:`exitOnFail`"
-		ExitOnError  bool "json:`exitOnError`"
+		FailRetries  int  `json:"failRetries"`
+		PassRetries  int  `json:"passRetries"`
+		ErrorRetries int  `json:"errorRetries"`
+		ExitOnFail   bool `json:"exitOnFail"`
+		ExitOnError  bool `json:"exitOnError"`
 	}
 
 	SessionLoader interface {
 		// Load session configuration
 		LoadSessionConfiguration(repository string, branch string, commit string, serviceName string) *testRunnerSession
 	}
-
-	dummySessionLoader struct{}
 )
 
+type dummySessionLoader struct{}
+
 func (l *dummySessionLoader) LoadSessionConfiguration(repository string, branch string, commit string, serviceName string) *testRunnerSession {
-	return &testRunnerSession{
+	session := &testRunnerSession{
 		Tests: []testItem{
 			{
 				Fqn:                        "go.undefinedlabs.com/scopeagent.TestFirstTest",
@@ -82,4 +89,18 @@ func (l *dummySessionLoader) LoadSessionConfiguration(repository string, branch 
 			ExitOnError:  false,
 		},
 	}
+	return session
+}
+
+type fileSessionLoader struct{}
+
+func (l *fileSessionLoader) LoadSessionConfiguration(repository string, branch string, commit string, serviceName string) *testRunnerSession {
+	if file, err := os.OpenFile("session.json", os.O_RDONLY, os.ModeType); err == nil {
+		if bytes, err := ioutil.ReadAll(bufio.NewReader(file)); err == nil {
+			session := &testRunnerSession{}
+			json.Unmarshal(bytes, session)
+			return session
+		}
+	}
+	return nil
 }

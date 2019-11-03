@@ -81,7 +81,7 @@ func Run(m *testing.M, repository string, branch string, commit string, serviceN
 		branch:        branch,
 		commit:        commit,
 		serviceName:   serviceName,
-		sessionLoader: &dummySessionLoader{}, // Need to be replaced with the actual configuration loader
+		sessionLoader: &fileSessionLoader{}, // Need to be replaced with the actual configuration loader
 	}
 	runner.init()
 	return runner.Run()
@@ -203,7 +203,6 @@ func (r *testRunner) testProcessor(t *testing.T) {
 			innerTestInfo := r.getTestResultsInfo(innerTest)
 			if rc != nil {
 				if rules.ExitOnError && (!item.retryOnFailure || rules.ErrorRetries == 0) {
-					fmt.Println("Panic 01")
 					panic(rc)
 				}
 				fmt.Println("PANIC RECOVER:", rc)
@@ -247,11 +246,9 @@ func (r *testRunner) testProcessor(t *testing.T) {
 			fmt.Println("*** FLAKY", item.fqn)
 		}
 		if item.failed && rules.ExitOnFail {
-			fmt.Println("Panic 02")
 			panic(fmt.Sprintf("Test '%s' has been failed.", item.fqn))
 		}
 		if item.error && rules.ExitOnError {
-			fmt.Println("Panic 03")
 			panic(rc)
 		}
 		if item.includeStatusInTestResults && (item.error || item.failed || item.flaky) {
