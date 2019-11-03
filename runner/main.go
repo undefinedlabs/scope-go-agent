@@ -161,6 +161,7 @@ func (r *testRunner) Run() int {
 	*r.intBenchmarks = benchmarks
 	r.m.Run()
 
+	fmt.Println(r.exitCode)
 	return r.exitCode
 }
 
