@@ -76,11 +76,11 @@ var runnerRegexName *regexp.Regexp
 // Runs a test suite
 func Run(m *testing.M, repository string, branch string, commit string, serviceName string) int {
 	runner := &testRunner{
-		m:           m,
-		repository:  repository,
-		branch:      branch,
-		commit:      commit,
-		serviceName: serviceName,
+		m:             m,
+		repository:    repository,
+		branch:        branch,
+		commit:        commit,
+		serviceName:   serviceName,
 		sessionLoader: &dummySessionLoader{}, // Need to be replaced with the actual configuration loader
 	}
 	runner.init()
