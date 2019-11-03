@@ -33,18 +33,24 @@ type (
 		fqn            string
 		ran            int
 		failed         bool
+		flaky          bool
+		error          bool
 		skipped        bool
 		retryOnFailure bool
 		added          bool
+		rules          *runnerRules
 	}
 	benchmarkDescriptor struct {
 		benchmark      testing.InternalBenchmark
 		fqn            string
 		ran            int
 		failed         bool
+		flaky          bool
+		error          bool
 		skipped        bool
 		retryOnFailure bool
 		added          bool
+		rules          *runnerRules
 	}
 	internalTestResult struct {
 		ran        bool      // Test or benchmark (or one of its subtests) was executed.
@@ -94,6 +100,7 @@ func (r *testRunner) Run() int {
 					F:    r.testProcessor,
 				})
 				desc.added = true
+				desc.rules = iTest.Rules
 			}
 			desc.retryOnFailure = iTest.RetryOnFailure
 		}
@@ -103,6 +110,7 @@ func (r *testRunner) Run() int {
 			} else {
 				benchmarks = append(benchmarks, desc.benchmark)
 				desc.added = true
+				desc.rules = iTest.Rules
 			}
 			desc.retryOnFailure = iTest.RetryOnFailure
 		}
@@ -142,22 +150,43 @@ func (r *testRunner) testProcessor(t *testing.T) {
 				innerTest = it
 				item.test.F(it)
 			})
+			if rc := recover(); rc != nil {
+				fmt.Println("Recovered:", rc)
+			}
 			innerTestInfo := r.getTestResultsInfo(innerTest)
-			fmt.Println("ran", innerTestInfo.ran)
-			fmt.Println("failed", innerTestInfo.failed)
-			fmt.Println("skipped", innerTestInfo.skipped)
-			fmt.Println("done", innerTestInfo.done)
-			fmt.Println("finished", innerTestInfo.finished)
-			fmt.Println("raceErrors", innerTestInfo.raceErrors)
-			fmt.Println("name", innerTestInfo.name)
-			fmt.Println("start", innerTestInfo.start)
-			fmt.Println("duration", innerTestInfo.duration)
-			run++
-			if run > 4 {
+			rules := r.configuration.Rules
+			if item.rules != nil {
+				rules = *item.rules
+			}
+			item.skipped = innerTestInfo.skipped
+			item.ran++
+			if item.skipped {
 				break
 			}
+			maxLoop := rules.PassRetries
+			if innerTestInfo.failed {
+				item.failed = true
+				if !item.retryOnFailure {
+					break
+				}
+				maxLoop = rules.FailRetries
+			}
+			if !innerTestInfo.failed && item.failed {
+				item.failed = false
+				item.flaky = true
+				maxLoop = rules.FailRetries
+			}
+			if item.flaky {
+				maxLoop = rules.FailRetries
+			}
+			if run > maxLoop {
+				break
+			}
+			run++
 		}
-
+		if item.flaky {
+			fmt.Println("*** FLAKY", item.fqn)
+		}
 	} else {
 		t.FailNow()
 	}

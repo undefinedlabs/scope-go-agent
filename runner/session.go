@@ -6,13 +6,17 @@ type (
 		Rules runnerRules "json:`rules`"
 	}
 	testItem struct {
-		Fqn            string "json:`fqn`"
-		Skip           bool   "json:`skip`"
-		RetryOnFailure bool   "json:`retryOnFailure`"
+		Fqn                         string       "json:`fqn`"
+		Skip                        bool         "json:`skip`"
+		RetryOnFailure              bool         "json:`retryOnFailure`"
+		IncludeStatusInBuildResults bool         "json:`includeStatusInBuildResults`"
+		Rules                       *runnerRules "json:`rules`"
 	}
 	runnerRules struct {
-		FailureRetries int "json:`failureRetries`"
-		PassRetries    int "json:`passRetries`"
+		FailRetries  int  "json:`failRetries`"
+		PassRetries  int  "json:`passRetries`"
+		ErrorRetries int  "json:`errorRetries`"
+		ExitOnError  bool "json:`exitOnError`"
 	}
 
 	sessionLoader interface {
@@ -27,24 +31,53 @@ func (l *dummySessionLoader) LoadSessionConfiguration(repository string, branch 
 	return &testRunnerSession{
 		Tests: []testItem{
 			{
-				Fqn:            "go.undefinedlabs.com/scopeagent/agent.TestFirstTest",
-				Skip:           false,
-				RetryOnFailure: true,
+				Fqn:                         "go.undefinedlabs.com/scopeagent/agent.TestFirstTest",
+				Skip:                        false,
+				RetryOnFailure:              true,
+				IncludeStatusInBuildResults: true,
+				Rules: &runnerRules{
+					FailRetries:  0,
+					PassRetries:  0,
+					ErrorRetries: 0,
+					ExitOnError:  false,
+				},
 			},
 			{
-				Fqn:            "go.undefinedlabs.com/scopeagent/agent.TestDsnParser",
-				Skip:           false,
-				RetryOnFailure: true,
+				Fqn:                         "go.undefinedlabs.com/scopeagent/agent.TestDsnParser",
+				Skip:                        false,
+				RetryOnFailure:              true,
+				IncludeStatusInBuildResults: true,
 			},
 			{
-				Fqn:            "go.undefinedlabs.com/scopeagent/agent.TestSkipped",
-				Skip:           true,
-				RetryOnFailure: true,
+				Fqn:                         "go.undefinedlabs.com/scopeagent/agent.TestSkipped",
+				Skip:                        true,
+				RetryOnFailure:              true,
+				IncludeStatusInBuildResults: true,
+			},
+			{
+				Fqn:                         "go.undefinedlabs.com/scopeagent/agent.TestFlaky",
+				Skip:                        false,
+				RetryOnFailure:              true,
+				IncludeStatusInBuildResults: true,
+			},
+			{
+				Fqn:                         "go.undefinedlabs.com/scopeagent/agent.TestFail",
+				Skip:                        false,
+				RetryOnFailure:              true,
+				IncludeStatusInBuildResults: true,
+				Rules: &runnerRules{
+					FailRetries:  1,
+					PassRetries:  0,
+					ErrorRetries: 0,
+					ExitOnError:  false,
+				},
 			},
 		},
 		Rules: runnerRules{
-			FailureRetries: 4,
-			PassRetries:    1,
+			FailRetries:  3,
+			PassRetries:  1,
+			ErrorRetries: 0,
+			ExitOnError:  true,
 		},
 	}
 }

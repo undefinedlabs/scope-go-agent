@@ -3,6 +3,7 @@ package agent
 import (
 	"fmt"
 	"go.undefinedlabs.com/scopeagent/runner"
+	"math/rand"
 	"os"
 	"testing"
 )
@@ -43,4 +44,21 @@ func TestSkipped(t *testing.T) {
 }
 
 func TestFirstTest(t *testing.T) {
+}
+
+func TestFail(t *testing.T) {
+	t.FailNow()
+}
+
+func TestFlaky(t *testing.T) {
+	if rand.Intn(8) <= 5 {
+		t.FailNow()
+	}
+}
+
+func TestError(t *testing.T) {
+	a := 0
+	b := 5 / a
+	_ = b
+	t.FailNow()
 }
