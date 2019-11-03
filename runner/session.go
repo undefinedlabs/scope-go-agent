@@ -20,7 +20,7 @@ type (
 		ExitOnError  bool "json:`exitOnError`"
 	}
 
-	sessionLoader interface {
+	SessionLoader interface {
 		// Load session configuration
 		LoadSessionConfiguration(repository string, branch string, commit string, serviceName string) *testRunnerSession
 	}
@@ -53,13 +53,13 @@ func (l *dummySessionLoader) LoadSessionConfiguration(repository string, branch 
 				Fqn:                        "go.undefinedlabs.com/scopeagent.TestFlaky",
 				Skip:                       false,
 				RetryOnFailure:             true,
-				IncludeStatusInTestResults: true,
+				IncludeStatusInTestResults: false,
 			},
 			{
 				Fqn:                        "go.undefinedlabs.com/scopeagent.TestFail",
 				Skip:                       false,
 				RetryOnFailure:             true,
-				IncludeStatusInTestResults: true,
+				IncludeStatusInTestResults: false,
 				Rules: &runnerRules{
 					FailRetries:  4,
 					PassRetries:  0,

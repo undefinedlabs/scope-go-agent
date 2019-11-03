@@ -21,7 +21,7 @@ type (
 		tests      *map[string]*testDescriptor
 		benchmarks *map[string]*benchmarkDescriptor
 
-		sessionLoader sessionLoader
+		sessionLoader SessionLoader
 
 		repository    string
 		branch        string
