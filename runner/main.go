@@ -153,7 +153,7 @@ func (r *testRunner) testProcessor(t *testing.T) {
 			var innerTest *testing.T
 			title := "Run"
 			if run > 1 {
-				title = "Retry:" + strconv.Itoa(run - 1)
+				title = "Retry:" + strconv.Itoa(run-1)
 			}
 			t.Run(title, func(it *testing.T) {
 				defer func() {
