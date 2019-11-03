@@ -243,12 +243,12 @@ func (r *testRunner) init() {
 		for _, test := range *r.intTests {
 			fqn := r.getFqnOfTest(test.F)
 			(*r.tests)[fqn] = &testDescriptor{
-				test:           test,
-				fqn:            fqn,
-				ran:            0,
-				failed:         false,
-				retryOnFailure: true,
-				added:          false,
+				test:                       test,
+				fqn:                        fqn,
+				ran:                        0,
+				failed:                     false,
+				retryOnFailure:             true,
+				added:                      false,
 				includeStatusInTestResults: true,
 			}
 		}
@@ -260,12 +260,12 @@ func (r *testRunner) init() {
 		for _, benchmark := range *r.intBenchmarks {
 			fqn := r.getFqnOfBenchmark(benchmark.F)
 			(*r.benchmarks)[fqn] = &benchmarkDescriptor{
-				benchmark:      benchmark,
-				fqn:            fqn,
-				ran:            0,
-				failed:         false,
-				retryOnFailure: true,
-				added:          false,
+				benchmark:                  benchmark,
+				fqn:                        fqn,
+				ran:                        0,
+				failed:                     false,
+				retryOnFailure:             true,
+				added:                      false,
 				includeStatusInTestResults: true,
 			}
 		}

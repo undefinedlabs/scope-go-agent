@@ -3,6 +3,7 @@ package agent
 import (
 	"errors"
 	"fmt"
+	"go.undefinedlabs.com/scopeagent/runner"
 	"io/ioutil"
 	"log"
 	"net/url"
@@ -11,6 +12,7 @@ import (
 	"path"
 	"runtime"
 	"sync"
+	"testing"
 	"time"
 
 	"github.com/google/uuid"
@@ -278,6 +280,16 @@ func (a *Agent) Flush() error {
 		a.logger.Println("Scope agent is flushing all pending spans manually")
 	}
 	return a.recorder.SendSpans()
+}
+
+// Runs the test suite
+func (a *Agent) Run(m *testing.M) int {
+	defer a.Stop()
+	return runner.Run(m,
+		a.metadata[tags.Repository].(string),
+		a.metadata[tags.Branch].(string),
+		a.metadata[tags.Commit].(string),
+		a.metadata[tags.Service].(string))
 }
 
 func generateAgentID() string {

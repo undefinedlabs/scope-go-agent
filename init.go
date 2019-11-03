@@ -16,10 +16,8 @@ func Run(m *testing.M, opts ...agent.Option) int {
 	if err != nil {
 		return m.Run()
 	}
-
-	defer newAgent.Stop()
 	defaultAgent = newAgent
-	return m.Run()
+	return newAgent.Run(m)
 }
 
 // Instruments the given test, returning a `Test` object that can be used to extend the test trace
