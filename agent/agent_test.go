@@ -51,7 +51,9 @@ func TestFail(t *testing.T) {
 }
 
 func TestFlaky(t *testing.T) {
-	if rand.Intn(8) <= 5 {
+	value := rand.Intn(8)
+	t.Log("Value", value)
+	if value <= 5 {
 		t.FailNow()
 	}
 }

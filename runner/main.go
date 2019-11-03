@@ -143,20 +143,36 @@ func (r *testRunner) testProcessor(t *testing.T) {
 	t.Helper()
 	if item, ok := (*r.tests)[t.Name()]; ok {
 		run := 1
+		rules := r.configuration.Rules
+		if item.rules != nil {
+			rules = *item.rules
+		}
+		var rc interface{}
+
 		for {
 			var innerTest *testing.T
-			t.Run("Run:"+strconv.Itoa(run), func(it *testing.T) {
+			title := "Run"
+			if run > 1 {
+				title = "Retry:" + strconv.Itoa(run - 1)
+			}
+			t.Run(title, func(it *testing.T) {
+				defer func() {
+					rc = recover()
+					if rc != nil {
+						it.FailNow()
+					}
+				}()
 				it.Helper()
 				innerTest = it
 				item.test.F(it)
 			})
-			if rc := recover(); rc != nil {
-				fmt.Println("Recovered:", rc)
-			}
 			innerTestInfo := r.getTestResultsInfo(innerTest)
-			rules := r.configuration.Rules
-			if item.rules != nil {
-				rules = *item.rules
+			if rc != nil {
+				if !item.retryOnFailure || rules.ErrorRetries == 0 {
+					panic(rc)
+				}
+				fmt.Println("Recovered:", rc)
+				item.error = true
 			}
 			item.skipped = innerTestInfo.skipped
 			item.ran++
@@ -179,6 +195,9 @@ func (r *testRunner) testProcessor(t *testing.T) {
 			if item.flaky {
 				maxLoop = rules.FailRetries
 			}
+			if item.error {
+				maxLoop = rules.ErrorRetries
+			}
 			if run > maxLoop {
 				break
 			}
@@ -186,6 +205,9 @@ func (r *testRunner) testProcessor(t *testing.T) {
 		}
 		if item.flaky {
 			fmt.Println("*** FLAKY", item.fqn)
+		}
+		if item.error && rules.ExitOnError {
+			panic(rc)
 		}
 	} else {
 		t.FailNow()

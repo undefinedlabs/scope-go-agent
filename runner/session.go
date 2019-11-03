@@ -66,7 +66,7 @@ func (l *dummySessionLoader) LoadSessionConfiguration(repository string, branch 
 				RetryOnFailure:              true,
 				IncludeStatusInBuildResults: true,
 				Rules: &runnerRules{
-					FailRetries:  1,
+					FailRetries:  4,
 					PassRetries:  0,
 					ErrorRetries: 0,
 					ExitOnError:  false,
@@ -76,7 +76,7 @@ func (l *dummySessionLoader) LoadSessionConfiguration(repository string, branch 
 		Rules: runnerRules{
 			FailRetries:  3,
 			PassRetries:  1,
-			ErrorRetries: 0,
+			ErrorRetries: 1,
 			ExitOnError:  true,
 		},
 	}
