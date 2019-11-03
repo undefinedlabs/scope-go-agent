@@ -45,17 +45,10 @@ type (
 		rules                      *runnerRules
 	}
 	benchmarkDescriptor struct {
-		benchmark                  testing.InternalBenchmark
-		fqn                        string
-		ran                        int
-		failed                     bool
-		flaky                      bool
-		error                      bool
-		skipped                    bool
-		retryOnFailure             bool
-		includeStatusInTestResults bool
-		added                      bool
-		rules                      *runnerRules
+		benchmark testing.InternalBenchmark
+		fqn       string
+		skipped   bool
+		added     bool
 	}
 	internalTestResult struct {
 		ran        bool      // Test or benchmark (or one of its subtests) was executed.
@@ -129,11 +122,7 @@ func (r *testRunner) Run() int {
 				desc.skipped = true
 			} else {
 				benchmarks = append(benchmarks, desc.benchmark)
-				desc.added = true
-				desc.rules = iTest.Rules
 			}
-			desc.retryOnFailure = iTest.RetryOnFailure
-			desc.includeStatusInTestResults = iTest.IncludeStatusInTestResults
 		}
 	}
 
@@ -283,13 +272,9 @@ func (r *testRunner) init() {
 		for _, benchmark := range *r.intBenchmarks {
 			fqn := r.getFqnOfBenchmark(benchmark.F)
 			(*r.benchmarks)[fqn] = &benchmarkDescriptor{
-				benchmark:                  benchmark,
-				fqn:                        fqn,
-				ran:                        0,
-				failed:                     false,
-				retryOnFailure:             true,
-				added:                      false,
-				includeStatusInTestResults: true,
+				benchmark: benchmark,
+				fqn:       fqn,
+				added:     false,
 			}
 		}
 	}

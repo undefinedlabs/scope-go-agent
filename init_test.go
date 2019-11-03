@@ -1,6 +1,7 @@
 package scopeagent
 
 import (
+	"math"
 	"math/rand"
 	"os"
 	"testing"
@@ -43,4 +44,22 @@ func TestError(t *testing.T) {
 	b := 5 / a
 	_ = b
 	t.FailNow()
+}
+
+func Benchmark01(b *testing.B) {
+	StartBenchmark(b, func(b *testing.B) {
+		a := 1
+		for i := 0; i < b.N; i++ {
+			a = a*i*a + b.N
+			math.Log(float64(a))
+		}
+	})
+}
+
+func Benchmark02(b *testing.B) {
+	StartBenchmark(b, func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			math.Log(float64(b.N))
+		}
+	})
 }

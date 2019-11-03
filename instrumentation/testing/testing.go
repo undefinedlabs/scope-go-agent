@@ -11,7 +11,6 @@ import (
 	"go.undefinedlabs.com/scopeagent/instrumentation"
 	"go.undefinedlabs.com/scopeagent/runner"
 	"go.undefinedlabs.com/scopeagent/tags"
-	"math"
 	"reflect"
 	"runtime"
 	"strings"
@@ -239,7 +238,7 @@ func StartBenchmark(b *testing.B, pc uintptr, benchFunc func(b *testing.B)) {
 
 	span, _ := opentracing.StartSpanFromContextWithTracer(context.Background(), instrumentation.Tracer(), fullTestName, startOptions...)
 	span.SetBaggageItem("trace.kind", "test")
-	avg := math.Round((float64(results.T.Nanoseconds())/float64(results.N))*100) / 100
+	avg := float64(results.T.Nanoseconds()) / float64(results.N)
 	span.SetTag("benchmark.runs", results.N)
 	span.SetTag("benchmark.duration.mean", avg)
 	span.SetTag("benchmark.memory.mean_allocations", results.AllocsPerOp())
