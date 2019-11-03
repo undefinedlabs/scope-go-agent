@@ -9,6 +9,7 @@ import (
 	"go.undefinedlabs.com/scopeagent/ast"
 	"go.undefinedlabs.com/scopeagent/errors"
 	"go.undefinedlabs.com/scopeagent/instrumentation"
+	"go.undefinedlabs.com/scopeagent/runner"
 	"go.undefinedlabs.com/scopeagent/tags"
 	"math"
 	"reflect"
@@ -67,7 +68,7 @@ func StartTestFromCaller(t *testing.T, pc uintptr, opts ...Option) *Test {
 
 	// Extracting the benchmark func name (by removing any possible sub-benchmark suffix `{bench_func}/{sub_benchmark}`)
 	// to search the func source code bounds and to calculate the package name.
-	fullTestName := t.Name()
+	fullTestName := runner.GetTestName(t.Name())
 	testNameSlash := strings.IndexByte(fullTestName, '/')
 	funcName := fullTestName
 	if testNameSlash >= 0 {
@@ -101,7 +102,7 @@ func StartTestFromCaller(t *testing.T, pc uintptr, opts ...Option) *Test {
 		test.ctx = context.Background()
 	}
 
-	span, ctx := opentracing.StartSpanFromContextWithTracer(test.ctx, instrumentation.Tracer(), t.Name(), startOptions...)
+	span, ctx := opentracing.StartSpanFromContextWithTracer(test.ctx, instrumentation.Tracer(), fullTestName, startOptions...)
 	span.SetBaggageItem("trace.kind", "test")
 	test.span = span
 	test.ctx = ctx
@@ -205,7 +206,7 @@ func StartBenchmark(b *testing.B, pc uintptr, benchFunc func(b *testing.B)) {
 
 	// Extracting the benchmark func name (by removing any possible sub-benchmark suffix `{bench_func}/{sub_benchmark}`)
 	// to search the func source code bounds and to calculate the package name.
-	fullTestName := b.Name()
+	fullTestName := runner.GetTestName(b.Name())
 	testNameSlash := strings.IndexByte(fullTestName, '/')
 	funcName := fullTestName
 	if testNameSlash >= 0 {
@@ -236,7 +237,7 @@ func StartBenchmark(b *testing.B, pc uintptr, benchFunc func(b *testing.B)) {
 		"test.type":      "benchmark",
 	}, opentracing.StartTime(startTime))
 
-	span, _ := opentracing.StartSpanFromContextWithTracer(context.Background(), instrumentation.Tracer(), b.Name(), startOptions...)
+	span, _ := opentracing.StartSpanFromContextWithTracer(context.Background(), instrumentation.Tracer(), fullTestName, startOptions...)
 	span.SetBaggageItem("trace.kind", "test")
 	avg := math.Round((float64(results.T.Nanoseconds())/float64(results.N))*100) / 100
 	span.SetTag("benchmark.runs", results.N)

@@ -32,7 +32,7 @@ func (l *dummySessionLoader) LoadSessionConfiguration(repository string, branch 
 	return &testRunnerSession{
 		Tests: []testItem{
 			{
-				Fqn:                        "go.undefinedlabs.com/scopeagent/agent.TestFirstTest",
+				Fqn:                        "go.undefinedlabs.com/scopeagent.TestFirstTest",
 				Skip:                       false,
 				RetryOnFailure:             true,
 				IncludeStatusInTestResults: true,
@@ -44,25 +44,19 @@ func (l *dummySessionLoader) LoadSessionConfiguration(repository string, branch 
 				},
 			},
 			{
-				Fqn:                        "go.undefinedlabs.com/scopeagent/agent.TestDsnParser",
-				Skip:                       false,
-				RetryOnFailure:             true,
-				IncludeStatusInTestResults: true,
-			},
-			{
-				Fqn:                        "go.undefinedlabs.com/scopeagent/agent.TestSkipped",
+				Fqn:                        "go.undefinedlabs.com/scopeagent.TestSkipped",
 				Skip:                       true,
 				RetryOnFailure:             true,
 				IncludeStatusInTestResults: true,
 			},
 			{
-				Fqn:                        "go.undefinedlabs.com/scopeagent/agent.TestFlaky",
+				Fqn:                        "go.undefinedlabs.com/scopeagent.TestFlaky",
 				Skip:                       false,
 				RetryOnFailure:             true,
 				IncludeStatusInTestResults: true,
 			},
 			{
-				Fqn:                        "go.undefinedlabs.com/scopeagent/agent.TestFail",
+				Fqn:                        "go.undefinedlabs.com/scopeagent.TestFail",
 				Skip:                       false,
 				RetryOnFailure:             true,
 				IncludeStatusInTestResults: true,
@@ -74,7 +68,7 @@ func (l *dummySessionLoader) LoadSessionConfiguration(repository string, branch 
 				},
 			},
 			{
-				Fqn:                        "go.undefinedlabs.com/scopeagent/agent.TestError",
+				Fqn:                        "go.undefinedlabs.com/scopeagent.TestError",
 				Skip:                       false,
 				RetryOnFailure:             true,
 				IncludeStatusInTestResults: true,

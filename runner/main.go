@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
+	"regexp"
 	"runtime"
 	"strconv"
 	"testing"
@@ -69,7 +70,9 @@ type (
 
 var runner *testRunner
 var cfgLoader sessionLoader
+var runnerRegexName *regexp.Regexp
 
+// Runs a test suite
 func Run(m *testing.M, repository string, branch string, commit string, serviceName string) int {
 	cfgLoader = &dummySessionLoader{} // Need to be replaced with the actual configuration loader
 	runner := &testRunner{
@@ -81,6 +84,18 @@ func Run(m *testing.M, repository string, branch string, commit string, serviceN
 	}
 	runner.init()
 	return runner.Run()
+}
+
+// Gets the test name
+func GetTestName(name string) string {
+	if runnerRegexName == nil {
+		runnerRegexName = regexp.MustCompile(`(?m)([\w -:_]*)\/\[runner.[\w:]*]`)
+	}
+	match := runnerRegexName.FindStringSubmatch(name)
+	if match == nil || len(match) == 0 {
+		return name
+	}
+	return match[1]
 }
 
 // Runs the test suite
@@ -151,7 +166,8 @@ func (r *testRunner) Run() int {
 // Internal test processor, each test calls the processor in order to handle retries, process exiting and exitcodes
 func (r *testRunner) testProcessor(t *testing.T) {
 	t.Helper()
-	if item, ok := (*r.tests)[t.Name()]; ok {
+	name := t.Name()
+	if item, ok := (*r.tests)[name]; ok {
 
 		//Sets the original test name
 		if pointer, err := getFieldPointerOfT(t, "name"); err == nil {
@@ -181,7 +197,6 @@ func (r *testRunner) testProcessor(t *testing.T) {
 				}()
 				it.Helper()
 				innerTest = it
-				fmt.Println(it.Name())
 				item.test.F(it)
 			})
 			innerTestInfo := r.getTestResultsInfo(innerTest)
