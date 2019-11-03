@@ -171,6 +171,7 @@ func (r *testRunner) testProcessor(t *testing.T) {
 			if run > 1 {
 				title = "Retry:" + strconv.Itoa(run-1)
 			}
+			title = "[runner." + title + "]"
 			t.Run(title, func(it *testing.T) {
 				defer func() {
 					rc = recover()
