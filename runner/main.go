@@ -29,28 +29,30 @@ type (
 		exitCode int
 	}
 	testDescriptor struct {
-		test           testing.InternalTest
-		fqn            string
-		ran            int
-		failed         bool
-		flaky          bool
-		error          bool
-		skipped        bool
-		retryOnFailure bool
-		added          bool
-		rules          *runnerRules
+		test                       testing.InternalTest
+		fqn                        string
+		ran                        int
+		failed                     bool
+		flaky                      bool
+		error                      bool
+		skipped                    bool
+		retryOnFailure             bool
+		includeStatusInTestResults bool
+		added                      bool
+		rules                      *runnerRules
 	}
 	benchmarkDescriptor struct {
-		benchmark      testing.InternalBenchmark
-		fqn            string
-		ran            int
-		failed         bool
-		flaky          bool
-		error          bool
-		skipped        bool
-		retryOnFailure bool
-		added          bool
-		rules          *runnerRules
+		benchmark                  testing.InternalBenchmark
+		fqn                        string
+		ran                        int
+		failed                     bool
+		flaky                      bool
+		error                      bool
+		skipped                    bool
+		retryOnFailure             bool
+		includeStatusInTestResults bool
+		added                      bool
+		rules                      *runnerRules
 	}
 	internalTestResult struct {
 		ran        bool      // Test or benchmark (or one of its subtests) was executed.
@@ -103,6 +105,7 @@ func (r *testRunner) Run() int {
 				desc.rules = iTest.Rules
 			}
 			desc.retryOnFailure = iTest.RetryOnFailure
+			desc.includeStatusInTestResults = iTest.IncludeStatusInTestResults
 		}
 		if desc, ok := (*r.benchmarks)[iTest.Fqn]; ok {
 			if iTest.Skip {
@@ -113,6 +116,7 @@ func (r *testRunner) Run() int {
 				desc.rules = iTest.Rules
 			}
 			desc.retryOnFailure = iTest.RetryOnFailure
+			desc.includeStatusInTestResults = iTest.IncludeStatusInTestResults
 		}
 	}
 	for _, value := range *r.tests {
@@ -134,7 +138,7 @@ func (r *testRunner) Run() int {
 	}
 	*r.intTests = tests
 	*r.intBenchmarks = benchmarks
-	r.exitCode = r.m.Run()
+	r.m.Run()
 
 	return r.exitCode
 }
@@ -168,7 +172,7 @@ func (r *testRunner) testProcessor(t *testing.T) {
 			})
 			innerTestInfo := r.getTestResultsInfo(innerTest)
 			if rc != nil {
-				if !item.retryOnFailure || rules.ErrorRetries == 0 {
+				if (!item.retryOnFailure || rules.ErrorRetries == 0) && rules.ExitOnError {
 					panic(rc)
 				}
 				fmt.Println("Recovered:", rc)
@@ -209,6 +213,9 @@ func (r *testRunner) testProcessor(t *testing.T) {
 		if item.error && rules.ExitOnError {
 			panic(rc)
 		}
+		if item.includeStatusInTestResults && (item.error || item.failed || item.flaky) {
+			r.exitCode = 1
+		}
 	} else {
 		t.FailNow()
 	}
@@ -227,6 +234,7 @@ func (r *testRunner) init() {
 				failed:         false,
 				retryOnFailure: true,
 				added:          false,
+				includeStatusInTestResults: true,
 			}
 		}
 	}
@@ -243,6 +251,7 @@ func (r *testRunner) init() {
 				failed:         false,
 				retryOnFailure: true,
 				added:          false,
+				includeStatusInTestResults: true,
 			}
 		}
 	}

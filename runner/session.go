@@ -6,11 +6,11 @@ type (
 		Rules runnerRules "json:`rules`"
 	}
 	testItem struct {
-		Fqn                         string       "json:`fqn`"
-		Skip                        bool         "json:`skip`"
-		RetryOnFailure              bool         "json:`retryOnFailure`"
-		IncludeStatusInBuildResults bool         "json:`includeStatusInBuildResults`"
-		Rules                       *runnerRules "json:`rules`"
+		Fqn                        string       "json:`fqn`"
+		Skip                       bool         "json:`skip`"
+		RetryOnFailure             bool         "json:`retryOnFailure`"
+		IncludeStatusInTestResults bool         "json:`includeStatusInTestResults`"
+		Rules                      *runnerRules "json:`rules`"
 	}
 	runnerRules struct {
 		FailRetries  int  "json:`failRetries`"
@@ -31,10 +31,10 @@ func (l *dummySessionLoader) LoadSessionConfiguration(repository string, branch 
 	return &testRunnerSession{
 		Tests: []testItem{
 			{
-				Fqn:                         "go.undefinedlabs.com/scopeagent/agent.TestFirstTest",
-				Skip:                        false,
-				RetryOnFailure:              true,
-				IncludeStatusInBuildResults: true,
+				Fqn:                        "go.undefinedlabs.com/scopeagent/agent.TestFirstTest",
+				Skip:                       false,
+				RetryOnFailure:             true,
+				IncludeStatusInTestResults: true,
 				Rules: &runnerRules{
 					FailRetries:  0,
 					PassRetries:  0,
@@ -43,34 +43,40 @@ func (l *dummySessionLoader) LoadSessionConfiguration(repository string, branch 
 				},
 			},
 			{
-				Fqn:                         "go.undefinedlabs.com/scopeagent/agent.TestDsnParser",
-				Skip:                        false,
-				RetryOnFailure:              true,
-				IncludeStatusInBuildResults: true,
+				Fqn:                        "go.undefinedlabs.com/scopeagent/agent.TestDsnParser",
+				Skip:                       false,
+				RetryOnFailure:             true,
+				IncludeStatusInTestResults: true,
 			},
 			{
-				Fqn:                         "go.undefinedlabs.com/scopeagent/agent.TestSkipped",
-				Skip:                        true,
-				RetryOnFailure:              true,
-				IncludeStatusInBuildResults: true,
+				Fqn:                        "go.undefinedlabs.com/scopeagent/agent.TestSkipped",
+				Skip:                       true,
+				RetryOnFailure:             true,
+				IncludeStatusInTestResults: true,
 			},
 			{
-				Fqn:                         "go.undefinedlabs.com/scopeagent/agent.TestFlaky",
-				Skip:                        false,
-				RetryOnFailure:              true,
-				IncludeStatusInBuildResults: true,
+				Fqn:                        "go.undefinedlabs.com/scopeagent/agent.TestFlaky",
+				Skip:                       false,
+				RetryOnFailure:             true,
+				IncludeStatusInTestResults: true,
 			},
 			{
-				Fqn:                         "go.undefinedlabs.com/scopeagent/agent.TestFail",
-				Skip:                        false,
-				RetryOnFailure:              true,
-				IncludeStatusInBuildResults: true,
+				Fqn:                        "go.undefinedlabs.com/scopeagent/agent.TestFail",
+				Skip:                       false,
+				RetryOnFailure:             true,
+				IncludeStatusInTestResults: true,
 				Rules: &runnerRules{
 					FailRetries:  4,
 					PassRetries:  0,
 					ErrorRetries: 0,
 					ExitOnError:  false,
 				},
+			},
+			{
+				Fqn:                        "go.undefinedlabs.com/scopeagent/agent.TestError",
+				Skip:                       false,
+				RetryOnFailure:             true,
+				IncludeStatusInTestResults: true,
 			},
 		},
 		Rules: runnerRules{
