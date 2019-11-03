@@ -16,6 +16,16 @@ func TestSkipped(t *testing.T) {
 	defer test.End()
 }
 
+func TestFlaky(t *testing.T) {
+	test := StartTest(t)
+	defer test.End()
+	value := rand.Intn(8)
+	t.Log("Value", value)
+	if value <= 5 {
+		t.FailNow()
+	}
+}
+
 func TestFirstTest(t *testing.T) {
 	test := StartTest(t)
 	defer test.End()
@@ -25,16 +35,6 @@ func TestFail(t *testing.T) {
 	test := StartTest(t)
 	defer test.End()
 	t.FailNow()
-}
-
-func TestFlaky(t *testing.T) {
-	test := StartTest(t)
-	defer test.End()
-	value := rand.Intn(8)
-	t.Log("Value", value)
-	if value <= 5 {
-		t.FailNow()
-	}
 }
 
 func TestError(t *testing.T) {

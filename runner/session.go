@@ -14,17 +14,17 @@ type (
 	}
 	testItem struct {
 		Fqn                        string       `json:"fqn"`
-		Skip                       bool         `json:"skip"`
-		RetryOnFailure             bool         `json:"retryOnFailure"`
-		IncludeStatusInTestResults bool         `json:"includeStatusInTestResults"`
+		Skip                       bool         `json:"skip,omitempty"`
+		RetryOnFailure             bool         `json:"retryOnFailure,omitempty"`
+		IncludeStatusInTestResults bool         `json:"includeStatusInTestResults,omitempty"`
 		Rules                      *runnerRules `json:"rules,omitempty"`
 	}
 	runnerRules struct {
-		FailRetries  int  `json:"failRetries"`
-		PassRetries  int  `json:"passRetries"`
-		ErrorRetries int  `json:"errorRetries"`
-		ExitOnFail   bool `json:"exitOnFail"`
-		ExitOnError  bool `json:"exitOnError"`
+		FailRetries  int  `json:"failRetries,omitempty"`
+		PassRetries  int  `json:"passRetries,omitempty"`
+		ErrorRetries int  `json:"errorRetries,omitempty"`
+		ExitOnFail   bool `json:"exitOnFail,omitempty"`
+		ExitOnError  bool `json:"exitOnError,omitempty"`
 	}
 
 	SessionLoader interface {
