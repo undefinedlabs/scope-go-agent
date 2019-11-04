@@ -216,6 +216,7 @@ func (r *testRunner) testProcessor(t *testing.T) {
 				item.failed = false
 				item.flaky = true
 				maxLoop = rules.FailRetries
+				break
 			}
 			// Already flaky
 			if item.flaky {
