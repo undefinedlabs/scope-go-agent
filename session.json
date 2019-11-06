@@ -1,7 +1,17 @@
 {
   "tests": [
     {
+
+
       "fqn": "go.undefinedlabs.com/scopeagent.TestFirstTest",
+      "weight": 8,
+      "flaky": false,
+      "quarantine" : false,
+      "status" : "FAIL",
+
+
+
+
       "retryOnFailure": true,
       "includeStatusInTestResults": true,
       "rules": {
