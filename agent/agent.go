@@ -5,7 +5,9 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
+	"net/url"
 	"os"
+	"os/user"
 	"path"
 	"runtime"
 	"sync"
@@ -124,6 +126,18 @@ func NewAgent(options ...Option) (*Agent, error) {
 
 	configProfile := GetConfigCurrentProfile()
 
+	if agent.apiKey == "" || agent.apiEndpoint == "" {
+		if dsn, set := os.LookupEnv("SCOPE_DSN"); set && dsn != "" {
+			dsnApiKey, dsnApiEndpoint, dsnErr := parseDSN(dsn)
+			if dsnErr != nil {
+				agent.logger.Printf("Error parsing dsn value: %v", dsnErr)
+			} else {
+				agent.apiKey = dsnApiKey
+				agent.apiEndpoint = dsnApiEndpoint
+			}
+		}
+	}
+
 	if agent.apiKey == "" {
 		if apikey, set := os.LookupEnv("SCOPE_APIKEY"); set && apikey != "" {
 			agent.apiKey = apikey
@@ -215,7 +229,7 @@ func NewAgent(options ...Option) (*Agent, error) {
 
 func (a *Agent) setupLogging() error {
 	filename := fmt.Sprintf("scope-go-%s-%s.log", time.Now().Format("20060102150405"), a.agentId)
-	dir, err := ioutil.TempDir("", "scope")
+	dir, err := getLogPath()
 	if err != nil {
 		return err
 	}
@@ -272,4 +286,54 @@ func generateAgentID() string {
 		panic(err)
 	}
 	return agentId.String()
+}
+
+func getLogPath() (string, error) {
+	if logPath, set := os.LookupEnv("SCOPE_LOG_ROOT_PATH"); set {
+		return logPath, nil
+	}
+	currentUser, _ := user.Current()
+	homeDir := currentUser.HomeDir
+	logFolder := ""
+
+	if runtime.GOOS == "windows" {
+		logFolder = fmt.Sprintf("%s/AppData/Roaming/scope/logs", homeDir)
+	} else if runtime.GOOS == "darwin" {
+		logFolder = fmt.Sprintf("%s/Library/Logs/Scope", homeDir)
+	} else if runtime.GOOS == "linux" {
+		logFolder = "/var/log/scope"
+	}
+	if logFolder != "" {
+		isOk := true
+		// If folder doesn't exist we try to create it
+		if _, err := os.Stat(logFolder); os.IsNotExist(err) {
+			mkErr := os.Mkdir(logFolder, os.ModeDir)
+			if mkErr != nil {
+				isOk = false
+			}
+		}
+		if isOk {
+			return logFolder, nil
+		}
+	}
+
+	// If the log folder can't be used we return a temporal path, so we don't miss the agent logs
+	if dir, err := ioutil.TempDir("", "scope"); err != nil {
+		return dir, nil
+	} else {
+		return "", err
+	}
+}
+
+func parseDSN(dsnString string) (apiKey string, apiEndpoint string, err error) {
+	uri, err := url.Parse(dsnString)
+	if err != nil {
+		return "", "", err
+	}
+	if uri.User != nil {
+		apiKey = uri.User.Username()
+	}
+	uri.User = nil
+	apiEndpoint = uri.String()
+	return
 }

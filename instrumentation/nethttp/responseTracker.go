@@ -5,22 +5,37 @@ import (
 	"net/http"
 )
 
-type statusCodeTracker struct {
+type responseTracker struct {
 	http.ResponseWriter
-	status      int
-	wroteheader bool
+	status                 int
+	wroteheader            bool
+	payloadInstrumentation bool
+	payloadBuffer          []byte
 }
 
-func (w *statusCodeTracker) WriteHeader(status int) {
+var payloadBufferSize = 512
+
+func (w *responseTracker) WriteHeader(status int) {
 	w.status = status
 	w.wroteheader = true
 	w.ResponseWriter.WriteHeader(status)
 }
 
-func (w *statusCodeTracker) Write(b []byte) (int, error) {
+func (w *responseTracker) Write(b []byte) (int, error) {
 	if !w.wroteheader {
 		w.wroteheader = true
 		w.status = 200
+	}
+	if w.payloadInstrumentation {
+		payloadSize := len(w.payloadBuffer)
+		if payloadSize < payloadBufferSize {
+			bufferMissing := payloadBufferSize - payloadSize
+			if bufferMissing < len(b) {
+				w.payloadBuffer = append(w.payloadBuffer, b[:bufferMissing]...)
+			} else {
+				w.payloadBuffer = append(w.payloadBuffer, b...)
+			}
+		}
 	}
 	return w.ResponseWriter.Write(b)
 }
@@ -29,7 +44,7 @@ func (w *statusCodeTracker) Write(b []byte) (int, error) {
 // ResponseWriter and only implements the same combination of additional
 // interfaces as the original.  This implementation is based on
 // https://github.com/felixge/httpsnoop.
-func (w *statusCodeTracker) wrappedResponseWriter() http.ResponseWriter {
+func (w *responseTracker) wrappedResponseWriter() http.ResponseWriter {
 	var (
 		hj, i0 = w.ResponseWriter.(http.Hijacker)
 		cn, i1 = w.ResponseWriter.(http.CloseNotifier)

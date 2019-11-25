@@ -2,6 +2,7 @@ package testing
 
 import (
 	"context"
+	stdErrors "errors"
 	"fmt"
 	"github.com/opentracing/opentracing-go"
 	"github.com/opentracing/opentracing-go/log"
@@ -9,9 +10,13 @@ import (
 	"go.undefinedlabs.com/scopeagent/errors"
 	"go.undefinedlabs.com/scopeagent/instrumentation"
 	"go.undefinedlabs.com/scopeagent/tags"
+	"math"
+	"reflect"
 	"runtime"
 	"strings"
 	"testing"
+	"time"
+	"unsafe"
 )
 
 type (
@@ -60,12 +65,14 @@ func StartTestFromCaller(t *testing.T, pc uintptr, opts ...Option) *Test {
 		opt(test)
 	}
 
+	// Extracting the benchmark func name (by removing any possible sub-benchmark suffix `{bench_func}/{sub_benchmark}`)
+	// to search the func source code bounds and to calculate the package name.
 	fullTestName := t.Name()
 	testNameSlash := strings.IndexByte(fullTestName, '/')
-	if testNameSlash < 0 {
-		testNameSlash = len(fullTestName)
+	funcName := fullTestName
+	if testNameSlash >= 0 {
+		funcName = fullTestName[:testNameSlash]
 	}
-	funcName := fullTestName[:testNameSlash]
 
 	funcFullName := runtime.FuncForPC(pc).Name()
 	funcNameIndex := strings.LastIndex(funcFullName, funcName)
@@ -166,5 +173,82 @@ func (test *Test) Run(name string, f func(t *testing.T)) {
 		childTest := StartTestFromCaller(childT, pc)
 		defer childTest.End()
 		f(childT)
+	})
+}
+
+//Extract benchmark result from the private result field in testing.B
+func extractBenchmarkResult(b *testing.B) (*testing.BenchmarkResult, error) {
+	val := reflect.Indirect(reflect.ValueOf(b))
+	member := val.FieldByName("result")
+	if member.IsValid() {
+		ptrToY := unsafe.Pointer(member.UnsafeAddr())
+		return (*testing.BenchmarkResult)(ptrToY), nil
+	}
+	return nil, stdErrors.New("result can't be retrieved")
+}
+
+// Starts a new benchmark using a pc as caller
+func StartBenchmark(b *testing.B, pc uintptr, benchFunc func(b *testing.B)) {
+	var bChild *testing.B
+	b.ReportAllocs()
+	b.ResetTimer()
+	startTime := time.Now()
+	result := b.Run("*", func(b1 *testing.B) {
+		benchFunc(b1)
+		bChild = b1
+	})
+	results, err := extractBenchmarkResult(bChild)
+	if err != nil {
+		instrumentation.Logger().Printf("Error while extracting the benchmark result object: %v\n", err)
+		return
+	}
+
+	// Extracting the benchmark func name (by removing any possible sub-benchmark suffix `{bench_func}/{sub_benchmark}`)
+	// to search the func source code bounds and to calculate the package name.
+	fullTestName := b.Name()
+	testNameSlash := strings.IndexByte(fullTestName, '/')
+	funcName := fullTestName
+	if testNameSlash >= 0 {
+		funcName = fullTestName[:testNameSlash]
+	}
+
+	funcFullName := runtime.FuncForPC(pc).Name()
+	funcNameIndex := strings.LastIndex(funcFullName, funcName)
+	if funcNameIndex < 1 {
+		funcNameIndex = len(funcFullName)
+	}
+	packageName := funcFullName[:funcNameIndex-1]
+
+	sourceBounds, _ := ast.GetFuncSourceForName(pc, funcName)
+	var testCode string
+	if sourceBounds != nil {
+		testCode = fmt.Sprintf("%s:%d:%d", sourceBounds.File, sourceBounds.Start.Line, sourceBounds.End.Line)
+	}
+
+	var startOptions []opentracing.StartSpanOption
+	startOptions = append(startOptions, opentracing.Tags{
+		"span.kind":      "test",
+		"test.name":      fullTestName,
+		"test.suite":     packageName,
+		"test.code":      testCode,
+		"test.framework": "testing",
+		"test.language":  "go",
+		"test.type":      "benchmark",
+	}, opentracing.StartTime(startTime))
+
+	span, _ := opentracing.StartSpanFromContextWithTracer(context.Background(), instrumentation.Tracer(), b.Name(), startOptions...)
+	span.SetBaggageItem("trace.kind", "test")
+	avg := math.Round((float64(results.T.Nanoseconds())/float64(results.N))*100) / 100
+	span.SetTag("benchmark.runs", results.N)
+	span.SetTag("benchmark.duration.mean", avg)
+	span.SetTag("benchmark.memory.mean_allocations", results.AllocsPerOp())
+	span.SetTag("benchmark.memory.mean_bytes_allocations", results.AllocedBytesPerOp())
+	if result {
+		span.SetTag("test.status", "PASS")
+	} else {
+		span.SetTag("test.status", "FAIL")
+	}
+	span.FinishWithOptions(opentracing.FinishOptions{
+		FinishTime: startTime.Add(results.T),
 	})
 }

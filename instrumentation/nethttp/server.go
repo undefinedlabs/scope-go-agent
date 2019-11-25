@@ -1,7 +1,7 @@
 package nethttp
 
 import (
-	"go.undefinedlabs.com/scopeagent/instrumentation"
+	"bytes"
 	"net"
 	"net/http"
 	"net/url"
@@ -10,14 +10,17 @@ import (
 
 	"github.com/opentracing/opentracing-go"
 	"github.com/opentracing/opentracing-go/ext"
+
+	"go.undefinedlabs.com/scopeagent/instrumentation"
 )
 
 type mwOptions struct {
-	opNameFunc    func(r *http.Request) string
-	spanFilter    func(r *http.Request) bool
-	spanObserver  func(span opentracing.Span, r *http.Request)
-	urlTagFunc    func(u *url.URL) string
-	componentName string
+	opNameFunc             func(r *http.Request) string
+	spanFilter             func(r *http.Request) bool
+	spanObserver           func(span opentracing.Span, r *http.Request)
+	urlTagFunc             func(u *url.URL) string
+	componentName          string
+	payloadInstrumentation bool
 }
 
 // MWOption controls the behavior of the Middleware.
@@ -65,6 +68,13 @@ func MWURLTagFunc(f func(u *url.URL) string) MWOption {
 	}
 }
 
+// Enable payload instrumentation
+func MWPayloadInstrumentation() MWOption {
+	return func(options *mwOptions) {
+		options.payloadInstrumentation = true
+	}
+}
+
 // Middleware wraps an http.Handler and traces incoming requests.
 // Additionally, it adds the span to the request's context.
 //
@@ -99,7 +109,7 @@ func middleware(tr opentracing.Tracer, h http.Handler, options ...MWOption) http
 func middlewareFunc(tr opentracing.Tracer, h http.HandlerFunc, options ...MWOption) http.HandlerFunc {
 	opts := mwOptions{
 		opNameFunc: func(r *http.Request) string {
-			return "SERVER HTTP " + r.Method
+			return "HTTP " + r.Method
 		},
 		spanFilter:   func(r *http.Request) bool { return true },
 		spanObserver: func(span opentracing.Span, r *http.Request) {},
@@ -142,18 +152,34 @@ func middlewareFunc(tr opentracing.Tracer, h http.HandlerFunc, options ...MWOpti
 			}
 		}
 
-		sct := &statusCodeTracker{ResponseWriter: w}
+		rtracker := &responseTracker{ResponseWriter: w}
+		rtracker.payloadInstrumentation = opts.payloadInstrumentation
 		r = r.WithContext(opentracing.ContextWithSpan(r.Context(), sp))
 
 		defer func() {
-			ext.HTTPStatusCode.Set(sp, uint16(sct.status))
-			if sct.status >= http.StatusBadRequest || !sct.wroteheader {
+			ext.HTTPStatusCode.Set(sp, uint16(rtracker.status))
+			if rtracker.status >= http.StatusBadRequest || !rtracker.wroteheader {
 				ext.Error.Set(sp, true)
+			}
+
+			if rtracker.payloadInstrumentation {
+				rqPayload := getRequestPayload(r, payloadBufferSize)
+				sp.SetTag("http.request_payload", rqPayload)
+			} else {
+				sp.SetTag("http.request_payload.unavailable", "disabled")
+			}
+
+			if rtracker.payloadInstrumentation {
+				rsRunes := bytes.Runes(rtracker.payloadBuffer)
+				rsPayload := string(rsRunes)
+				sp.SetTag("http.response_payload", rsPayload)
+			} else {
+				sp.SetTag("http.response_payload.unavailable", "disabled")
 			}
 			sp.Finish()
 		}()
 
-		h(sct.wrappedResponseWriter(), r)
+		h(rtracker.wrappedResponseWriter(), r)
 	}
 	return http.HandlerFunc(fn)
 }

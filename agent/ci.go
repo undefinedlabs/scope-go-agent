@@ -102,6 +102,20 @@ func getCIMetadata() map[string]interface{} {
 		)
 		ciMetadata[tags.Commit] = sha
 		ciMetadata[tags.SourceRoot] = os.Getenv("GITHUB_WORKSPACE")
+	} else if _, set := os.LookupEnv("TEAMCITY_VERSION"); set {
+		buildId := os.Getenv("BUILD_ID")
+		ciMetadata[tags.CI] = true
+		ciMetadata[tags.CIProvider] = "TeamCity"
+		ciMetadata[tags.Repository] = os.Getenv("BUILD_VCS_URL")
+		ciMetadata[tags.Commit] = os.Getenv("BUILD_VCS_NUMBER")
+		ciMetadata[tags.SourceRoot] = os.Getenv("BUILD_CHECKOUTDIR")
+		ciMetadata[tags.CIBuildId] = buildId
+		ciMetadata[tags.CIBuildNumber] = os.Getenv("BUILD_NUMBER")
+		ciMetadata[tags.CIBuildUrl] = fmt.Sprintf(
+			"%s/viewLog.html?buildId=%s",
+			os.Getenv("SERVER_URL"),
+			buildId,
+		)
 	}
 
 	return ciMetadata
