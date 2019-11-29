@@ -16,6 +16,7 @@ import (
 	"github.com/vmihailenco/msgpack"
 	"gopkg.in/tomb.v2"
 
+	"go.undefinedlabs.com/scopeagent/tags"
 	"go.undefinedlabs.com/scopeagent/tracer"
 )
 
@@ -227,11 +228,11 @@ func (r *SpanRecorder) getPayload(rawSpans []tracer.RawSpan, metadata map[string
 			})
 		}
 	}
-
 	return map[string]interface{}{
-		"metadata": metadata,
-		"spans":    spans,
-		"events":   events,
+		"metadata":   metadata,
+		"spans":      spans,
+		"events":     events,
+		tags.AgentID: metadata[tags.AgentID],
 	}
 }
 
