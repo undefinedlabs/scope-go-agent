@@ -45,4 +45,8 @@ const (
 	LogLevel_ERROR   = "ERROR"
 	LogLevel_DEBUG   = "DEBUG"
 	LogLevel_VERBOSE = "VERBOSE"
+
+	TestStatus_FAIL = "FAIL"
+	TestStatus_PASS = "PASS"
+	TestStatus_SKIP = "SKIP"
 )
