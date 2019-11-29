@@ -115,7 +115,7 @@ func StartTestFromCaller(t *testing.T, pc uintptr, opts ...Option) *Test {
 func (test *Test) End() {
 	if r := recover(); r != nil {
 		test.stopCapturingLogs()
-		test.span.SetTag("test.status", "ERROR")
+		test.span.SetTag("test.status", tags.TestStatus_FAIL)
 		test.span.SetTag("error", true)
 		errors.LogError(test.span, r, 1)
 		test.span.Finish()
@@ -125,7 +125,7 @@ func (test *Test) End() {
 		panic(r)
 	}
 	if test.t.Failed() {
-		test.span.SetTag("test.status", "FAIL")
+		test.span.SetTag("test.status", tags.TestStatus_FAIL)
 		test.span.SetTag("error", true)
 		if test.failReason != "" {
 			test.span.LogFields(
@@ -140,7 +140,7 @@ func (test *Test) End() {
 			)
 		}
 	} else if test.t.Skipped() {
-		test.span.SetTag("test.status", "SKIP")
+		test.span.SetTag("test.status", tags.TestStatus_SKIP)
 		if test.skipReason != "" {
 			test.span.LogFields(
 				log.String(tags.EventType, tags.EventTestSkip),
@@ -154,7 +154,7 @@ func (test *Test) End() {
 			)
 		}
 	} else {
-		test.span.SetTag("test.status", "PASS")
+		test.span.SetTag("test.status", tags.TestStatus_PASS)
 	}
 
 	test.stopCapturingLogs()
