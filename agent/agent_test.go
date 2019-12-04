@@ -32,3 +32,7 @@ func TestDsnParser(t *testing.T) {
 		})
 	}
 }
+
+func TestGetDependencies(t *testing.T) {
+	fmt.Printf("%v\n", getDependenciesMap())
+}
