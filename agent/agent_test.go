@@ -3,6 +3,8 @@ package agent
 import (
 	"fmt"
 	"testing"
+
+	"go.undefinedlabs.com/scopeagent/tags"
 )
 
 func TestDsnParser(t *testing.T) {
@@ -34,5 +36,9 @@ func TestDsnParser(t *testing.T) {
 }
 
 func TestGetDependencies(t *testing.T) {
-	fmt.Printf("%v\n", getDependenciesMap())
+	deps := getDependenciesMap()
+	fmt.Printf("%v\n", deps)
+	if _, ok := deps[tags.Dependencies]; !ok {
+		t.Fail()
+	}
 }
