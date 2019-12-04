@@ -18,6 +18,7 @@ import (
 	"go.undefinedlabs.com/scopeagent/errors"
 	"go.undefinedlabs.com/scopeagent/instrumentation"
 	"go.undefinedlabs.com/scopeagent/instrumentation/logging"
+	"go.undefinedlabs.com/scopeagent/runner"
 	"go.undefinedlabs.com/scopeagent/tags"
 )
 
@@ -80,7 +81,7 @@ func StartTestFromCaller(t *testing.T, pc uintptr, opts ...Option) *Test {
 
 	// Extracting the benchmark func name (by removing any possible sub-benchmark suffix `{bench_func}/{sub_benchmark}`)
 	// to search the func source code bounds and to calculate the package name.
-	fullTestName := t.Name()
+	fullTestName := runner.GetTestName(t.Name())
 	testNameSlash := strings.IndexByte(fullTestName, '/')
 	funcName := fullTestName
 	if testNameSlash >= 0 {
@@ -114,7 +115,7 @@ func StartTestFromCaller(t *testing.T, pc uintptr, opts ...Option) *Test {
 		test.ctx = context.Background()
 	}
 
-	span, ctx := opentracing.StartSpanFromContextWithTracer(test.ctx, instrumentation.Tracer(), t.Name(), startOptions...)
+	span, ctx := opentracing.StartSpanFromContextWithTracer(test.ctx, instrumentation.Tracer(), fullTestName, startOptions...)
 	span.SetBaggageItem("trace.kind", "test")
 	test.span = span
 	test.ctx = ctx
