@@ -10,6 +10,7 @@ import (
 	"os/user"
 	"path"
 	"runtime"
+	"strings"
 	"sync"
 	"time"
 
@@ -38,6 +39,8 @@ type (
 
 		recorder         *SpanRecorder
 		recorderFilename string
+
+		userAgent string
 
 		logger *log.Logger
 	}
@@ -107,12 +110,22 @@ func WithGitInfo(repository string, commitSha string, sourceRoot string) Option 
 	}
 }
 
+func WithUserAgent(userAgent string) Option {
+	return func(agent *Agent) {
+		userAgent = strings.TrimSpace(userAgent)
+		if userAgent != "" {
+			agent.userAgent = fmt.Sprintf("%s %s", agent.userAgent, userAgent)
+		}
+	}
+}
+
 // Creates a new Scope Agent instance
 func NewAgent(options ...Option) (*Agent, error) {
 	agent := new(Agent)
 	agent.metadata = make(map[string]interface{})
 	agent.version = version
 	agent.agentId = generateAgentID()
+	agent.userAgent = fmt.Sprintf("scope-agent-go/%s", agent.version)
 
 	for _, opt := range options {
 		opt(agent)

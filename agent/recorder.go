@@ -29,6 +29,7 @@ type SpanRecorder struct {
 	apiKey      string
 	apiEndpoint string
 	version     string
+	userAgent   string
 	debugMode   bool
 	metadata    map[string]interface{}
 
@@ -48,6 +49,7 @@ func NewSpanRecorder(agent *Agent) *SpanRecorder {
 	r.apiEndpoint = agent.apiEndpoint
 	r.apiKey = agent.apiKey
 	r.version = agent.version
+	r.userAgent = agent.userAgent
 	r.debugMode = agent.debugMode
 	r.metadata = agent.metadata
 	r.logger = agent.logger
@@ -164,7 +166,7 @@ func (r *SpanRecorder) callIngest(payload io.Reader) (statusCode int, err error)
 		r.koSend++
 		return 0, err
 	}
-	req.Header.Set("User-Agent", fmt.Sprintf("scope-agent-go/%s", r.version))
+	req.Header.Set("User-Agent", r.userAgent)
 	req.Header.Set("Content-Type", "application/msgpack")
 	req.Header.Set("Content-Encoding", "gzip")
 	req.Header.Set("X-Scope-ApiKey", r.apiKey)
