@@ -10,6 +10,7 @@ import (
 	"os/user"
 	"path"
 	"runtime"
+	"strings"
 	"sync"
 	"time"
 
@@ -111,7 +112,10 @@ func WithGitInfo(repository string, commitSha string, sourceRoot string) Option 
 
 func WithUserAgent(userAgent string) Option {
 	return func(agent *Agent) {
-		agent.userAgent = userAgent
+		userAgent = strings.TrimSpace(userAgent)
+		if userAgent != "" {
+			agent.userAgent = fmt.Sprintf("%s %s", agent.userAgent, userAgent)
+		}
 	}
 }
 
