@@ -324,15 +324,6 @@ func GetTest(t *testing.T) *Test {
 	return nil
 }
 
-// Gets the test context from testing.T
-func GetContext(t *testing.T) context.Context {
-	test := GetTest(t)
-	if test != nil {
-		return test.ctx
-	}
-	return nil
-}
-
 // Sets the test context
 func SetContext(t *testing.T, ctx context.Context) {
 	test := GetTest(t)
