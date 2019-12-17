@@ -15,6 +15,7 @@ import (
 	"reflect"
 	"runtime"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 	"unsafe"
@@ -31,10 +32,27 @@ type (
 		skipReason       string
 		skipReasonSource string
 		onPanicHandler   func(*Test)
+		hasEnded         bool
 	}
 
 	Option func(*Test)
 )
+
+var (
+	mutex   sync.Mutex
+	testMap map[*testing.T]*Test
+
+	intTests *[]testing.InternalTest
+
+	defaultPanicHandler func(*Test)
+)
+
+// Initialize vars
+func init() {
+	mutex = sync.Mutex{}
+	testMap = map[*testing.T]*Test{}
+	defaultPanicHandler = func(t *Test) {}
+}
 
 // Options for starting a new test
 func WithContext(ctx context.Context) Option {
@@ -57,7 +75,16 @@ func StartTest(t *testing.T, opts ...Option) *Test {
 
 // Starts a new test with and uses the caller pc info for Name and Suite
 func StartTestFromCaller(t *testing.T, pc uintptr, opts ...Option) *Test {
+	mutex.Lock()
+	if testPtr, ok := testMap[t]; ok {
+		mutex.Unlock()
+		return testPtr
+	}
+
 	test := &Test{t: t}
+
+	testMap[t] = test
+	mutex.Unlock()
 
 	for _, opt := range opts {
 		opt(test)
@@ -110,6 +137,13 @@ func StartTestFromCaller(t *testing.T, pc uintptr, opts ...Option) *Test {
 
 // Ends the current test
 func (test *Test) End() {
+	mutex.Lock()
+	if test.hasEnded {
+		mutex.Unlock()
+		return
+	}
+	test.hasEnded = true
+	mutex.Unlock()
 	if r := recover(); r != nil {
 		test.span.SetTag("test.status", tags.TestStatus_FAIL)
 		test.span.SetTag("error", true)
@@ -156,6 +190,14 @@ func (test *Test) End() {
 
 	logging.SetCurrentSpan(nil)
 	test.span.Finish()
+}
+
+// Cancel instrumentation of a test
+func (test *Test) NoInstrument() {
+	mutex.Lock()
+	defer mutex.Unlock()
+	test.hasEnded = true
+	test.stopCapturingLogs()
 }
 
 // Gets the test context
@@ -248,4 +290,71 @@ func StartBenchmark(b *testing.B, pc uintptr, benchFunc func(b *testing.B)) {
 	span.FinishWithOptions(opentracing.FinishOptions{
 		FinishTime: startTime.Add(results.T),
 	})
+}
+
+// Initialize the testing instrumentation
+func Init(m *testing.M) {
+	tests := make([]testing.InternalTest, 0)
+	if tPointer, err := getFieldPointerOfM(m, "tests"); err == nil {
+		intTests = (*[]testing.InternalTest)(tPointer)
+		for _, test := range *intTests {
+			funcValue := test.F
+			funcPointer := reflect.ValueOf(funcValue).Pointer()
+			tests = append(tests, testing.InternalTest{
+				Name: test.Name,
+				F: func(t *testing.T) { // Creating a new test function as an indirection of the original test
+					tStruct := StartTestFromCaller(t, funcPointer, WithOnPanicHandler(defaultPanicHandler))
+					defer tStruct.End()
+					funcValue(t)
+				},
+			})
+		}
+		// Replace internal tests with new test indirection
+		*intTests = tests
+	}
+}
+
+// Gets the Test struct from testing.T
+func GetTest(t *testing.T) *Test {
+	mutex.Lock()
+	defer mutex.Unlock()
+	if test, ok := testMap[t]; ok {
+		return test
+	}
+	return nil
+}
+
+// Gets the test context from testing.T
+func GetContext(t *testing.T) context.Context {
+	test := GetTest(t)
+	if test != nil {
+		return test.ctx
+	}
+	return nil
+}
+
+// Sets the test context
+func SetContext(t *testing.T, ctx context.Context) {
+	test := GetTest(t)
+	if test != nil {
+		test.ctx = ctx
+	}
+}
+
+// Sets the default panic handler
+func SetDefaultPanicHandler(handler func(*Test)) {
+	if handler != nil {
+		defaultPanicHandler = handler
+	}
+}
+
+// Gets a private field from the testing.M struct using reflection
+func getFieldPointerOfM(m *testing.M, fieldName string) (unsafe.Pointer, error) {
+	val := reflect.Indirect(reflect.ValueOf(m))
+	member := val.FieldByName(fieldName)
+	if member.IsValid() {
+		ptrToY := unsafe.Pointer(member.UnsafeAddr())
+		return ptrToY, nil
+	}
+	return nil, stdErrors.New("field can't be retrieved")
 }

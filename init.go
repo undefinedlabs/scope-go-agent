@@ -17,10 +17,16 @@ func Run(m *testing.M, opts ...agent.Option) int {
 	if err != nil {
 		return m.Run()
 	}
-
 	logging.Init()
 	defer logging.Finalize()
 
+	scopetesting.Init(m)
+	scopetesting.SetDefaultPanicHandler(func(test *scopetesting.Test) {
+		if defaultAgent != nil {
+			_ = defaultAgent.Flush()
+			defaultAgent.PrintReport()
+		}
+	})
 	defer newAgent.Stop()
 	defaultAgent = newAgent
 	return m.Run()
