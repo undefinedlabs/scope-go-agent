@@ -111,11 +111,13 @@ func (r *SpanRecorder) loop() error {
 // Sends the spans in the buffer to Scope
 func (r *SpanRecorder) SendSpans() error {
 	r.Lock()
+	spans := r.spans
+	r.spans = nil
 	defer r.Unlock()
 
 	r.totalSend = r.totalSend + 1
 
-	payload := r.getPayload(r.spans, r.metadata)
+	payload := r.getPayload(spans, r.metadata)
 
 	if r.debugMode {
 		r.logger.Printf("payload: %+v\n\n", payload)
@@ -148,10 +150,13 @@ func (r *SpanRecorder) SendSpans() error {
 		}
 	}
 
-	r.spans = nil
 	if payloadSent {
 		r.okSend++
 	} else {
+		r.Lock()
+		r.spans = append(spans, r.spans...)
+		r.Unlock()
+		
 		r.koSend++
 		return lastError
 	}
