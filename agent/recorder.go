@@ -113,7 +113,7 @@ func (r *SpanRecorder) SendSpans() error {
 	r.Lock()
 	spans := r.spans
 	r.spans = nil
-	defer r.Unlock()
+	r.Unlock()
 
 	r.totalSend = r.totalSend + 1
 
@@ -153,10 +153,6 @@ func (r *SpanRecorder) SendSpans() error {
 	if payloadSent {
 		r.okSend++
 	} else {
-		r.Lock()
-		r.spans = append(spans, r.spans...)
-		r.Unlock()
-		
 		r.koSend++
 		return lastError
 	}
