@@ -1,7 +1,10 @@
 package testing
 
 import (
+	"fmt"
 	"github.com/google/uuid"
+	"go/build"
+	"os"
 	"sync/atomic"
 	"testing"
 	_ "unsafe"
@@ -42,6 +45,11 @@ func (test *Test) startCoverage() {
 
 // Get the counters values and extract the coverage info
 func (test *Test) endCoverage() *coverage {
+	gopath := os.Getenv("GOPATH")
+	if gopath == "" {
+		gopath = build.Default.GOPATH
+	}
+
 	fileMap := map[string][][]int{}
 	var active, total int64
 	var count uint32
@@ -54,10 +62,11 @@ func (test *Test) endCoverage() *coverage {
 			atomic.StoreUint32(&counts[i], counters[name][i]+count)
 			if count > 0 {
 				active += stmts
-				fileMap[name] = append(fileMap[name], []int{
+				file := fmt.Sprintf("%v/src/%v", gopath, name)
+				fileMap[file] = append(fileMap[name], []int{
 					int(blocks[i].Line0), int(blocks[i].Col0), int(count),
 				})
-				fileMap[name] = append(fileMap[name], []int{
+				fileMap[file] = append(fileMap[name], []int{
 					int(blocks[i].Line1), int(blocks[i].Col1), -1,
 				})
 			}
