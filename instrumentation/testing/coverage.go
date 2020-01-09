@@ -63,10 +63,10 @@ func (test *Test) endCoverage() *coverage {
 			if count > 0 {
 				active += stmts
 				file := fmt.Sprintf("%v/src/%v", gopath, name)
-				fileMap[file] = append(fileMap[name], []int{
+				fileMap[file] = append(fileMap[file], []int{
 					int(blocks[i].Line0), int(blocks[i].Col0), int(count),
 				})
-				fileMap[file] = append(fileMap[name], []int{
+				fileMap[file] = append(fileMap[file], []int{
 					int(blocks[i].Line1), int(blocks[i].Col1), -1,
 				})
 			}
