@@ -41,6 +41,7 @@ type (
 		recorderFilename string
 
 		userAgent string
+		agentType string
 
 		logger *log.Logger
 	}
@@ -110,11 +111,12 @@ func WithGitInfo(repository string, commitSha string, sourceRoot string) Option 
 	}
 }
 
-func WithUserAgent(userAgent string) Option {
+func WithAgentType(agentType string) Option {
 	return func(agent *Agent) {
-		userAgent = strings.TrimSpace(userAgent)
-		if userAgent != "" {
-			agent.userAgent = fmt.Sprintf("%s %s", agent.userAgent, userAgent)
+		agentType = strings.TrimSpace(agentType)
+		if agentType != "" {
+			agent.agentType = agentType
+			agent.userAgent = fmt.Sprintf("%s %s", agent.userAgent, agentType)
 		}
 	}
 }
@@ -172,9 +174,12 @@ func NewAgent(options ...Option) (*Agent, error) {
 	}
 
 	// Agent data
+	if agent.agentType == "" {
+		agent.agentType = "go"
+	}
 	agent.metadata[tags.AgentID] = agent.agentId
 	agent.metadata[tags.AgentVersion] = version
-	agent.metadata[tags.AgentType] = "go"
+	agent.metadata[tags.AgentType] = agent.agentType
 
 	// Platform data
 	agent.metadata[tags.PlatformName] = runtime.GOOS
