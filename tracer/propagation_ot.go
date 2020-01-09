@@ -2,6 +2,7 @@ package tracer
 
 import (
 	"encoding/binary"
+	"fmt"
 	"io"
 	"strconv"
 	"strings"
@@ -26,6 +27,9 @@ const (
 	fieldNameTraceID      = prefixTracerState + "traceid"
 	fieldNameSpanID       = prefixTracerState + "spanid"
 	fieldNameSampled      = prefixTracerState + "sampled"
+
+	traceParentKey = "traceparent"
+	traceStateKey  = "tracestate"
 )
 
 func (p *textMapPropagator) Inject(
@@ -44,9 +48,28 @@ func (p *textMapPropagator) Inject(
 	carrier.Set(fieldNameSpanID, strconv.FormatUint(sc.SpanID, 16))
 	carrier.Set(fieldNameSampled, strconv.FormatBool(sc.Sampled))
 
+	tpSampled := "00"
+	if sc.Sampled {
+		tpSampled = "01"
+	}
+	traceParentValue := fmt.Sprintf("%v-%032x-%016x-%v",
+		"00",       // Version 0
+		sc.TraceID, // 8bytes TraceId
+		sc.SpanID,  // 8bytes SpanId
+		tpSampled,  // 00 for not sampled, 01 for sampled
+	)
+	carrier.Set(traceParentKey, traceParentValue)
+
+	var traceStatePairs []string
+
 	for k, v := range sc.Baggage {
 		carrier.Set(prefixBaggage+k, v)
+		traceStatePairs = append(traceStatePairs, k+"="+v)
 	}
+
+	traceStateValue := strings.Join(traceStatePairs, ",")
+	carrier.Set(traceStateKey, traceStateValue)
+
 	return nil
 }
 
@@ -78,6 +101,33 @@ func (p *textMapPropagator) Extract(
 			sampled, err = strconv.ParseBool(v)
 			if err != nil {
 				return opentracing.ErrSpanContextCorrupted
+			}
+		case traceParentKey:
+			if len(v) < 55 {
+				return opentracing.ErrSpanContextCorrupted
+			}
+			traceParentArray := strings.Split(v, "-")
+			if len(traceParentArray) < 4 || traceParentArray[0] != "00" || len(traceParentArray[1]) != 32 || len(traceParentArray[2]) != 16 {
+				return opentracing.ErrSpanContextCorrupted
+			}
+
+			traceID, err = strconv.ParseUint(traceParentArray[1][16:], 16, 64)
+			if err != nil {
+				return opentracing.ErrSpanContextCorrupted
+			}
+			spanID, err = strconv.ParseUint(traceParentArray[2], 16, 64)
+			if err != nil {
+				return opentracing.ErrSpanContextCorrupted
+			}
+			if traceParentArray[3] == "01" {
+				sampled = true
+			}
+		case traceStateKey:
+			traceStateArray := strings.Split(v, ",")
+			for _, stItem := range traceStateArray {
+				stItem = strings.TrimSpace(stItem)
+				stItemArray := strings.Split(stItem, "=")
+				decodedBaggage[stItemArray[0]] = stItemArray[1]
 			}
 		default:
 			lowercaseK := strings.ToLower(k)
