@@ -1,29 +1,22 @@
 package tracer
 
 import (
-	"encoding/binary"
-	"io"
 	"strconv"
 	"strings"
 
-	"github.com/gogo/protobuf/proto"
 	opentracing "github.com/opentracing/opentracing-go"
-	"go.undefinedlabs.com/scopeagent/tracer/wire"
 )
 
 type textMapTraceContextPropagator struct {
 	tracer *tracerImpl
 }
-type binaryTraceContextPropagator struct {
-	tracer *tracerImpl
-}
 
 const (
-	traceparentKey = "traceparent"
-	tracestateKey  = "tracestate"
+	traceParentKey = "traceparent"
+	traceStateKey  = "tracestate"
 )
 
-func (p *textMapPropagator) Inject(
+func (p *textMapTraceContextPropagator) Inject(
 	spanContext opentracing.SpanContext,
 	opaqueCarrier interface{},
 ) error {
@@ -45,7 +38,7 @@ func (p *textMapPropagator) Inject(
 	return nil
 }
 
-func (p *textMapPropagator) Extract(
+func (p *textMapTraceContextPropagator) Extract(
 	opaqueCarrier interface{},
 ) (opentracing.SpanContext, error) {
 	carrier, ok := opaqueCarrier.(opentracing.TextMapReader)
@@ -100,76 +93,5 @@ func (p *textMapPropagator) Extract(
 		SpanID:  spanID,
 		Sampled: sampled,
 		Baggage: decodedBaggage,
-	}, nil
-}
-
-func (p *binaryPropagator) Inject(
-	spanContext opentracing.SpanContext,
-	opaqueCarrier interface{},
-) error {
-	sc, ok := spanContext.(SpanContext)
-	if !ok {
-		return opentracing.ErrInvalidSpanContext
-	}
-	carrier, ok := opaqueCarrier.(io.Writer)
-	if !ok {
-		return opentracing.ErrInvalidCarrier
-	}
-
-	state := wire.TracerState{}
-	state.TraceId = sc.TraceID
-	state.SpanId = sc.SpanID
-	state.Sampled = sc.Sampled
-	state.BaggageItems = sc.Baggage
-
-	b, err := proto.Marshal(&state)
-	if err != nil {
-		return err
-	}
-
-	// Write the length of the marshalled binary to the writer.
-	length := uint32(len(b))
-	if err := binary.Write(carrier, binary.BigEndian, &length); err != nil {
-		return err
-	}
-
-	_, err = carrier.Write(b)
-	return err
-}
-
-func (p *binaryPropagator) Extract(
-	opaqueCarrier interface{},
-) (opentracing.SpanContext, error) {
-	carrier, ok := opaqueCarrier.(io.Reader)
-	if !ok {
-		return nil, opentracing.ErrInvalidCarrier
-	}
-
-	// Read the length of marshalled binary. io.ReadAll isn't that performant
-	// since it keeps resizing the underlying buffer as it encounters more bytes
-	// to read. By reading the length, we can allocate a fixed sized buf and read
-	// the exact amount of bytes into it.
-	var length uint32
-	if err := binary.Read(carrier, binary.BigEndian, &length); err != nil {
-		return nil, opentracing.ErrSpanContextCorrupted
-	}
-	buf := make([]byte, length)
-	if n, err := carrier.Read(buf); err != nil {
-		if n > 0 {
-			return nil, opentracing.ErrSpanContextCorrupted
-		}
-		return nil, opentracing.ErrSpanContextNotFound
-	}
-
-	ctx := wire.TracerState{}
-	if err := proto.Unmarshal(buf, &ctx); err != nil {
-		return nil, opentracing.ErrSpanContextCorrupted
-	}
-
-	return SpanContext{
-		TraceID: ctx.TraceId,
-		SpanID:  ctx.SpanId,
-		Sampled: ctx.Sampled,
-		Baggage: ctx.BaggageItems,
 	}, nil
 }
