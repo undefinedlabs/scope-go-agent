@@ -170,7 +170,7 @@ func (test *Test) end() {
 	}
 
 	cov := test.endCoverage()
-	test.span.SetTag("test.coverage", *cov)
+	test.span.SetTag(tags.Coverage, *cov)
 
 	if r := recover(); r != nil {
 		test.span.SetTag("test.status", tags.TestStatus_FAIL)

@@ -55,4 +55,6 @@ const (
 	TestingMode = "testing"
 
 	ConfigurationKeys = "configuration.keys"
+
+	Coverage = "test.coverage"
 )
