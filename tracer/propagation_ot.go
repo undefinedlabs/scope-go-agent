@@ -126,8 +126,10 @@ func (p *textMapPropagator) Extract(
 			traceStateArray := strings.Split(v, ",")
 			for _, stItem := range traceStateArray {
 				stItem = strings.TrimSpace(stItem)
-				stItemArray := strings.Split(stItem, "=")
-				decodedBaggage[stItemArray[0]] = stItemArray[1]
+				if strings.IndexRune(stItem, '=') > -1 {
+					stItemArray := strings.Split(stItem, "=")
+					decodedBaggage[stItemArray[0]] = stItemArray[1]
+				}
 			}
 		default:
 			lowercaseK := strings.ToLower(k)
