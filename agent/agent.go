@@ -111,12 +111,20 @@ func WithGitInfo(repository string, commitSha string, sourceRoot string) Option 
 	}
 }
 
+func WithUserAgent(userAgent string) Option {
+	return func(agent *Agent) {
+		userAgent = strings.TrimSpace(userAgent)
+		if userAgent != "" {
+			agent.userAgent = userAgent
+		}
+	}
+}
+
 func WithAgentType(agentType string) Option {
 	return func(agent *Agent) {
 		agentType = strings.TrimSpace(agentType)
 		if agentType != "" {
 			agent.agentType = agentType
-			agent.userAgent = fmt.Sprintf("%s %s", agent.userAgent, agentType)
 		}
 	}
 }
