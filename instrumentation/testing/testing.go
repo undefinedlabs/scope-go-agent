@@ -77,11 +77,12 @@ func StartTest(t *testing.T, opts ...Option) *Test {
 func StartTestFromCaller(t *testing.T, pc uintptr, opts ...Option) *Test {
 	mutex.Lock()
 	if testPtr, ok := testMap[t]; ok {
-		mutex.Unlock()
-		return testPtr
+		testPtr.hasEnded = true
+		testPtr.stopCapturingLogs()
+		delete(testMap, testPtr.t)
 	}
 
-	test := &Test{t: t}
+	test := &Test{t: t, onPanicHandler: defaultPanicHandler}
 
 	testMap[t] = test
 	mutex.Unlock()
@@ -192,15 +193,6 @@ func (test *Test) End() {
 	test.span.Finish()
 }
 
-// Cancel instrumentation of a test
-func (test *Test) NoInstrument() {
-	mutex.Lock()
-	defer mutex.Unlock()
-	test.hasEnded = true
-	test.stopCapturingLogs()
-	delete(testMap, test.t)
-}
-
 // Gets the test context
 func (test *Test) Context() context.Context {
 	return test.ctx
@@ -304,7 +296,7 @@ func Init(m *testing.M) {
 			tests = append(tests, testing.InternalTest{
 				Name: test.Name,
 				F: func(t *testing.T) { // Creating a new test function as an indirection of the original test
-					tStruct := StartTestFromCaller(t, funcPointer, WithOnPanicHandler(defaultPanicHandler))
+					tStruct := StartTestFromCaller(t, funcPointer)
 					defer tStruct.End()
 					funcValue(t)
 				},

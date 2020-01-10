@@ -1,6 +1,7 @@
 package scopeagent // import "go.undefinedlabs.com/scopeagent"
 
 import (
+	"context"
 	"go.undefinedlabs.com/scopeagent/agent"
 	"go.undefinedlabs.com/scopeagent/instrumentation/logging"
 	scopetesting "go.undefinedlabs.com/scopeagent/instrumentation/testing"
@@ -34,14 +35,17 @@ func Run(m *testing.M, opts ...agent.Option) int {
 
 // Instruments the given test, returning a `Test` object that can be used to extend the test trace
 func StartTest(t *testing.T, opts ...scopetesting.Option) *scopetesting.Test {
-	opts = append(opts, scopetesting.WithOnPanicHandler(func(test *scopetesting.Test) {
-		if defaultAgent != nil {
-			_ = defaultAgent.Flush()
-			defaultAgent.PrintReport()
-		}
-	}))
 	pc, _, _, _ := runtime.Caller(1)
 	return scopetesting.StartTestFromCaller(t, pc, opts...)
+}
+
+// Gets the context from a test
+func GetContextFromTest(t *testing.T) context.Context {
+	test := scopetesting.GetTest(t)
+	if test != nil {
+		return test.Context()
+	}
+	return nil
 }
 
 // Instruments the given benchmark func
