@@ -69,13 +69,13 @@ func Run(m *testing.M, exitOnError bool, failRetriesCount int) int {
 // Gets the test name
 func GetTestName(name string) string {
 	if runnerRegexName == nil {
-		runnerRegexName = regexp.MustCompile(`(?m)([\w -:_]*)\/\[runner.[\w:]*]`)
+		runnerRegexName = regexp.MustCompile(`(?m)([\w -:_]*)\/\[runner.[\w:]*](\/[\w -:_]*)?`)
 	}
 	match := runnerRegexName.FindStringSubmatch(name)
 	if match == nil || len(match) == 0 {
 		return name
 	}
-	return match[1]
+	return match[1] + match[2]
 }
 
 // Runs the test suite
