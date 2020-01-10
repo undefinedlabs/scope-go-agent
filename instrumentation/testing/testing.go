@@ -198,6 +198,7 @@ func (test *Test) NoInstrument() {
 	defer mutex.Unlock()
 	test.hasEnded = true
 	test.stopCapturingLogs()
+	delete(testMap, test.t)
 }
 
 // Gets the test context
@@ -322,14 +323,6 @@ func GetTest(t *testing.T) *Test {
 		return test
 	}
 	return nil
-}
-
-// Sets the test context
-func SetContext(t *testing.T, ctx context.Context) {
-	test := GetTest(t)
-	if test != nil {
-		test.ctx = ctx
-	}
 }
 
 // Sets the default panic handler
