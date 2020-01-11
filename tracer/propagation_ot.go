@@ -180,7 +180,8 @@ func (p *binaryPropagator) Inject(
 
 	state := wire.TracerState{}
 	bytes, _ := sc.TraceID.MarshalBinary()
-	state.TraceId = binary.LittleEndian.Uint64(bytes[8:])
+	state.TraceIdHi = binary.LittleEndian.Uint64(bytes[:8])
+	state.TraceIdLo = binary.LittleEndian.Uint64(bytes[8:])
 	state.SpanId = sc.SpanID
 	state.Sampled = sc.Sampled
 	state.BaggageItems = sc.Baggage
@@ -230,7 +231,8 @@ func (p *binaryPropagator) Extract(
 	}
 
 	traceIdBytes := make([]byte, 16)
-	binary.LittleEndian.PutUint64(traceIdBytes, ctx.TraceId)
+	binary.LittleEndian.PutUint64(traceIdBytes[:8], ctx.TraceIdHi)
+	binary.LittleEndian.PutUint64(traceIdBytes[8:], ctx.TraceIdLo)
 	traceID, _ := uuid.FromBytes(traceIdBytes)
 	return SpanContext{
 		TraceID: traceID,

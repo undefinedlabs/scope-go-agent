@@ -1,6 +1,7 @@
 package tracer
 
 import (
+	"github.com/google/uuid"
 	"reflect"
 	"strconv"
 	"testing"
@@ -15,7 +16,7 @@ func TestSpan_Baggage(t *testing.T) {
 	recorder := NewInMemoryRecorder()
 	tracer := NewWithOptions(Options{
 		Recorder:     recorder,
-		ShouldSample: func(traceID uint64) bool { return true }, // always sample
+		ShouldSample: func(traceID uuid.UUID) bool { return true }, // always sample
 	})
 	span := tracer.StartSpan("x")
 	span.SetBaggageItem("x", "y")
@@ -52,7 +53,7 @@ func TestSpan_Sampling(t *testing.T) {
 	recorder := NewInMemoryRecorder()
 	tracer := NewWithOptions(Options{
 		Recorder:     recorder,
-		ShouldSample: func(traceID uint64) bool { return true },
+		ShouldSample: func(traceID uuid.UUID) bool { return true },
 	})
 	span := tracer.StartSpan("x")
 	span.Finish()
@@ -66,7 +67,7 @@ func TestSpan_Sampling(t *testing.T) {
 
 	tracer = NewWithOptions(Options{
 		Recorder:     recorder,
-		ShouldSample: func(traceID uint64) bool { return false },
+		ShouldSample: func(traceID uuid.UUID) bool { return false },
 	})
 
 	recorder.Reset()
@@ -85,7 +86,7 @@ func TestSpan_SingleLoggedTaggedSpan(t *testing.T) {
 	recorder := NewInMemoryRecorder()
 	tracer := NewWithOptions(Options{
 		Recorder:     recorder,
-		ShouldSample: func(traceID uint64) bool { return true }, // always sample
+		ShouldSample: func(traceID uuid.UUID) bool { return true }, // always sample
 	})
 	span := tracer.StartSpan("x")
 	span.LogEventWithPayload("event", "payload")
@@ -112,7 +113,7 @@ func TestSpan_TrimUnsampledSpans(t *testing.T) {
 	// Tracer that trims only unsampled but always samples
 	tracer := NewWithOptions(Options{
 		Recorder:           recorder,
-		ShouldSample:       func(traceID uint64) bool { return true }, // always sample
+		ShouldSample:       func(traceID uuid.UUID) bool { return true }, // always sample
 		TrimUnsampledSpans: true,
 	})
 
@@ -133,7 +134,7 @@ func TestSpan_TrimUnsampledSpans(t *testing.T) {
 	// Tracer that trims only unsampled and never samples
 	tracer = NewWithOptions(Options{
 		Recorder:           recorder,
-		ShouldSample:       func(traceID uint64) bool { return false }, // never sample
+		ShouldSample:       func(traceID uuid.UUID) bool { return false }, // never sample
 		TrimUnsampledSpans: true,
 	})
 
@@ -152,7 +153,7 @@ func TestSpan_DropAllLogs(t *testing.T) {
 	// Tracer that drops logs
 	tracer := NewWithOptions(Options{
 		Recorder:     recorder,
-		ShouldSample: func(traceID uint64) bool { return true }, // always sample
+		ShouldSample: func(traceID uuid.UUID) bool { return true }, // always sample
 		DropAllLogs:  true,
 	})
 
@@ -175,7 +176,7 @@ func TestSpan_MaxLogSperSpan(t *testing.T) {
 			// Tracer that only retains the last <limit> logs.
 			tracer := NewWithOptions(Options{
 				Recorder:       recorder,
-				ShouldSample:   func(traceID uint64) bool { return true }, // always sample
+				ShouldSample:   func(traceID uuid.UUID) bool { return true }, // always sample
 				MaxLogsPerSpan: limit,
 			})
 
