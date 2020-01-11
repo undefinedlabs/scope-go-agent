@@ -113,6 +113,7 @@ func (p *textMapPropagator) Extract(
 			if traceParentArray[3] == "01" {
 				sampled = true
 			}
+			requiredFieldCount = requiredFieldCount + 2
 		case traceStateKey:
 			traceStateArray := strings.Split(v, ",")
 			for _, stItem := range traceStateArray {
@@ -129,9 +130,6 @@ func (p *textMapPropagator) Extract(
 		requiredFieldCount++
 		return nil
 	})
-	if err != nil {
-		return nil, err
-	}
 	if traceID == uuid.Nil && spanID == 0 {
 		err = carrier.ForeachKey(func(k, v string) error {
 			switch strings.ToLower(k) {
