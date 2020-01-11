@@ -1,6 +1,7 @@
 package tracer
 
 import (
+	"github.com/google/uuid"
 	"math/rand"
 	"sync"
 	"time"
@@ -18,8 +19,8 @@ func randomID() uint64 {
 	return uint64(seededIDGen.Int63())
 }
 
-func randomID2() (uint64, uint64) {
+func randomID2() (uuid.UUID, uint64) {
 	seededIDLock.Lock()
 	defer seededIDLock.Unlock()
-	return uint64(seededIDGen.Int63()), uint64(seededIDGen.Int63())
+	return uuid.New(), uint64(seededIDGen.Int63())
 }

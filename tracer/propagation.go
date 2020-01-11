@@ -1,6 +1,9 @@
 package tracer
 
-import opentracing "github.com/opentracing/opentracing-go"
+import (
+	"github.com/google/uuid"
+	opentracing "github.com/opentracing/opentracing-go"
+)
 
 type accessorPropagator struct {
 	tracer *tracerImpl
@@ -10,8 +13,8 @@ type accessorPropagator struct {
 // by types which have a means of storing the trace metadata and already know
 // how to serialize themselves (for example, protocol buffers).
 type DelegatingCarrier interface {
-	SetState(traceID, spanID uint64, sampled bool)
-	State() (traceID, spanID uint64, sampled bool)
+	SetState(traceID uuid.UUID, spanID uint64, sampled bool)
+	State() (traceID uuid.UUID, spanID uint64, sampled bool)
 	SetBaggageItem(key, value string)
 	GetBaggage(func(key, value string))
 }

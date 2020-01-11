@@ -1,6 +1,8 @@
 package tracer
 
 import (
+	"encoding/binary"
+	"github.com/google/uuid"
 	"time"
 
 	"github.com/go-errors/errors"
@@ -27,7 +29,7 @@ type Options struct {
 	//   func(traceID uint64) { return traceID % 64 == 0 }
 	//
 	// samples every 64th trace on average.
-	ShouldSample func(traceID uint64) bool
+	ShouldSample func(traceID uuid.UUID) bool
 	// TrimUnsampledSpans turns potentially expensive operations on unsampled
 	// Spans into no-ops. More precisely, tags and log events are silently
 	// discarded. If NewSpanEventListener is set, the callbacks will still fire.
@@ -100,7 +102,13 @@ type Options struct {
 // returned object with a Tracer.
 func DefaultOptions() Options {
 	return Options{
-		ShouldSample:   func(traceID uint64) bool { return traceID%64 == 0 },
+		ShouldSample: func(traceID uuid.UUID) bool {
+			bytes, err := traceID.MarshalBinary()
+			if err != nil {
+				return false
+			}
+			return binary.LittleEndian.Uint64(bytes[8:])%64 == 0
+		},
 		MaxLogsPerSpan: 100,
 	}
 }
@@ -195,7 +203,7 @@ ReferencesLoop:
 			break ReferencesLoop
 		}
 	}
-	if sp.raw.Context.TraceID == 0 {
+	if sp.raw.Context.TraceID == uuid.Nil {
 		// No parent Span found; allocate new trace and span ids and determine
 		// the Sampled status.
 		sp.raw.Context.TraceID, sp.raw.Context.SpanID = randomID2()
