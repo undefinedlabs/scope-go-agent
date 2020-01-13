@@ -197,7 +197,7 @@ func NewAgent(options ...Option) (*Agent, error) {
 	agent.metadata[tags.InContainer] = isRunningInContainer()
 
 	// Dependencies
-	addToMapIfEmpty(agent.metadata, getDependenciesMap())
+	agent.metadata[tags.Dependencies] = getDependencyMap()
 
 	agent.recorder = NewSpanRecorder(agent)
 

@@ -8,12 +8,11 @@ import (
 )
 
 // Gets the dependencies map
-func getDependenciesMap() map[string]interface{} {
-	dependencies := map[string]interface{}{}
+func getDependencyMap() map[string]string {
+	dependencies := map[string]string{}
 	if modGraphBytes, err := exec.Command("go", "mod", "graph").Output(); err == nil {
 		strGraph := string(modGraphBytes)
 		lines := strings.Split(strGraph, "\n")
-		deps := map[string]string{}
 		for _, v := range lines {
 			if len(v) == 0 {
 				continue
@@ -21,10 +20,9 @@ func getDependenciesMap() map[string]interface{} {
 			lIdx := strings.LastIndex(v, " ") + 1
 			arr := strings.Split(v[lIdx:], "@")
 			if len(arr) == 2 {
-				deps[arr[0]] = arr[1]
+				dependencies[arr[0]] = arr[1]
 			}
 		}
-		dependencies[tags.Dependencies] = deps
 	}
 	return dependencies
 }
