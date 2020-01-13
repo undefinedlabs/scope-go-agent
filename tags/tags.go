@@ -49,4 +49,6 @@ const (
 	TestStatus_FAIL = "FAIL"
 	TestStatus_PASS = "PASS"
 	TestStatus_SKIP = "SKIP"
+
+	TestingMode = "testing"
 )
