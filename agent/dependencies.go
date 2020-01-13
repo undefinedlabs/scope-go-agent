@@ -3,8 +3,6 @@ package agent
 import (
 	"os/exec"
 	"strings"
-
-	"go.undefinedlabs.com/scopeagent/tags"
 )
 
 // Gets the dependencies map
