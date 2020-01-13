@@ -188,6 +188,7 @@ func NewAgent(options ...Option) (*Agent, error) {
 	agent.metadata[tags.AgentID] = agent.agentId
 	agent.metadata[tags.AgentVersion] = version
 	agent.metadata[tags.AgentType] = agent.agentType
+	agent.metadata[tags.TestingMode] = agent.testingMode
 
 	// Platform data
 	agent.metadata[tags.PlatformName] = runtime.GOOS
