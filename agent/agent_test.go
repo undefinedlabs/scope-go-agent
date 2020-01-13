@@ -36,6 +36,7 @@ func TestDsnParser(t *testing.T) {
 func TestGetDependencies(t *testing.T) {
 	deps := getDependencyMap()
 	fmt.Printf("%v\n", deps)
+	fmt.Printf("%d\n", len(deps))
 	if len(deps) < 40 {
 		t.FailNow()
 	}

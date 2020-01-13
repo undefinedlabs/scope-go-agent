@@ -2,24 +2,18 @@ package agent
 
 import (
 	"os/exec"
-	"strings"
+	"regexp"
 )
+
+var re = regexp.MustCompile(`(?mi)([a-z./0-9\-_+]*)@([a-z./0-9\-_+]*)$`)
 
 // Gets the dependencies map
 func getDependencyMap() map[string]string {
 	dependencies := map[string]string{}
 	if modGraphBytes, err := exec.Command("go", "mod", "graph").Output(); err == nil {
 		strGraph := string(modGraphBytes)
-		lines := strings.Split(strGraph, "\n")
-		for _, v := range lines {
-			if len(v) == 0 {
-				continue
-			}
-			lIdx := strings.LastIndex(v, " ") + 1
-			arr := strings.Split(v[lIdx:], "@")
-			if len(arr) == 2 {
-				dependencies[arr[0]] = arr[1]
-			}
+		for _, match := range re.FindAllStringSubmatch(strGraph, -1) {
+			dependencies[match[1]] = match[2]
 		}
 	}
 	return dependencies
