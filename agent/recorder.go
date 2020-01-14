@@ -9,6 +9,8 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
+	"net/url"
+	"path"
 	"sync"
 	"time"
 
@@ -54,7 +56,12 @@ func NewSpanRecorder(agent *Agent) *SpanRecorder {
 	r.metadata = agent.metadata
 	r.logger = agent.logger
 	r.flushFrequency = time.Minute
-	r.url = fmt.Sprintf("%s/%s", r.apiEndpoint, "api/agent/ingest")
+	u, err := url.Parse(r.apiEndpoint)
+	if err != nil {
+		r.logger.Fatal(err)
+	}
+	u.Path = path.Join(u.Path, "api/agent/ingest")
+	r.url = u.String()
 	r.client = &http.Client{}
 	r.t.Go(r.loop)
 	return r
