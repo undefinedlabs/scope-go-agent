@@ -101,7 +101,7 @@ func startBenchmark(b *testing.B, pc uintptr, benchFunc func(b *testing.B)) {
 
 	// Extracting the benchmark func name (by removing any possible sub-benchmark suffix `{bench_func}/{sub_benchmark}`)
 	// to search the func source code bounds and to calculate the package name.
-	fullTestName := runner.GetTestName(b.Name())
+	fullTestName := runner.GetOriginalTestName(b.Name())
 
 	// We detect if the parent benchmark is instrumented, and if so we remove the "*" SubBenchmark from the previous instrumentation
 	parentBenchmark := getParentBenchmark(b)

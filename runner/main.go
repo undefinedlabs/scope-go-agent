@@ -23,7 +23,6 @@ type (
 
 		failRetriesCount int
 		exitOnError      bool
-		exitCode         int
 	}
 	testDescriptor struct {
 		test    testing.InternalTest
@@ -67,7 +66,7 @@ func Run(m *testing.M, exitOnError bool, failRetriesCount int) int {
 }
 
 // Gets the test name
-func GetTestName(name string) string {
+func GetOriginalTestName(name string) string {
 	if runnerRegexName == nil {
 		runnerRegexName = regexp.MustCompile(`(?m)([\w -:_]*)\/\[runner.[\w:]*](\/[\w -:_]*)?`)
 	}
@@ -80,18 +79,15 @@ func GetTestName(name string) string {
 
 // Runs the test suite
 func (r *testRunner) Run() int {
-	r.exitCode = 0
-	r.m.Run()
-	return r.exitCode
+	return r.m.Run()
 }
 
 // Internal test processor, each test calls the processor in order to handle retries, process exiting and exitcodes
 func (r *testRunner) testProcessor(t *testing.T) {
-	t.Helper()
 	name := t.Name()
 	if item, ok := (*r.tests)[name]; ok {
 
-		//Sets the original test name
+		// Sets the original test name
 		if pointer, err := getFieldPointerOfT(t, "name"); err == nil {
 			*(*string)(pointer) = item.test.Name
 		}
@@ -115,11 +111,10 @@ func (r *testRunner) testProcessor(t *testing.T) {
 						it.FailNow()
 					}
 				}()
-				it.Helper()
 				innerTest = it
 				item.test.F(it)
 			})
-			innerTestInfo := r.getTestResultsInfo(innerTest)
+			innerTestInfo := getTestResultsInfo(innerTest)
 
 			if rc != nil {
 				if exitOnError {
@@ -153,15 +148,28 @@ func (r *testRunner) testProcessor(t *testing.T) {
 		if item.error && exitOnError {
 			panic(rc)
 		}
-		if item.error || item.failed {
-			r.exitCode = 1
-		} else {
-			if ptr, err := getFieldPointerOfT(t, "failed"); err == nil {
-				*(*bool)(ptr) = false
-			}
+		if !item.error && !item.failed {
+			removeTestFailureFlag(t)
 		}
 	} else {
 		t.FailNow()
+	}
+}
+
+func removeTestFailureFlag(t *testing.T) {
+	if t == nil {
+		return
+	}
+	if ptr, err := getFieldPointerOfT(t, "failed"); err == nil {
+		if *(*bool)(ptr) == true {
+			*(*bool)(ptr) = false
+			if parentPtr, err := getFieldPointerOfT(t, "parent"); err == nil {
+				parentTPointer := (**testing.T)(parentPtr)
+				if parentTPointer != nil && *parentTPointer != nil {
+					removeTestFailureFlag(*parentTPointer)
+				}
+			}
+		}
 	}
 }
 
@@ -170,7 +178,7 @@ func (r *testRunner) init() {
 	tests := make([]testing.InternalTest, 0)
 	benchmarks := make([]testing.InternalBenchmark, 0)
 
-	if tPointer, err := r.getFieldPointerOfM("tests"); err == nil {
+	if tPointer, err := getFieldPointerOfM(r.m, "tests"); err == nil {
 		r.intTests = (*[]testing.InternalTest)(tPointer)
 		r.tests = &map[string]*testDescriptor{}
 		for _, test := range *r.intTests {
@@ -189,7 +197,7 @@ func (r *testRunner) init() {
 		// Replace internal tests
 		*r.intTests = tests
 	}
-	if bPointer, err := r.getFieldPointerOfM("benchmarks"); err == nil {
+	if bPointer, err := getFieldPointerOfM(r.m, "benchmarks"); err == nil {
 		r.intBenchmarks = (*[]testing.InternalBenchmark)(bPointer)
 		r.benchmarks = &map[string]*benchmarkDescriptor{}
 
@@ -206,8 +214,8 @@ func (r *testRunner) init() {
 	}
 }
 
-func (r *testRunner) getFieldPointerOfM(fieldName string) (unsafe.Pointer, error) {
-	val := reflect.Indirect(reflect.ValueOf(r.m))
+func getFieldPointerOfM(m *testing.M, fieldName string) (unsafe.Pointer, error) {
+	val := reflect.Indirect(reflect.ValueOf(m))
 	member := val.FieldByName(fieldName)
 	if member.IsValid() {
 		ptrToY := unsafe.Pointer(member.UnsafeAddr())
@@ -216,12 +224,12 @@ func (r *testRunner) getFieldPointerOfM(fieldName string) (unsafe.Pointer, error
 	return nil, errors.New("field can't be retrieved")
 }
 
-func (r *testRunner) getFqnOfTest(tFunc func(*testing.T)) string {
+func getFqnOfTest(tFunc func(*testing.T)) string {
 	funcVal := runtime.FuncForPC(reflect.ValueOf(tFunc).Pointer())
 	return funcVal.Name()
 }
 
-func (r *testRunner) getFqnOfBenchmark(bFunc func(*testing.B)) string {
+func getFqnOfBenchmark(bFunc func(*testing.B)) string {
 	funcVal := runtime.FuncForPC(reflect.ValueOf(bFunc).Pointer())
 	return funcVal.Name()
 }
@@ -236,7 +244,7 @@ func getFieldPointerOfT(t *testing.T, fieldName string) (unsafe.Pointer, error) 
 	return nil, errors.New("field can't be retrieved")
 }
 
-func (r *testRunner) getTestResultsInfo(t *testing.T) *internalTestResult {
+func getTestResultsInfo(t *testing.T) *internalTestResult {
 	iTestResults := &internalTestResult{}
 	if ptr, err := getFieldPointerOfT(t, "ran"); err == nil {
 		iTestResults.ran = *(*bool)(ptr)

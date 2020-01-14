@@ -155,10 +155,15 @@ func WithConfiguration(values map[string]interface{}) Option {
 	}
 }
 
-func WithRetriesOnFail(retriesCount int, exitOnError bool) Option {
+func WithRetriesOnFail(retriesCount int) Option {
 	return func(agent *Agent) {
 		agent.failRetriesCount = retriesCount
-		agent.exitOnError = exitOnError
+	}
+}
+
+func WithHandlePanicAsFail() Option {
+	return func(agent *Agent) {
+		agent.exitOnError = true
 	}
 }
 
