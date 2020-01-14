@@ -223,6 +223,9 @@ func NewAgent(options ...Option) (*Agent, error) {
 
 	agent.metadata[tags.InContainer] = isRunningInContainer()
 
+	// Dependencies
+	agent.metadata[tags.Dependencies] = getDependencyMap()
+
 	agent.recorder = NewSpanRecorder(agent)
 
 	if _, set := os.LookupEnv("SCOPE_TESTING_MODE"); set {

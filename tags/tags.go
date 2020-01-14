@@ -28,6 +28,8 @@ const (
 	CIBuildNumber = "ci.build_number"
 	CIBuildUrl    = "ci.build_url"
 
+	Dependencies = "dependencies"
+
 	EventType      = "event"
 	EventSource    = "source"
 	EventMessage   = "message"
