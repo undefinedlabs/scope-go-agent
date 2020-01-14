@@ -365,14 +365,5 @@ func parseDSN(dsnString string) (apiKey string, apiEndpoint string, err error) {
 	}
 	uri.User = nil
 	apiEndpoint = uri.String()
-	apiEndpointLen := len(apiEndpoint)
-	if apiEndpointLen > 0 {
-		// Remove trailing slash if exist
-		if apiEndpoint[apiEndpointLen-1] == '/' {
-			apiEndpoint = apiEndpoint[:apiEndpointLen-1]
-		}
-	} else {
-		err = errors.New("api endpoint is empty")
-	}
 	return
 }
