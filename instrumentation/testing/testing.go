@@ -168,8 +168,7 @@ func (test *Test) extractTestLoggerOutput() {
 	}
 	outStr := string(*output)
 	var logArray []map[string]interface{}
-	for _, match := range TESTING_LOG_REGEX.FindAllString(outStr, -1) {
-		matches := TESTING_LOG_REGEX.FindStringSubmatch(match)
+	for _, matches := range TESTING_LOG_REGEX.FindAllStringSubmatch(outStr, -1) {
 
 		if matches[1] == "" {
 			msg := matches[3]
