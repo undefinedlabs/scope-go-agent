@@ -39,20 +39,13 @@ type (
 )
 
 var (
-	mutex   sync.Mutex
-	testMap map[*testing.T]*Test
+	testMapMutex sync.RWMutex
+	testMap      = map[*testing.T]*Test{}
 
 	intTests *[]testing.InternalTest
 
-	defaultPanicHandler func(*Test)
+	defaultPanicHandler = func(test *Test) {}
 )
-
-// Initialize vars
-func init() {
-	mutex = sync.Mutex{}
-	testMap = map[*testing.T]*Test{}
-	defaultPanicHandler = func(t *Test) {}
-}
 
 // Options for starting a new test
 func WithContext(ctx context.Context) Option {
@@ -75,7 +68,7 @@ func StartTest(t *testing.T, opts ...Option) *Test {
 
 // Starts a new test with and uses the caller pc info for Name and Suite
 func StartTestFromCaller(t *testing.T, pc uintptr, opts ...Option) *Test {
-	mutex.Lock()
+	testMapMutex.Lock()
 	if testPtr, ok := testMap[t]; ok {
 		testPtr.hasEnded = true
 		testPtr.stopCapturingLogs()
@@ -85,7 +78,7 @@ func StartTestFromCaller(t *testing.T, pc uintptr, opts ...Option) *Test {
 	test := &Test{t: t, onPanicHandler: defaultPanicHandler}
 
 	testMap[t] = test
-	mutex.Unlock()
+	testMapMutex.Unlock()
 
 	for _, opt := range opts {
 		opt(test)
@@ -138,13 +131,13 @@ func StartTestFromCaller(t *testing.T, pc uintptr, opts ...Option) *Test {
 
 // Ends the current test
 func (test *Test) End() {
-	mutex.Lock()
+	testMapMutex.Lock()
 	if test.hasEnded {
-		mutex.Unlock()
+		testMapMutex.Unlock()
 		return
 	}
 	test.hasEnded = true
-	mutex.Unlock()
+	testMapMutex.Unlock()
 	if r := recover(); r != nil {
 		test.span.SetTag("test.status", tags.TestStatus_FAIL)
 		test.span.SetTag("error", true)
@@ -309,8 +302,8 @@ func Init(m *testing.M) {
 
 // Gets the Test struct from testing.T
 func GetTest(t *testing.T) *Test {
-	mutex.Lock()
-	defer mutex.Unlock()
+	testMapMutex.RLock()
+	defer testMapMutex.RUnlock()
 	if test, ok := testMap[t]; ok {
 		return test
 	}
