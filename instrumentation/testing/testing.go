@@ -72,7 +72,6 @@ func StartTestFromCaller(t *testing.T, pc uintptr, opts ...Option) *Test {
 	if testPtr, ok := testMap[t]; ok {
 		testPtr.hasEnded = true
 		testPtr.stopCapturingLogs()
-		delete(testMap, testPtr.t)
 	}
 
 	test := &Test{t: t, onPanicHandler: defaultPanicHandler}
