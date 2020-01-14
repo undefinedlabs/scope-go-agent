@@ -47,8 +47,32 @@ var (
 	filePathData map[string]string
 )
 
+// Initialize coverage
+func InitCoverage() {
+	if filePathData == nil {
+		var files []string
+		for key := range cover.Blocks {
+			files = append(files, key)
+		}
+		pkgData, err := findPkgs(files)
+		if err != nil {
+			pkgData = map[string]*pkg{}
+			instrumentation.Logger().Printf("Coverage error: %v", err)
+		}
+		filePathData = map[string]string{}
+		for key := range cover.Blocks {
+			filePath, err := findFile(pkgData, key)
+			if err != nil {
+				instrumentation.Logger().Printf("Coverage error: %v", err)
+			} else {
+				filePathData[key] = filePath
+			}
+		}
+	}
+}
+
 // Clean the counters for a new coverage session
-func (test *Test) startCoverage() {
+func startCoverage() {
 	if counters == nil {
 		counters = map[string][]uint32{}
 		InitCoverage()
@@ -63,7 +87,7 @@ func (test *Test) startCoverage() {
 }
 
 // Get the counters values and extract the coverage info
-func (test *Test) endCoverage() *coverage {
+func endCoverage() *coverage {
 	fileMap := map[string][][]int{}
 	var active, total int64
 	var count uint32
@@ -102,29 +126,6 @@ func (test *Test) endCoverage() *coverage {
 		Files:   files,
 	}
 	return coverageData
-}
-
-func InitCoverage() {
-	if filePathData == nil {
-		var files []string
-		for key := range cover.Blocks {
-			files = append(files, key)
-		}
-		pkgData, err := findPkgs(files)
-		if err != nil {
-			pkgData = map[string]*pkg{}
-			instrumentation.Logger().Printf("Coverage error: %v", err)
-		}
-		filePathData = map[string]string{}
-		for key := range cover.Blocks {
-			filePath, err := findFile(pkgData, key)
-			if err != nil {
-				instrumentation.Logger().Printf("Coverage error: %v", err)
-			} else {
-				filePathData[key] = filePath
-			}
-		}
-	}
 }
 
 // Functions to find the absolute path from coverage data.

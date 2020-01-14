@@ -121,7 +121,7 @@ func StartTestFromCaller(t *testing.T, pc uintptr, opts ...Option) *Test {
 	test.ctx = ctx
 
 	logging.Reset()
-	test.startCoverage()
+	startCoverage()
 
 	return test
 }
@@ -169,7 +169,7 @@ func (test *Test) end() {
 		LogRecords: logRecords,
 	}
 
-	cov := test.endCoverage()
+	cov := endCoverage()
 	test.span.SetTag(tags.Coverage, *cov)
 
 	if r := recover(); r != nil {
