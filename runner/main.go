@@ -25,6 +25,7 @@ type (
 		exitOnError      bool
 	}
 	testDescriptor struct {
+		runner  *testRunner
 		test    testing.InternalTest
 		fqn     string
 		ran     int
@@ -65,98 +66,7 @@ func Run(m *testing.M, exitOnError bool, failRetriesCount int) int {
 	return runner.Run()
 }
 
-// Gets the test name
-func GetOriginalTestName(name string) string {
-	if runnerRegexName == nil {
-		runnerRegexName = regexp.MustCompile(`(?m)([\w -:_]*)\/\[runner.[\w:]*](\/[\w -:_]*)?`)
-	}
-	match := runnerRegexName.FindStringSubmatch(name)
-	if match == nil || len(match) == 0 {
-		return name
-	}
-	return match[1] + match[2]
-}
-
-// Runs the test suite
-func (r *testRunner) Run() int {
-	return r.m.Run()
-}
-
-// Internal test processor, each test calls the processor in order to handle retries, process exiting and exitcodes
-func (r *testRunner) testProcessor(t *testing.T) {
-	name := t.Name()
-	if item, ok := (*r.tests)[name]; ok {
-
-		// Sets the original test name
-		if pointer, err := getFieldPointerOfT(t, "name"); err == nil {
-			*(*string)(pointer) = item.test.Name
-		}
-
-		run := 1
-		maxRetries := r.failRetriesCount
-		exitOnError := r.exitOnError
-		var rc interface{}
-
-		for {
-			var innerTest *testing.T
-			title := "Run"
-			if run > 1 {
-				title = "Retry:" + strconv.Itoa(run-1)
-			}
-			title = "[runner." + title + "]"
-			t.Run(title, func(it *testing.T) {
-				defer func() {
-					rc = recover()
-					if rc != nil {
-						it.FailNow()
-					}
-				}()
-				innerTest = it
-				item.test.F(it)
-			})
-			innerTestInfo := getTestResultsInfo(innerTest)
-
-			if rc != nil {
-				if exitOnError {
-					panic(rc)
-				}
-				fmt.Println("PANIC RECOVER:", rc)
-				item.error = true
-			}
-			item.skipped = innerTestInfo.skipped
-			item.ran++
-
-			// Current run failure
-			if innerTestInfo.failed {
-				item.failed = true
-			}
-			// Current run ok but previous with fail -> Flaky
-			if !innerTestInfo.failed && item.failed {
-				item.failed = false
-				item.flaky = true
-				break
-			}
-
-			if item.skipped || !item.failed || run > maxRetries {
-				break
-			}
-			run++
-		}
-		if item.flaky {
-			fmt.Println("*** FLAKY", item.fqn)
-		}
-		if item.error && exitOnError {
-			panic(rc)
-		}
-		if !item.error && !item.failed {
-			removeTestFailureFlag(t)
-		}
-	} else {
-		t.FailNow()
-	}
-}
-
-// Initialize test runner
+// Initialize test runner, replace the internal test with an indirection
 func (r *testRunner) init() {
 	tests := make([]testing.InternalTest, 0)
 	benchmarks := make([]testing.InternalBenchmark, 0)
@@ -166,15 +76,17 @@ func (r *testRunner) init() {
 		r.tests = &map[string]*testDescriptor{}
 		for _, test := range *r.intTests {
 			fqn := test.Name
-			(*r.tests)[fqn] = &testDescriptor{
+			td := &testDescriptor{
+				runner: r,
 				test:   test,
 				fqn:    fqn,
 				ran:    0,
 				failed: false,
 			}
+			(*r.tests)[fqn] = td
 			tests = append(tests, testing.InternalTest{
 				Name: fqn,
-				F:    r.testProcessor,
+				F:    td.run,
 			})
 		}
 		// Replace internal tests
@@ -195,6 +107,91 @@ func (r *testRunner) init() {
 		// Replace internal benchmark
 		*r.intBenchmarks = benchmarks
 	}
+}
+
+// Runs the test suite
+func (r *testRunner) Run() int {
+	return r.m.Run()
+}
+
+// Internal test runner, each test calls this method in order to handle retries and process exiting
+func (td *testDescriptor) run(t *testing.T) {
+	// Sets the original test name
+	if pointer, err := getFieldPointerOfT(t, "name"); err == nil {
+		*(*string)(pointer) = td.test.Name
+	}
+
+	run := 1
+	maxRetries := td.runner.failRetriesCount
+	exitOnError := td.runner.exitOnError
+	var rc interface{}
+
+	for {
+		var innerTest *testing.T
+		title := "Run"
+		if run > 1 {
+			title = "Retry:" + strconv.Itoa(run-1)
+		}
+		title = "[runner." + title + "]"
+		t.Run(title, func(it *testing.T) {
+			defer func() {
+				rc = recover()
+				if rc != nil {
+					it.FailNow()
+				}
+			}()
+			innerTest = it
+			td.test.F(it)
+		})
+		innerTestInfo := getTestResultsInfo(innerTest)
+
+		if rc != nil {
+			if exitOnError {
+				panic(rc)
+			}
+			fmt.Println("PANIC RECOVER:", rc)
+			td.error = true
+		}
+		td.skipped = innerTestInfo.skipped
+		td.ran++
+
+		// Current run failure
+		if innerTestInfo.failed {
+			td.failed = true
+		}
+		// Current run ok but previous with fail -> Flaky
+		if !innerTestInfo.failed && td.failed {
+			td.failed = false
+			td.flaky = true
+			break
+		}
+
+		if td.skipped || !td.failed || run > maxRetries {
+			break
+		}
+		run++
+	}
+	if td.flaky {
+		fmt.Println("*** FLAKY", td.fqn)
+	}
+	if td.error && exitOnError {
+		panic(rc)
+	}
+	if !td.error && !td.failed {
+		removeTestFailureFlag(t)
+	}
+}
+
+// Gets the test name
+func GetOriginalTestName(name string) string {
+	if runnerRegexName == nil {
+		runnerRegexName = regexp.MustCompile(`(?m)([\w -:_]*)\/\[runner.[\w:]*](\/[\w -:_]*)?`)
+	}
+	match := runnerRegexName.FindStringSubmatch(name)
+	if match == nil || len(match) == 0 {
+		return name
+	}
+	return match[1] + match[2]
 }
 
 func removeTestFailureFlag(t *testing.T) {
