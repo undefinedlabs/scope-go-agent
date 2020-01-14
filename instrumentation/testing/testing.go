@@ -36,7 +36,7 @@ type (
 	Option func(*Test)
 )
 
-var TESTING_LOG_REGEX = regexp.MustCompile(`(?m) {4}(?:(?:(?P<file>[\w\/\.]+):(?P<line>\d+)): )?(.*)`)
+var TESTING_LOG_REGEX = regexp.MustCompile(`(?m)^ {4}(?P<file>[\w\/\.]+):(?P<line>\d+): (?P<message>(.*\n {8}.*)*.*)`)
 
 // Options for starting a new test
 func WithContext(ctx context.Context) Option {
@@ -167,37 +167,17 @@ func (test *Test) extractTestLoggerOutput() {
 		return
 	}
 	outStr := string(*output)
-	var logArray []map[string]interface{}
 	for _, matches := range TESTING_LOG_REGEX.FindAllStringSubmatch(outStr, -1) {
-
-		if matches[1] == "" {
-			msg := matches[3]
-			if strings.Index(msg, "    ") == 0 {
-				msg = msg[4:]
-			}
-			if len(logArray) > 0 {
-				logItem := logArray[len(logArray)-1]
-				logItem["message"] = logItem["message"].(string) + "\n" + msg
-			}
-		} else {
-			logItem := map[string]interface{}{
-				"file":    matches[1],
-				"line":    matches[2],
-				"message": matches[3],
-			}
-			logArray = append(logArray, logItem)
-		}
-	}
-
-	commonFields := []log.Field{
-		log.String(tags.EventType, tags.LogEvent),
-		log.String(tags.LogEventLevel, tags.LogLevel_VERBOSE),
-		log.String("log.logger", "test.Logger"),
-	}
-	for _, item := range logArray {
-		fields := append(commonFields, log.String(tags.EventMessage, item["message"].(string)))
-		fields = append(fields, log.String(tags.EventSource, fmt.Sprintf("%s:%s", item["file"].(string), item["line"].(string))))
-		test.span.LogFields(fields...)
+		file := matches[1]
+		line := matches[2]
+		message := strings.ReplaceAll(matches[3], "\n        ", "\n")
+		test.span.LogFields([]log.Field{
+			log.String(tags.EventType, tags.LogEvent),
+			log.String(tags.LogEventLevel, tags.LogLevel_VERBOSE),
+			log.String("log.logger", "test.Logger"),
+			log.String(tags.EventMessage, message),
+			log.String(tags.EventSource, fmt.Sprintf("%s:%s", file, line)),
+		}...)
 	}
 }
 
