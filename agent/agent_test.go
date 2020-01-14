@@ -17,6 +17,12 @@ func TestDsnParser(t *testing.T) {
 
 		{"4432432432432423@shared.scope.dev", "", "4432432432432423@shared.scope.dev"},
 		{"noise", "", "noise"},
+
+		{"https://4432432432432423@shared.scope.dev/", "4432432432432423", "https://shared.scope.dev"},
+		{"http://4432432432432423@shared.scope.dev/", "4432432432432423", "http://shared.scope.dev"},
+		{"https://4432432432432423:ignored@shared.scope.dev/", "4432432432432423", "https://shared.scope.dev"},
+		{"https://4432432432432423:ignored@shared.scope.dev/custom/path/", "4432432432432423", "https://shared.scope.dev/custom/path"},
+		{"https://4432432432432423:ignored@scope.dev/", "4432432432432423", "https://scope.dev"},
 	}
 
 	for i := 0; i < len(dsnValues); i++ {
