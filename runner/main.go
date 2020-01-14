@@ -156,23 +156,6 @@ func (r *testRunner) testProcessor(t *testing.T) {
 	}
 }
 
-func removeTestFailureFlag(t *testing.T) {
-	if t == nil {
-		return
-	}
-	if ptr, err := getFieldPointerOfT(t, "failed"); err == nil {
-		if *(*bool)(ptr) == true {
-			*(*bool)(ptr) = false
-			if parentPtr, err := getFieldPointerOfT(t, "parent"); err == nil {
-				parentTPointer := (**testing.T)(parentPtr)
-				if parentTPointer != nil && *parentTPointer != nil {
-					removeTestFailureFlag(*parentTPointer)
-				}
-			}
-		}
-	}
-}
-
 // Initialize test runner
 func (r *testRunner) init() {
 	tests := make([]testing.InternalTest, 0)
@@ -211,6 +194,23 @@ func (r *testRunner) init() {
 		}
 		// Replace internal benchmark
 		*r.intBenchmarks = benchmarks
+	}
+}
+
+func removeTestFailureFlag(t *testing.T) {
+	if t == nil {
+		return
+	}
+	if ptr, err := getFieldPointerOfT(t, "failed"); err == nil {
+		if *(*bool)(ptr) == true {
+			*(*bool)(ptr) = false
+			if parentPtr, err := getFieldPointerOfT(t, "parent"); err == nil {
+				parentTPointer := (**testing.T)(parentPtr)
+				if parentTPointer != nil && *parentTPointer != nil {
+					removeTestFailureFlag(*parentTPointer)
+				}
+			}
+		}
 	}
 }
 
