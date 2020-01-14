@@ -13,13 +13,7 @@ import (
 
 type (
 	testRunner struct {
-		m             *testing.M
-		intTests      *[]testing.InternalTest
-		intBenchmarks *[]testing.InternalBenchmark
-
-		tests      *map[string]*testDescriptor
-		benchmarks *map[string]*benchmarkDescriptor
-
+		m                *testing.M
 		failRetriesCount int
 		exitOnError      bool
 	}
@@ -31,10 +25,6 @@ type (
 		flaky   bool
 		error   bool
 		skipped bool
-	}
-	benchmarkDescriptor struct {
-		benchmark testing.InternalBenchmark
-		skipped   bool
 	}
 	internalTestResult struct {
 		ran        bool      // Test or benchmark (or one of its subtests) was executed.
@@ -65,40 +55,23 @@ func Run(m *testing.M, exitOnError bool, failRetriesCount int) int {
 
 // Initialize test runner, replace the internal test with an indirection
 func (r *testRunner) init() {
-	tests := make([]testing.InternalTest, 0)
-	benchmarks := make([]testing.InternalBenchmark, 0)
-
 	if tPointer, err := getFieldPointerOfM(r.m, "tests"); err == nil {
-		r.intTests = (*[]testing.InternalTest)(tPointer)
-		r.tests = &map[string]*testDescriptor{}
-		for _, test := range *r.intTests {
+		tests := make([]testing.InternalTest, 0)
+		internalTests := (*[]testing.InternalTest)(tPointer)
+		for _, test := range *internalTests {
 			td := &testDescriptor{
 				runner: r,
 				test:   test,
 				ran:    0,
 				failed: false,
 			}
-			(*r.tests)[test.Name] = td
 			tests = append(tests, testing.InternalTest{
 				Name: test.Name,
 				F:    td.run,
 			})
 		}
 		// Replace internal tests
-		*r.intTests = tests
-	}
-	if bPointer, err := getFieldPointerOfM(r.m, "benchmarks"); err == nil {
-		r.intBenchmarks = (*[]testing.InternalBenchmark)(bPointer)
-		r.benchmarks = &map[string]*benchmarkDescriptor{}
-
-		for _, benchmark := range *r.intBenchmarks {
-			(*r.benchmarks)[benchmark.Name] = &benchmarkDescriptor{
-				benchmark: benchmark,
-			}
-			benchmarks = append(benchmarks, benchmark)
-		}
-		// Replace internal benchmark
-		*r.intBenchmarks = benchmarks
+		*internalTests = tests
 	}
 }
 
