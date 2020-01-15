@@ -1,13 +1,13 @@
-package testing
+package logging
 
 import (
 	"fmt"
 	stdlog "log"
 	"regexp"
-	goTest "testing"
+	"testing"
 )
 
-func TestLoggingRegex(t *goTest.T) {
+func TestLoggingRegex(t *testing.T) {
 	re := regexp.MustCompile(fmt.Sprintf(LOG_REGEX_TEMPLATE, stdlog.Prefix()))
 
 	var loglines = [][]string{
@@ -39,7 +39,7 @@ func TestLoggingRegex(t *goTest.T) {
 
 	for i := 0; i < len(loglines); i++ {
 		logline := loglines[i]
-		t.Run(fmt.Sprintf("Value %v", i), func(st *goTest.T) {
+		t.Run(fmt.Sprintf("Value %v", i), func(st *testing.T) {
 			matches := re.FindStringSubmatch(logline[0])
 
 			for idx := 0; idx <= 5; idx++ {

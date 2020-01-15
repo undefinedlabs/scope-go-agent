@@ -9,6 +9,7 @@ import (
 	"go.undefinedlabs.com/scopeagent/ast"
 	"go.undefinedlabs.com/scopeagent/errors"
 	"go.undefinedlabs.com/scopeagent/instrumentation"
+	"go.undefinedlabs.com/scopeagent/instrumentation/logging"
 	"go.undefinedlabs.com/scopeagent/tags"
 	"math"
 	"reflect"
@@ -25,9 +26,6 @@ type (
 		ctx              context.Context
 		span             opentracing.Span
 		t                *testing.T
-		stdOut           *stdIO
-		stdErr           *stdIO
-		loggerStdIO      *stdIO
 		failReason       string
 		failReasonSource string
 		skipReason       string
@@ -105,8 +103,7 @@ func StartTestFromCaller(t *testing.T, pc uintptr, opts ...Option) *Test {
 	span.SetBaggageItem("trace.kind", "test")
 	test.span = span
 	test.ctx = ctx
-
-	test.startCapturingLogs()
+	logging.SetCurrentSpan(span)
 
 	return test
 }
@@ -114,10 +111,10 @@ func StartTestFromCaller(t *testing.T, pc uintptr, opts ...Option) *Test {
 // Ends the current test
 func (test *Test) End() {
 	if r := recover(); r != nil {
-		test.stopCapturingLogs()
 		test.span.SetTag("test.status", tags.TestStatus_FAIL)
 		test.span.SetTag("error", true)
 		errors.LogError(test.span, r, 1)
+		logging.SetCurrentSpan(nil)
 		test.span.Finish()
 		if test.onPanicHandler != nil {
 			test.onPanicHandler(test)
@@ -157,7 +154,7 @@ func (test *Test) End() {
 		test.span.SetTag("test.status", tags.TestStatus_PASS)
 	}
 
-	test.stopCapturingLogs()
+	logging.SetCurrentSpan(nil)
 	test.span.Finish()
 }
 

@@ -2,6 +2,7 @@ package scopeagent // import "go.undefinedlabs.com/scopeagent"
 
 import (
 	"go.undefinedlabs.com/scopeagent/agent"
+	"go.undefinedlabs.com/scopeagent/instrumentation/logging"
 	scopetesting "go.undefinedlabs.com/scopeagent/instrumentation/testing"
 	"runtime"
 	"testing"
@@ -16,6 +17,9 @@ func Run(m *testing.M, opts ...agent.Option) int {
 	if err != nil {
 		return m.Run()
 	}
+
+	logging.Init()
+	defer logging.Finalize()
 
 	defer newAgent.Stop()
 	defaultAgent = newAgent
