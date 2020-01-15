@@ -28,10 +28,11 @@ type stdIO struct {
 }
 
 var (
-	loggerStdIO *stdIO
-	stdOut      *stdIO
-	stdErr      *stdIO
-	currentSpan opentracing.Span
+	loggerStdIO      *stdIO
+	stdOut           *stdIO
+	stdErr           *stdIO
+	currentSpan      opentracing.Span
+	currentSpanMutex sync.RWMutex
 )
 
 // Initialize logging instrumentation
@@ -47,12 +48,15 @@ func Init() {
 
 	// Starts stdIO pipe handlers
 	if stdOut != nil {
+		stdOut.sync.Add(1)
 		go stdIOHandler(stdOut, false)
 	}
 	if stdErr != nil {
+		stdErr.sync.Add(1)
 		go stdIOHandler(stdErr, true)
 	}
 	if loggerStdIO != nil {
+		loggerStdIO.sync.Add(1)
 		go loggerStdIOHandler(loggerStdIO)
 	}
 }
@@ -67,6 +71,8 @@ func Finalize() {
 
 // Sets the current span for logger
 func SetCurrentSpan(span opentracing.Span) {
+	currentSpanMutex.Lock()
+	defer currentSpanMutex.Unlock()
 	currentSpan = span
 }
 
@@ -95,21 +101,26 @@ func newStdIO(file **os.File, replace bool) *stdIO {
 // Restores the old file instance
 func (stdIO *stdIO) restore(file **os.File, replace bool) {
 	if file != nil {
+		// We force a flush of the file/pipe
 		_ = (*file).Sync()
 	}
 	if stdIO == nil {
 		return
 	}
 	if stdIO.readPipe != nil {
+		// We force a flush in the read pipe so we can write the latest data
 		_ = stdIO.readPipe.Sync()
 	}
 	if stdIO.writePipe != nil {
+		// We force a flush in the write pipe and close it
 		_ = stdIO.writePipe.Sync()
 		_ = stdIO.writePipe.Close()
 	}
 	if stdIO.readPipe != nil {
+		// We close the read pipe, this sends the EOF signal to the handler
 		_ = stdIO.readPipe.Close()
 	}
+	// Wait until the handler go routine is done
 	stdIO.sync.Wait()
 	if replace && file != nil {
 		*file = stdIO.oldIO
@@ -118,14 +129,15 @@ func (stdIO *stdIO) restore(file **os.File, replace bool) {
 
 // Handles the StdIO pipe for stdout and stderr
 func stdIOHandler(stdio *stdIO, isError bool) {
-	stdio.sync.Add(1)
 	defer stdio.sync.Done()
 	reader := bufio.NewReader(stdio.readPipe)
 	for {
 		line, err := reader.ReadString('\n')
 		if err != nil {
+			// Error or EOF
 			break
 		}
+		currentSpanMutex.RLock()
 		if currentSpan != nil && len(strings.TrimSpace(line)) > 0 {
 			if isError {
 				currentSpan.LogFields(
@@ -141,13 +153,13 @@ func stdIOHandler(stdio *stdIO, isError bool) {
 				)
 			}
 		}
+		currentSpanMutex.RUnlock()
 		_, _ = stdio.oldIO.WriteString(line)
 	}
 }
 
 // Handles the StdIO for a logger
 func loggerStdIOHandler(stdio *stdIO) {
-	stdio.sync.Add(1)
 	defer stdio.sync.Done()
 	commonFields := []log.Field{
 		log.String(tags.EventType, tags.LogEvent),
@@ -159,9 +171,11 @@ func loggerStdIOHandler(stdio *stdIO) {
 	for {
 		line, err := reader.ReadString('\n')
 		if err != nil {
+			// Error or EOF
 			break
 		}
 
+		currentSpanMutex.RLock()
 		if currentSpan != nil {
 			matches := re.FindStringSubmatch(line)
 			file := matches[3]
@@ -173,6 +187,7 @@ func loggerStdIOHandler(stdio *stdIO) {
 			}
 			currentSpan.LogFields(fields...)
 		}
+		currentSpanMutex.RUnlock()
 
 		if stdio.oldIO != nil {
 			_, _ = stdio.oldIO.WriteString(line)
