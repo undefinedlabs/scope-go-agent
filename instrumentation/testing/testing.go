@@ -167,18 +167,23 @@ func (test *Test) extractTestLoggerOutput() {
 		return
 	}
 	outStr := string(*output)
-	for _, matches := range TESTING_LOG_REGEX.FindAllStringSubmatch(outStr, -1) {
-		file := matches[1]
-		line := matches[2]
-		message := strings.ReplaceAll(matches[3], "\n        ", "\n")
+	for _, matches := range findMatchesLogRegex(outStr) {
 		test.span.LogFields([]log.Field{
 			log.String(tags.EventType, tags.LogEvent),
 			log.String(tags.LogEventLevel, tags.LogLevel_VERBOSE),
 			log.String("log.logger", "test.Logger"),
-			log.String(tags.EventMessage, message),
-			log.String(tags.EventSource, fmt.Sprintf("%s:%s", file, line)),
+			log.String(tags.EventMessage, matches[3]),
+			log.String(tags.EventSource, fmt.Sprintf("%s:%s", matches[1], matches[2])),
 		}...)
 	}
+}
+
+func findMatchesLogRegex(output string) [][]string {
+	allMatches := TESTING_LOG_REGEX.FindAllStringSubmatch(output, -1)
+	for _, matches := range allMatches {
+		matches[3] = strings.ReplaceAll(matches[3], "\n        ", "\n")
+	}
+	return allMatches
 }
 
 func extractTestOutput(t *testing.T) *[]byte {
