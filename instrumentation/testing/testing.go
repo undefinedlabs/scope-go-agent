@@ -38,9 +38,10 @@ type (
 )
 
 var (
-	testMapMutex          sync.RWMutex
-	testMap               = map[*testing.T]*Test{}
-	autoinstrumentedTests = map[*testing.T]bool{}
+	testMapMutex               sync.RWMutex
+	testMap                    = map[*testing.T]*Test{}
+	autoInstrumentedTestsMutex sync.RWMutex
+	autoInstrumentedTests      = map[*testing.T]bool{}
 
 	defaultPanicHandler = func(test *Test) {}
 )
@@ -56,7 +57,7 @@ func Init(m *testing.M) {
 			tests = append(tests, testing.InternalTest{
 				Name: test.Name,
 				F: func(t *testing.T) { // Creating a new test function as an indirection of the original test
-					autoinstrumentedTests[t] = true
+					addAutoInstrumentedTest(t)
 					tStruct := StartTestFromCaller(t, funcPointer)
 					defer tStruct.end()
 					funcValue(t)
@@ -145,8 +146,10 @@ func StartTestFromCaller(t *testing.T, pc uintptr, opts ...Option) *Test {
 
 // Ends the current test
 func (test *Test) End() {
+	autoInstrumentedTestsMutex.RLock()
+	defer autoInstrumentedTestsMutex.RUnlock()
 	// First we detect if the current test is auto-instrumented, if not we call the end method (needed in sub tests)
-	if _, ok := autoinstrumentedTests[test.t]; !ok {
+	if _, ok := autoInstrumentedTests[test.t]; !ok {
 		test.end()
 	}
 }
@@ -160,8 +163,9 @@ func (test *Test) Context() context.Context {
 func (test *Test) Run(name string, f func(t *testing.T)) {
 	pc, _, _, _ := runtime.Caller(1)
 	test.t.Run(name, func(childT *testing.T) {
+		addAutoInstrumentedTest(childT)
 		childTest := StartTestFromCaller(childT, pc)
-		defer childTest.End()
+		defer childTest.end()
 		f(childT)
 	})
 }
@@ -246,6 +250,13 @@ func GetTest(t *testing.T) *Test {
 		return test
 	}
 	return nil
+}
+
+// Adds an auto instrumented test to the map
+func addAutoInstrumentedTest(t *testing.T) {
+	autoInstrumentedTestsMutex.Lock()
+	defer autoInstrumentedTestsMutex.Unlock()
+	autoInstrumentedTests[t] = true
 }
 
 // Starts a new benchmark using a pc as caller
