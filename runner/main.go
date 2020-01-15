@@ -10,6 +10,8 @@ import (
 	"sync"
 	"testing"
 	"unsafe"
+
+	goerrors "github.com/go-errors/errors"
 )
 
 type (
@@ -88,7 +90,7 @@ func (td *testDescriptor) run(t *testing.T) {
 	run := 1
 	maxRetries := td.runner.failRetriesCount
 	exitOnError := td.runner.exitOnError
-	var rc interface{}
+	var innerError *goerrors.Error
 
 	for {
 		var innerTest *testing.T
@@ -102,8 +104,10 @@ func (td *testDescriptor) run(t *testing.T) {
 			// https://stackoverflow.com/a/53950628
 			it.Run("[group]", func(gt *testing.T) {
 				defer func() {
-					rc = recover()
+					rc := recover()
 					if rc != nil {
+						// using go-errors to preserve stacktrace
+						innerError = goerrors.Wrap(rc, 2)
 						gt.FailNow()
 					}
 				}()
@@ -111,11 +115,11 @@ func (td *testDescriptor) run(t *testing.T) {
 				td.test.F(gt)
 			})
 		})
-		if rc != nil {
+		if innerError != nil {
 			if exitOnError {
-				panic(rc)
+				panic(innerError.ErrorStack())
 			}
-			td.runner.logger.Println("PANIC RECOVER:", rc)
+			td.runner.logger.Println("PANIC RECOVER:", innerError)
 			td.error = true
 		}
 		td.skipped = innerTest.Skipped()
@@ -154,7 +158,7 @@ func (td *testDescriptor) run(t *testing.T) {
 	if td.error && exitOnError {
 		// If after all recovers and retries the test finish with error and we have the exitOnError flag,
 		// we panic with the latest recovered data
-		panic(rc)
+		panic(innerError)
 	}
 	if !td.error && !td.failed {
 		// If test pass or flaky
