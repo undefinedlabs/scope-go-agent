@@ -333,7 +333,7 @@ func (a *Agent) Logger() *log.Logger {
 func (a *Agent) Run(m *testing.M) int {
 	defer a.Stop()
 	if !a.exitOnError || a.failRetriesCount > 0 {
-		return runner.Run(m, a.exitOnError, a.failRetriesCount)
+		return runner.Run(m, a.exitOnError, a.failRetriesCount, a.logger)
 	}
 	return m.Run()
 }
