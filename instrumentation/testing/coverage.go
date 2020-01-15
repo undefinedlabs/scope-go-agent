@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"testing"
 	_ "unsafe"
@@ -30,7 +31,6 @@ type (
 		Filename   string  `json:"filename" msgpack:"filename"`
 		Boundaries [][]int `json:"boundaries" msgpack:"boundaries"`
 	}
-
 	pkg struct {
 		ImportPath string
 		Dir        string
@@ -42,9 +42,10 @@ type (
 
 //go:linkname cover testing.cover
 var (
-	cover        testing.Cover
-	counters     map[string][]uint32
-	filePathData map[string]string
+	cover         testing.Cover
+	counters      map[string][]uint32
+	countersMutex sync.Mutex
+	filePathData  map[string]string
 )
 
 // Initialize coverage
@@ -73,6 +74,9 @@ func InitCoverage() {
 
 // Clean the counters for a new coverage session
 func startCoverage() {
+	countersMutex.Lock()
+	defer countersMutex.Unlock()
+
 	if counters == nil {
 		counters = map[string][]uint32{}
 		InitCoverage()
@@ -88,6 +92,9 @@ func startCoverage() {
 
 // Get the counters values and extract the coverage info
 func endCoverage() *coverage {
+	countersMutex.Lock()
+	defer countersMutex.Unlock()
+
 	fileMap := map[string][][]int{}
 	var active, total int64
 	var count uint32
@@ -100,12 +107,13 @@ func endCoverage() *coverage {
 			atomic.StoreUint32(&counts[i], counters[name][i]+count)
 			if count > 0 {
 				active += stmts
+				curBlock := blocks[i]
 				if file, ok := filePathData[name]; ok {
 					fileMap[file] = append(fileMap[file], []int{
-						int(blocks[i].Line0), int(blocks[i].Col0), int(count),
+						int(curBlock.Line0), int(curBlock.Col0), int(count),
 					})
 					fileMap[file] = append(fileMap[file], []int{
-						int(blocks[i].Line1), int(blocks[i].Col1), -1,
+						int(curBlock.Line1), int(curBlock.Col1), -1,
 					})
 				}
 			}
@@ -113,6 +121,21 @@ func endCoverage() *coverage {
 	}
 	files := make([]fileCoverage, 0)
 	for key, value := range fileMap {
+
+		// Check if we have collision on line and column in consecutive boundaries
+		// This collision happens on coverage with for loops, the `{` char of the for appears twice in two blocks
+		for i := 0; i <= len(value)-4; i = i + 4 {
+			cBound1 := value[i+1]
+			nBound0 := value[i+2]
+			if cBound1[0] == nBound0[0] {
+				// Same line
+				if cBound1[1] == nBound0[1] {
+					// Same column, so we move one column backward in the first boundary
+					cBound1[1] = cBound1[1] - 1
+				}
+			}
+		}
+
 		files = append(files, fileCoverage{
 			Filename:   key,
 			Boundaries: value,
@@ -130,7 +153,6 @@ func endCoverage() *coverage {
 
 // Functions to find the absolute path from coverage data.
 // Extracted from: https://github.com/golang/go/blob/master/src/cmd/cover/func.go
-
 func findPkgs(fileNames []string) (map[string]*pkg, error) {
 	// Run go list to find the location of every package we care about.
 	pkgs := make(map[string]*pkg)
