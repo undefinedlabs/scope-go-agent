@@ -32,20 +32,41 @@ type (
 		skipReason       string
 		skipReasonSource string
 		onPanicHandler   func(*Test)
-		hasEnded         bool
 	}
 
 	Option func(*Test)
 )
 
 var (
-	testMapMutex sync.RWMutex
-	testMap      = map[*testing.T]*Test{}
-
-	intTests *[]testing.InternalTest
+	testMapMutex          sync.RWMutex
+	testMap               = map[*testing.T]*Test{}
+	autoinstrumentedTests = map[*testing.T]bool{}
 
 	defaultPanicHandler = func(test *Test) {}
 )
+
+// Initialize the testing instrumentation
+func Init(m *testing.M) {
+	if tPointer, err := getFieldPointerOfM(m, "tests"); err == nil {
+		intTests := (*[]testing.InternalTest)(tPointer)
+		tests := make([]testing.InternalTest, 0)
+		for _, test := range *intTests {
+			funcValue := test.F
+			funcPointer := reflect.ValueOf(funcValue).Pointer()
+			tests = append(tests, testing.InternalTest{
+				Name: test.Name,
+				F: func(t *testing.T) { // Creating a new test function as an indirection of the original test
+					autoinstrumentedTests[t] = true
+					tStruct := StartTestFromCaller(t, funcPointer)
+					defer tStruct.end()
+					funcValue(t)
+				},
+			})
+		}
+		// Replace internal tests with new test indirection
+		*intTests = tests
+	}
+}
 
 // Options for starting a new test
 func WithContext(ctx context.Context) Option {
@@ -68,16 +89,10 @@ func StartTest(t *testing.T, opts ...Option) *Test {
 
 // Starts a new test with and uses the caller pc info for Name and Suite
 func StartTestFromCaller(t *testing.T, pc uintptr, opts ...Option) *Test {
-	testMapMutex.Lock()
-	if testPtr, ok := testMap[t]; ok {
-		testPtr.hasEnded = true
-		testPtr.stopCapturingLogs()
-	}
-
-	test := &Test{t: t, onPanicHandler: defaultPanicHandler}
-
-	testMap[t] = test
-	testMapMutex.Unlock()
+	// Get or create a new Test struct
+	// If we get an old struct we replace the current span and context with a new one.
+	// Useful if we want to overwrite the Start call with options
+	test := getOrCreateTest(t)
 
 	for _, opt := range opts {
 		opt(test)
@@ -130,13 +145,30 @@ func StartTestFromCaller(t *testing.T, pc uintptr, opts ...Option) *Test {
 
 // Ends the current test
 func (test *Test) End() {
-	testMapMutex.Lock()
-	if test.hasEnded {
-		testMapMutex.Unlock()
-		return
+	// First we detect if the current test is auto-instrumented, if not we call the end method (needed in sub tests)
+	if _, ok := autoinstrumentedTests[test.t]; !ok {
+		test.end()
 	}
-	test.hasEnded = true
-	testMapMutex.Unlock()
+}
+
+// Gets the test context
+func (test *Test) Context() context.Context {
+	return test.ctx
+}
+
+// Runs a sub test
+func (test *Test) Run(name string, f func(t *testing.T)) {
+	pc, _, _, _ := runtime.Caller(1)
+	test.t.Run(name, func(childT *testing.T) {
+		childTest := StartTestFromCaller(childT, pc)
+		defer childTest.End()
+		f(childT)
+	})
+}
+
+// Ends the current test (this method is called from the auto-instrumentation)
+func (test *Test) end() {
+	removeTest(test.t) // First we remove the Test struct from the hash map, so a call to Start while we end this instance will create a new struct
 	if r := recover(); r != nil {
 		test.span.SetTag("test.status", tags.TestStatus_FAIL)
 		test.span.SetTag("error", true)
@@ -185,30 +217,35 @@ func (test *Test) End() {
 	test.span.Finish()
 }
 
-// Gets the test context
-func (test *Test) Context() context.Context {
-	return test.ctx
-}
-
-// Runs a sub test
-func (test *Test) Run(name string, f func(t *testing.T)) {
-	pc, _, _, _ := runtime.Caller(1)
-	test.t.Run(name, func(childT *testing.T) {
-		childTest := StartTestFromCaller(childT, pc)
-		defer childTest.End()
-		f(childT)
-	})
-}
-
-//Extract benchmark result from the private result field in testing.B
-func extractBenchmarkResult(b *testing.B) (*testing.BenchmarkResult, error) {
-	val := reflect.Indirect(reflect.ValueOf(b))
-	member := val.FieldByName("result")
-	if member.IsValid() {
-		ptrToY := unsafe.Pointer(member.UnsafeAddr())
-		return (*testing.BenchmarkResult)(ptrToY), nil
+// Gets or create a test struct
+func getOrCreateTest(t *testing.T) *Test {
+	testMapMutex.Lock()
+	defer testMapMutex.Unlock()
+	var test *Test
+	if testPtr, ok := testMap[t]; ok {
+		test = testPtr
+	} else {
+		test = &Test{t: t, onPanicHandler: defaultPanicHandler}
+		testMap[t] = test
 	}
-	return nil, stdErrors.New("result can't be retrieved")
+	return test
+}
+
+// Removes a test struct from the map
+func removeTest(t *testing.T) {
+	testMapMutex.Lock()
+	defer testMapMutex.Unlock()
+	delete(testMap, t)
+}
+
+// Gets the Test struct from testing.T
+func GetTest(t *testing.T) *Test {
+	testMapMutex.RLock()
+	defer testMapMutex.RUnlock()
+	if test, ok := testMap[t]; ok {
+		return test
+	}
+	return nil
 }
 
 // Starts a new benchmark using a pc as caller
@@ -277,36 +314,15 @@ func StartBenchmark(b *testing.B, pc uintptr, benchFunc func(b *testing.B)) {
 	})
 }
 
-// Initialize the testing instrumentation
-func Init(m *testing.M) {
-	tests := make([]testing.InternalTest, 0)
-	if tPointer, err := getFieldPointerOfM(m, "tests"); err == nil {
-		intTests = (*[]testing.InternalTest)(tPointer)
-		for _, test := range *intTests {
-			funcValue := test.F
-			funcPointer := reflect.ValueOf(funcValue).Pointer()
-			tests = append(tests, testing.InternalTest{
-				Name: test.Name,
-				F: func(t *testing.T) { // Creating a new test function as an indirection of the original test
-					tStruct := StartTestFromCaller(t, funcPointer)
-					defer tStruct.End()
-					funcValue(t)
-				},
-			})
-		}
-		// Replace internal tests with new test indirection
-		*intTests = tests
+//Extract benchmark result from the private result field in testing.B
+func extractBenchmarkResult(b *testing.B) (*testing.BenchmarkResult, error) {
+	val := reflect.Indirect(reflect.ValueOf(b))
+	member := val.FieldByName("result")
+	if member.IsValid() {
+		ptrToY := unsafe.Pointer(member.UnsafeAddr())
+		return (*testing.BenchmarkResult)(ptrToY), nil
 	}
-}
-
-// Gets the Test struct from testing.T
-func GetTest(t *testing.T) *Test {
-	testMapMutex.RLock()
-	defer testMapMutex.RUnlock()
-	if test, ok := testMap[t]; ok {
-		return test
-	}
-	return nil
+	return nil, stdErrors.New("result can't be retrieved")
 }
 
 // Sets the default panic handler
