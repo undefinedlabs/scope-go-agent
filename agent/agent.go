@@ -163,7 +163,7 @@ func WithRetriesOnFail(retriesCount int) Option {
 
 func WithHandlePanicAsFail() Option {
 	return func(agent *Agent) {
-		agent.exitOnError = true
+		agent.exitOnError = false
 	}
 }
 
