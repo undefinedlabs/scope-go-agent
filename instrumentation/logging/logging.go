@@ -2,10 +2,7 @@ package logging
 
 import (
 	"bufio"
-	"fmt"
-	stdlog "log"
 	"os"
-	"regexp"
 	"strings"
 	"sync"
 
@@ -16,10 +13,6 @@ import (
 	"go.undefinedlabs.com/scopeagent/tags"
 )
 
-const (
-	LOG_REGEX_TEMPLATE = `^%s(?:(?P<date>\d{4}\/\d{1,2}\/\d{1,2}) )?(?:(?P<time>\d{1,2}:\d{1,2}:\d{1,2}(?:.\d{1,6})?) )?(?:(?:(?P<file>[\w\-. /\\:]+):(?P<line>\d+)): )?(.*)\n?$`
-)
-
 type stdIO struct {
 	oldIO     *os.File
 	readPipe  *os.File
@@ -28,7 +21,6 @@ type stdIO struct {
 }
 
 var (
-	loggerStdIO      *stdIO
 	stdOut           *stdIO
 	stdErr           *stdIO
 	currentSpan      opentracing.Span
@@ -37,12 +29,8 @@ var (
 
 // Initialize logging instrumentation
 func Init() {
+
 	// Replaces stdout and stderr
-	lgStdIO := newStdIO(&os.Stderr, false)
-	if lgStdIO != nil && lgStdIO.writePipe != nil {
-		stdlog.SetOutput(lgStdIO.writePipe)
-	}
-	loggerStdIO = lgStdIO
 	stdOut = newStdIO(&os.Stdout, true)
 	stdErr = newStdIO(&os.Stderr, true)
 
@@ -55,18 +43,12 @@ func Init() {
 		stdErr.sync.Add(1)
 		go stdIOHandler(stdErr, true)
 	}
-	if loggerStdIO != nil {
-		loggerStdIO.sync.Add(1)
-		go loggerStdIOHandler(loggerStdIO)
-	}
 }
 
 // Finalize logging instrumentation
 func Finalize() {
 	stdOut.restore(&os.Stdout, true)
 	stdErr.restore(&os.Stderr, true)
-	loggerStdIO.restore(&os.Stderr, false)
-	stdlog.SetOutput(os.Stderr)
 }
 
 // Sets the current span for logger
@@ -155,42 +137,5 @@ func stdIOHandler(stdio *stdIO, isError bool) {
 		}
 		currentSpanMutex.RUnlock()
 		_, _ = stdio.oldIO.WriteString(line)
-	}
-}
-
-// Handles the StdIO for a logger
-func loggerStdIOHandler(stdio *stdIO) {
-	defer stdio.sync.Done()
-	commonFields := []log.Field{
-		log.String(tags.EventType, tags.LogEvent),
-		log.String(tags.LogEventLevel, tags.LogLevel_VERBOSE),
-		log.String("log.logger", "std.Logger"),
-	}
-	reader := bufio.NewReader(stdio.readPipe)
-	re := regexp.MustCompile(fmt.Sprintf(LOG_REGEX_TEMPLATE, stdlog.Prefix()))
-	for {
-		line, err := reader.ReadString('\n')
-		if err != nil {
-			// Error or EOF
-			break
-		}
-
-		currentSpanMutex.RLock()
-		if currentSpan != nil {
-			matches := re.FindStringSubmatch(line)
-			file := matches[3]
-			lineNumber := matches[4]
-			message := matches[5]
-			fields := append(commonFields, log.String(tags.EventMessage, message))
-			if file != "" && line != "" {
-				fields = append(fields, log.String(tags.EventSource, fmt.Sprintf("%s:%s", file, lineNumber)))
-			}
-			currentSpan.LogFields(fields...)
-		}
-		currentSpanMutex.RUnlock()
-
-		if stdio.oldIO != nil {
-			_, _ = stdio.oldIO.WriteString(line)
-		}
 	}
 }

@@ -18,6 +18,8 @@ func Run(m *testing.M, opts ...agent.Option) int {
 		return m.Run()
 	}
 
+	logging.PatchStandardLogger()
+
 	logging.Init()
 	defer logging.Finalize()
 
