@@ -5,6 +5,7 @@ import (
 	"io"
 	stdlog "log"
 	"math"
+	"os"
 	"regexp"
 	"sync"
 	"time"
@@ -44,7 +45,7 @@ var (
 
 // Patch the standard logger
 func PatchStandardLogger() {
-	oldLoggerWriter = stdlog.Writer()
+	oldLoggerWriter = os.Stderr
 	loggerWriter := newInstrumentedWriter(oldLoggerWriter, stdlog.Prefix(), stdlog.Flags())
 	stdlog.SetOutput(loggerWriter)
 	otWriters = append(otWriters, loggerWriter)
