@@ -4,20 +4,23 @@ import (
 	"context"
 	stdErrors "errors"
 	"fmt"
-	"github.com/opentracing/opentracing-go"
-	"github.com/opentracing/opentracing-go/log"
-	"go.undefinedlabs.com/scopeagent/ast"
-	"go.undefinedlabs.com/scopeagent/errors"
-	"go.undefinedlabs.com/scopeagent/instrumentation"
-	"go.undefinedlabs.com/scopeagent/instrumentation/logging"
-	"go.undefinedlabs.com/scopeagent/tags"
 	"math"
 	"reflect"
+	"regexp"
 	"runtime"
 	"strings"
 	"testing"
 	"time"
 	"unsafe"
+
+	"github.com/opentracing/opentracing-go"
+	"github.com/opentracing/opentracing-go/log"
+
+	"go.undefinedlabs.com/scopeagent/ast"
+	"go.undefinedlabs.com/scopeagent/errors"
+	"go.undefinedlabs.com/scopeagent/instrumentation"
+	"go.undefinedlabs.com/scopeagent/instrumentation/logging"
+	"go.undefinedlabs.com/scopeagent/tags"
 )
 
 type (
