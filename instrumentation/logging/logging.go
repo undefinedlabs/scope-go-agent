@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"fmt"
 	stdlog "log"
+	"math/rand"
 	"os"
 	"regexp"
 	"strings"
@@ -21,10 +22,13 @@ const (
 )
 
 type stdIO struct {
-	oldIO     *os.File
-	readPipe  *os.File
-	writePipe *os.File
-	sync      *sync.WaitGroup
+	oldIO      *os.File
+	readPipe   *os.File
+	writePipe  *os.File
+	sync       *sync.WaitGroup
+	finishFlag *sync.WaitGroup
+	finishFlagValue  string
+
 }
 
 var (
@@ -73,6 +77,7 @@ func Finalize() {
 func SetCurrentSpan(span opentracing.Span) {
 	currentSpanMutex.Lock()
 	defer currentSpanMutex.Unlock()
+	stdOut.sendFinishFlagAndWait()
 	currentSpan = span
 }
 
@@ -81,9 +86,11 @@ func newStdIO(file **os.File, replace bool) *stdIO {
 	rPipe, wPipe, err := os.Pipe()
 	if err == nil {
 		stdIO := &stdIO{
-			readPipe:  rPipe,
-			writePipe: wPipe,
-			sync:      new(sync.WaitGroup),
+			readPipe:   rPipe,
+			writePipe:  wPipe,
+			sync:       new(sync.WaitGroup),
+			finishFlag: new(sync.WaitGroup),
+			finishFlagValue: fmt.Sprintf("[INST-FF]:%x%x\n", rand.Uint64(), rand.Uint64()),
 		}
 		if file != nil {
 			stdIO.oldIO = *file
@@ -102,14 +109,10 @@ func newStdIO(file **os.File, replace bool) *stdIO {
 func (stdIO *stdIO) restore(file **os.File, replace bool) {
 	if file != nil {
 		// We force a flush of the file/pipe
-		_ = (*file).Sync()
+		(*file).Sync()
 	}
 	if stdIO == nil {
 		return
-	}
-	if stdIO.readPipe != nil {
-		// We force a flush in the read pipe so we can write the latest data
-		_ = stdIO.readPipe.Sync()
 	}
 	if stdIO.writePipe != nil {
 		// We force a flush in the write pipe and close it
@@ -117,6 +120,8 @@ func (stdIO *stdIO) restore(file **os.File, replace bool) {
 		_ = stdIO.writePipe.Close()
 	}
 	if stdIO.readPipe != nil {
+		// We force a flush in the read pipe so we can write the latest data
+		_ = stdIO.readPipe.Sync()
 		// We close the read pipe, this sends the EOF signal to the handler
 		_ = stdIO.readPipe.Close()
 	}
@@ -124,6 +129,19 @@ func (stdIO *stdIO) restore(file **os.File, replace bool) {
 	stdIO.sync.Wait()
 	if replace && file != nil {
 		*file = stdIO.oldIO
+	}
+}
+
+// This func allows us to synchronize the *os.File with the span changes to ensure logs write in the correct span
+func (stdIO *stdIO) sendFinishFlagAndWait() {
+	// We write a finish flag to ensure all logs inside a test has been written to the test span
+	stdIO.finishFlag.Add(1)
+	// Wait to receive the finish flag by the handlers
+	defer stdIO.finishFlag.Wait()
+
+	_, err := stdIO.writePipe.WriteString(stdIO.finishFlagValue)
+	if err != nil {
+		stdIO.finishFlag.Done()
 	}
 }
 
@@ -136,6 +154,10 @@ func stdIOHandler(stdio *stdIO, isError bool) {
 		if err != nil {
 			// Error or EOF
 			break
+		}
+		if line == stdio.finishFlagValue {
+			stdio.finishFlag.Done()
+			continue
 		}
 		currentSpanMutex.RLock()
 		if currentSpan != nil && len(strings.TrimSpace(line)) > 0 {
@@ -174,7 +196,10 @@ func loggerStdIOHandler(stdio *stdIO) {
 			// Error or EOF
 			break
 		}
-
+		if line == stdio.finishFlagValue {
+			stdio.finishFlag.Done()
+			continue
+		}
 		currentSpanMutex.RLock()
 		if currentSpan != nil {
 			matches := re.FindStringSubmatch(line)
