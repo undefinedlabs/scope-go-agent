@@ -4,20 +4,23 @@ import (
 	"context"
 	stdErrors "errors"
 	"fmt"
-	"github.com/opentracing/opentracing-go"
-	"github.com/opentracing/opentracing-go/log"
-	"go.undefinedlabs.com/scopeagent/ast"
-	"go.undefinedlabs.com/scopeagent/errors"
-	"go.undefinedlabs.com/scopeagent/instrumentation"
-	"go.undefinedlabs.com/scopeagent/instrumentation/logging"
-	"go.undefinedlabs.com/scopeagent/tags"
 	"math"
 	"reflect"
+	"regexp"
 	"runtime"
 	"strings"
 	"testing"
 	"time"
 	"unsafe"
+
+	"github.com/opentracing/opentracing-go"
+	"github.com/opentracing/opentracing-go/log"
+
+	"go.undefinedlabs.com/scopeagent/ast"
+	"go.undefinedlabs.com/scopeagent/errors"
+	"go.undefinedlabs.com/scopeagent/instrumentation"
+	"go.undefinedlabs.com/scopeagent/instrumentation/logging"
+	"go.undefinedlabs.com/scopeagent/tags"
 )
 
 type (
@@ -35,6 +38,8 @@ type (
 
 	Option func(*Test)
 )
+
+var TESTING_LOG_REGEX = regexp.MustCompile(`(?m)^ {4}(?P<file>[\w\/\.]+):(?P<line>\d+): (?P<message>(.*\n {8}.*)*.*)`)
 
 // Options for starting a new test
 func WithContext(ctx context.Context) Option {
@@ -110,6 +115,8 @@ func StartTestFromCaller(t *testing.T, pc uintptr, opts ...Option) *Test {
 
 // Ends the current test
 func (test *Test) End() {
+	test.extractTestLoggerOutput()
+
 	if r := recover(); r != nil {
 		test.span.SetTag("test.status", tags.TestStatus_FAIL)
 		test.span.SetTag("error", true)
@@ -156,6 +163,41 @@ func (test *Test) End() {
 
 	logging.SetCurrentSpan(nil)
 	test.span.Finish()
+}
+
+func (test *Test) extractTestLoggerOutput() {
+	output := extractTestOutput(test.t)
+	if output == nil {
+		return
+	}
+	outStr := string(*output)
+	for _, matches := range findMatchesLogRegex(outStr) {
+		test.span.LogFields([]log.Field{
+			log.String(tags.EventType, tags.LogEvent),
+			log.String(tags.LogEventLevel, tags.LogLevel_VERBOSE),
+			log.String("log.logger", "test.Logger"),
+			log.String(tags.EventMessage, matches[3]),
+			log.String(tags.EventSource, fmt.Sprintf("%s:%s", matches[1], matches[2])),
+		}...)
+	}
+}
+
+func findMatchesLogRegex(output string) [][]string {
+	allMatches := TESTING_LOG_REGEX.FindAllStringSubmatch(output, -1)
+	for _, matches := range allMatches {
+		matches[3] = strings.ReplaceAll(matches[3], "\n        ", "\n")
+	}
+	return allMatches
+}
+
+func extractTestOutput(t *testing.T) *[]byte {
+	val := reflect.Indirect(reflect.ValueOf(t))
+	member := val.FieldByName("output")
+	if member.IsValid() {
+		ptrToY := unsafe.Pointer(member.UnsafeAddr())
+		return (*[]byte)(ptrToY)
+	}
+	return nil
 }
 
 // Gets the test context
