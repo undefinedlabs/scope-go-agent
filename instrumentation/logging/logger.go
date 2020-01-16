@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"io"
 	stdlog "log"
-	"math"
 	"os"
 	"regexp"
 	"sync"
@@ -89,9 +88,7 @@ func newInstrumentedWriter(base io.Writer, prefix string, flag int) *OTWriter {
 		logFlags: flag,
 		regex:    regexp.MustCompile(fmt.Sprintf(LOG_REGEX_TEMPLATE, prefix)),
 	}
-	if flag == stdlog.LstdFlags {
-		writer.timeLayout = "2006/01/02T15:04:05"
-	} else if flag == stdlog.LstdFlags|stdlog.Lmicroseconds {
+	if flag == stdlog.LstdFlags|stdlog.Lmicroseconds {
 		writer.timeLayout = "2006/01/02T15:04:05.000000"
 	}
 	return writer
@@ -149,9 +146,7 @@ func (w *OTWriter) flushBuffer() {
 			now := time.Now()
 			if w.timeLayout != "" {
 				pTime, err := time.Parse(w.timeLayout, fmt.Sprintf("%sT%s", match[1], match[2]))
-				if err == nil &&
-					// This is to try to keep the order of the log lines in case the flag doesn't include microseconds
-					(w.logFlags != stdlog.LstdFlags || math.Abs(now.Sub(pTime).Seconds()) < 1) {
+				if err == nil {
 					now = pTime
 				}
 			}
