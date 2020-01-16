@@ -22,13 +22,12 @@ const (
 )
 
 type stdIO struct {
-	oldIO      *os.File
-	readPipe   *os.File
-	writePipe  *os.File
-	sync       *sync.WaitGroup
-	finishFlag *sync.WaitGroup
-	finishFlagValue  string
-
+	oldIO           *os.File
+	readPipe        *os.File
+	writePipe       *os.File
+	sync            *sync.WaitGroup
+	finishFlag      *sync.WaitGroup
+	finishFlagValue string
 }
 
 var (
@@ -86,10 +85,10 @@ func newStdIO(file **os.File, replace bool) *stdIO {
 	rPipe, wPipe, err := os.Pipe()
 	if err == nil {
 		stdIO := &stdIO{
-			readPipe:   rPipe,
-			writePipe:  wPipe,
-			sync:       new(sync.WaitGroup),
-			finishFlag: new(sync.WaitGroup),
+			readPipe:        rPipe,
+			writePipe:       wPipe,
+			sync:            new(sync.WaitGroup),
+			finishFlag:      new(sync.WaitGroup),
 			finishFlagValue: fmt.Sprintf("[INST-FF]:%x%x\n", rand.Uint64(), rand.Uint64()),
 		}
 		if file != nil {
