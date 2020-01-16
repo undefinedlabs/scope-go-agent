@@ -5,10 +5,24 @@ import (
 	"sync"
 )
 
+type Option func(*Transport)
+
 var once sync.Once
 
-func PatchHttpDefaultClient() {
+// Enables the payload instrumentation in the transport
+func WithPayloadInstrumentation() Option {
+	return func(t *Transport) {
+		t.PayloadInstrumentation = true
+	}
+}
+
+// Patches the default http client with the instrumented transport
+func PatchHttpDefaultClient(options ...Option) {
 	once.Do(func() {
-		http.DefaultClient = &http.Client{Transport: &Transport{RoundTripper: http.DefaultTransport}}
+		transport := &Transport{RoundTripper: http.DefaultTransport}
+		for _, option := range options {
+			option(transport)
+		}
+		http.DefaultClient = &http.Client{Transport: transport}
 	})
 }

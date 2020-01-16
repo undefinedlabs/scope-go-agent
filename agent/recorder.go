@@ -9,6 +9,8 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
+	"net/url"
+	"path"
 	"sync"
 	"time"
 
@@ -16,6 +18,7 @@ import (
 	"github.com/vmihailenco/msgpack"
 	"gopkg.in/tomb.v2"
 
+	"go.undefinedlabs.com/scopeagent/tags"
 	"go.undefinedlabs.com/scopeagent/tracer"
 )
 
@@ -28,6 +31,7 @@ type SpanRecorder struct {
 	apiKey      string
 	apiEndpoint string
 	version     string
+	userAgent   string
 	debugMode   bool
 	metadata    map[string]interface{}
 
@@ -47,11 +51,17 @@ func NewSpanRecorder(agent *Agent) *SpanRecorder {
 	r.apiEndpoint = agent.apiEndpoint
 	r.apiKey = agent.apiKey
 	r.version = agent.version
+	r.userAgent = agent.userAgent
 	r.debugMode = agent.debugMode
 	r.metadata = agent.metadata
 	r.logger = agent.logger
 	r.flushFrequency = time.Minute
-	r.url = fmt.Sprintf("%s/%s", r.apiEndpoint, "api/agent/ingest")
+	u, err := url.Parse(r.apiEndpoint)
+	if err != nil {
+		r.logger.Fatal(err)
+	}
+	u.Path = path.Join(u.Path, "api/agent/ingest")
+	r.url = u.String()
 	r.client = &http.Client{}
 	r.t.Go(r.loop)
 	return r
@@ -108,11 +118,13 @@ func (r *SpanRecorder) loop() error {
 // Sends the spans in the buffer to Scope
 func (r *SpanRecorder) SendSpans() error {
 	r.Lock()
-	defer r.Unlock()
+	spans := r.spans
+	r.spans = nil
+	r.Unlock()
 
 	r.totalSend = r.totalSend + 1
 
-	payload := r.getPayload(r.spans, r.metadata)
+	payload := r.getPayload(spans, r.metadata)
 
 	if r.debugMode {
 		r.logger.Printf("payload: %+v\n\n", payload)
@@ -145,7 +157,6 @@ func (r *SpanRecorder) SendSpans() error {
 		}
 	}
 
-	r.spans = nil
 	if payloadSent {
 		r.okSend++
 	} else {
@@ -163,7 +174,7 @@ func (r *SpanRecorder) callIngest(payload io.Reader) (statusCode int, err error)
 		r.koSend++
 		return 0, err
 	}
-	req.Header.Set("User-Agent", fmt.Sprintf("scope-agent-go/%s", r.version))
+	req.Header.Set("User-Agent", r.userAgent)
 	req.Header.Set("Content-Type", "application/msgpack")
 	req.Header.Set("Content-Encoding", "gzip")
 	req.Header.Set("X-Scope-ApiKey", r.apiKey)
@@ -227,11 +238,11 @@ func (r *SpanRecorder) getPayload(rawSpans []tracer.RawSpan, metadata map[string
 			})
 		}
 	}
-
 	return map[string]interface{}{
-		"metadata": metadata,
-		"spans":    spans,
-		"events":   events,
+		"metadata":   metadata,
+		"spans":      spans,
+		"events":     events,
+		tags.AgentID: metadata[tags.AgentID],
 	}
 }
 

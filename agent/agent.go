@@ -5,9 +5,12 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
+	"net/url"
 	"os"
+	"os/user"
 	"path"
 	"runtime"
+	"strings"
 	"sync"
 	"time"
 
@@ -36,6 +39,9 @@ type (
 
 		recorder         *SpanRecorder
 		recorderFilename string
+
+		userAgent string
+		agentType string
 
 		logger *log.Logger
 	}
@@ -105,12 +111,31 @@ func WithGitInfo(repository string, commitSha string, sourceRoot string) Option 
 	}
 }
 
+func WithUserAgent(userAgent string) Option {
+	return func(agent *Agent) {
+		userAgent = strings.TrimSpace(userAgent)
+		if userAgent != "" {
+			agent.userAgent = userAgent
+		}
+	}
+}
+
+func WithAgentType(agentType string) Option {
+	return func(agent *Agent) {
+		agentType = strings.TrimSpace(agentType)
+		if agentType != "" {
+			agent.agentType = agentType
+		}
+	}
+}
+
 // Creates a new Scope Agent instance
 func NewAgent(options ...Option) (*Agent, error) {
 	agent := new(Agent)
 	agent.metadata = make(map[string]interface{})
 	agent.version = version
 	agent.agentId = generateAgentID()
+	agent.userAgent = fmt.Sprintf("scope-agent-go/%s", agent.version)
 
 	for _, opt := range options {
 		opt(agent)
@@ -123,6 +148,18 @@ func NewAgent(options ...Option) (*Agent, error) {
 	agent.debugMode = agent.debugMode || getBoolEnv("SCOPE_DEBUG", false)
 
 	configProfile := GetConfigCurrentProfile()
+
+	if agent.apiKey == "" || agent.apiEndpoint == "" {
+		if dsn, set := os.LookupEnv("SCOPE_DSN"); set && dsn != "" {
+			dsnApiKey, dsnApiEndpoint, dsnErr := parseDSN(dsn)
+			if dsnErr != nil {
+				agent.logger.Printf("Error parsing dsn value: %v", dsnErr)
+			} else {
+				agent.apiKey = dsnApiKey
+				agent.apiEndpoint = dsnApiEndpoint
+			}
+		}
+	}
 
 	if agent.apiKey == "" {
 		if apikey, set := os.LookupEnv("SCOPE_APIKEY"); set && apikey != "" {
@@ -145,9 +182,13 @@ func NewAgent(options ...Option) (*Agent, error) {
 	}
 
 	// Agent data
+	if agent.agentType == "" {
+		agent.agentType = "go"
+	}
 	agent.metadata[tags.AgentID] = agent.agentId
 	agent.metadata[tags.AgentVersion] = version
-	agent.metadata[tags.AgentType] = "go"
+	agent.metadata[tags.AgentType] = agent.agentType
+	agent.metadata[tags.TestingMode] = agent.testingMode
 
 	// Platform data
 	agent.metadata[tags.PlatformName] = runtime.GOOS
@@ -182,6 +223,9 @@ func NewAgent(options ...Option) (*Agent, error) {
 
 	agent.metadata[tags.InContainer] = isRunningInContainer()
 
+	// Dependencies
+	agent.metadata[tags.Dependencies] = getDependencyMap()
+
 	agent.recorder = NewSpanRecorder(agent)
 
 	if _, set := os.LookupEnv("SCOPE_TESTING_MODE"); set {
@@ -215,7 +259,7 @@ func NewAgent(options ...Option) (*Agent, error) {
 
 func (a *Agent) setupLogging() error {
 	filename := fmt.Sprintf("scope-go-%s-%s.log", time.Now().Format("20060102150405"), a.agentId)
-	dir, err := ioutil.TempDir("", "scope")
+	dir, err := getLogPath()
 	if err != nil {
 		return err
 	}
@@ -272,4 +316,54 @@ func generateAgentID() string {
 		panic(err)
 	}
 	return agentId.String()
+}
+
+func getLogPath() (string, error) {
+	if logPath, set := os.LookupEnv("SCOPE_LOG_ROOT_PATH"); set {
+		return logPath, nil
+	}
+	currentUser, _ := user.Current()
+	homeDir := currentUser.HomeDir
+	logFolder := ""
+
+	if runtime.GOOS == "windows" {
+		logFolder = fmt.Sprintf("%s/AppData/Roaming/scope/logs", homeDir)
+	} else if runtime.GOOS == "darwin" {
+		logFolder = fmt.Sprintf("%s/Library/Logs/Scope", homeDir)
+	} else if runtime.GOOS == "linux" {
+		logFolder = "/var/log/scope"
+	}
+	if logFolder != "" {
+		isOk := true
+		// If folder doesn't exist we try to create it
+		if _, err := os.Stat(logFolder); os.IsNotExist(err) {
+			mkErr := os.Mkdir(logFolder, os.ModeDir)
+			if mkErr != nil {
+				isOk = false
+			}
+		}
+		if isOk {
+			return logFolder, nil
+		}
+	}
+
+	// If the log folder can't be used we return a temporal path, so we don't miss the agent logs
+	if dir, err := ioutil.TempDir("", "scope"); err != nil {
+		return dir, nil
+	} else {
+		return "", err
+	}
+}
+
+func parseDSN(dsnString string) (apiKey string, apiEndpoint string, err error) {
+	uri, err := url.Parse(dsnString)
+	if err != nil {
+		return "", "", err
+	}
+	if uri.User != nil {
+		apiKey = uri.User.Username()
+	}
+	uri.User = nil
+	apiEndpoint = uri.String()
+	return
 }

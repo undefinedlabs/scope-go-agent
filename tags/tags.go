@@ -28,6 +28,8 @@ const (
 	CIBuildNumber = "ci.build_number"
 	CIBuildUrl    = "ci.build_url"
 
+	Dependencies = "dependencies"
+
 	EventType      = "event"
 	EventSource    = "source"
 	EventMessage   = "message"
@@ -45,4 +47,10 @@ const (
 	LogLevel_ERROR   = "ERROR"
 	LogLevel_DEBUG   = "DEBUG"
 	LogLevel_VERBOSE = "VERBOSE"
+
+	TestStatus_FAIL = "FAIL"
+	TestStatus_PASS = "PASS"
+	TestStatus_SKIP = "SKIP"
+
+	TestingMode = "testing"
 )
