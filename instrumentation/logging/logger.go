@@ -15,7 +15,8 @@ import (
 )
 
 const (
-	log_Regex_Template = `(?m)^%s(?:(?P<date>\d{4}\/\d{1,2}\/\d{1,2}) )?(?:(?P<time>\d{1,2}:\d{1,2}:\d{1,2}(?:.\d{1,6})?) )?(?:(?:(?P<file>[\w\-. \/\\:]+):(?P<line>\d+)): )?(.*)\n?$`
+	logRegexTemplate = `(?m)^%s(?:(?P<date>\d{4}\/\d{1,2}\/\d{1,2}) )?(?:(?P<time>\d{1,2}:\d{1,2}:\d{1,2}(?:.\d{1,6})?) )?(?:(?:(?P<file>[\w\-. \/\\:]+):(?P<line>\d+)): )?(.*)\n?$`
+	timeLayout       = "2006/01/02T15:04:05.000000"
 )
 
 type (
@@ -23,7 +24,6 @@ type (
 		logRecordsMutex sync.RWMutex
 		logRecords      []opentracing.LogRecord
 		regex           *regexp.Regexp
-		timeLayout      string
 	}
 	logItem struct {
 		time       time.Time
@@ -85,19 +85,13 @@ func UnpatchLogger(logger *stdlog.Logger) {
 
 // Create a new instrumented writer for loggers
 func newInstrumentedWriter(prefix string, flag int) *otWriter {
-	writer := &otWriter{
-		regex: regexp.MustCompile(fmt.Sprintf(log_Regex_Template, prefix)),
+	return &otWriter{
+		regex: regexp.MustCompile(fmt.Sprintf(logRegexTemplate, prefix)),
 	}
-	if flag&(stdlog.LstdFlags|stdlog.Lmicroseconds) != 0 {
-		writer.timeLayout = "2006/01/02T15:04:05.000000"
-	}
-	return writer
 }
 
 // Write data to the channel and the base writer
 func (w *otWriter) Write(p []byte) (n int, err error) {
-	w.logRecordsMutex.RLock()
-	defer w.logRecordsMutex.RUnlock()
 	w.process(p)
 	return len(p), nil
 }
@@ -111,11 +105,9 @@ func (w *otWriter) Reset() {
 
 // Stop recording opentracing.LogRecord and return all recorded items
 func (w *otWriter) GetRecords() []opentracing.LogRecord {
-	w.logRecordsMutex.Lock()
-	defer w.logRecordsMutex.Unlock()
-	defer func() {
-		w.logRecords = nil
-	}()
+	w.logRecordsMutex.RLock()
+	defer w.Reset()
+	defer w.logRecordsMutex.RUnlock()
 	return w.logRecords
 }
 
@@ -134,10 +126,12 @@ func (w *otWriter) process(p []byte) {
 	for _, match := range matches {
 		// In case a new log line we store the previous one and create a new log item
 		if match[1] != "" || match[2] != "" || match[3] != "" || match[4] != "" {
-			w.storeLogRecord(item)
+			if item != nil {
+				w.storeLogRecord(item)
+			}
 			now := time.Now()
-			if w.timeLayout != "" {
-				pTime, err := time.Parse(w.timeLayout, fmt.Sprintf("%sT%s", match[1], match[2]))
+			if match[1] != "" && match[2] != "" {
+				pTime, err := time.Parse(timeLayout, fmt.Sprintf("%sT%s", match[1], match[2]))
 				if err == nil {
 					now = pTime
 				}
@@ -157,18 +151,19 @@ func (w *otWriter) process(p []byte) {
 			}
 		}
 	}
-	w.storeLogRecord(item)
+	if item != nil {
+		w.storeLogRecord(item)
+	}
 }
 
 // Stores a new log record from the logItem
 func (w *otWriter) storeLogRecord(item *logItem) {
-	if item == nil {
-		return
-	}
+	w.logRecordsMutex.Lock()
+	defer w.logRecordsMutex.Unlock()
 	fields := []log.Field{
 		log.String(tags.EventType, tags.LogEvent),
 		log.String(tags.LogEventLevel, tags.LogLevel_VERBOSE),
-		log.String("log.logger", "std.Logger"),
+		log.String("log.logger", "log.std"),
 		log.String(tags.EventMessage, item.message),
 	}
 	if item.file != "" && item.lineNumber != "" {
