@@ -39,9 +39,14 @@ func StartTest(t *testing.T, opts ...scopetesting.Option) *scopetesting.Test {
 	return scopetesting.StartTestFromCaller(t, pc, opts...)
 }
 
+// Gets the *Test from a *testing.T
+func GetTest(t *testing.T) *scopetesting.Test {
+	return scopetesting.GetTest(t)
+}
+
 // Gets the context from a test
 func GetContextFromTest(t *testing.T) context.Context {
-	test := scopetesting.GetTest(t)
+	test := GetTest(t)
 	if test != nil {
 		return test.Context()
 	}

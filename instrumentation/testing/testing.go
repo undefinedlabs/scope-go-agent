@@ -93,7 +93,11 @@ func StartTestFromCaller(t *testing.T, pc uintptr, opts ...Option) *Test {
 	// Get or create a new Test struct
 	// If we get an old struct we replace the current span and context with a new one.
 	// Useful if we want to overwrite the Start call with options
-	test := getOrCreateTest(t)
+	test, exist := getOrCreateTest(t)
+	if exist {
+		// If there is already one we want to replace it, so we clear the context
+		test.ctx = context.Background()
+	}
 
 	for _, opt := range opts {
 		opt(test)
@@ -222,17 +226,18 @@ func (test *Test) end() {
 }
 
 // Gets or create a test struct
-func getOrCreateTest(t *testing.T) *Test {
+func getOrCreateTest(t *testing.T) (test *Test, exist bool) {
 	testMapMutex.Lock()
 	defer testMapMutex.Unlock()
-	var test *Test
 	if testPtr, ok := testMap[t]; ok {
 		test = testPtr
+		exist = true
 	} else {
 		test = &Test{t: t, onPanicHandler: defaultPanicHandler}
 		testMap[t] = test
+		exist = false
 	}
-	return test
+	return
 }
 
 // Removes a test struct from the map
