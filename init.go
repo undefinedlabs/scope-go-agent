@@ -20,9 +20,6 @@ func Run(m *testing.M, opts ...agent.Option) int {
 
 	logging.PatchStandardLogger()
 
-	logging.Init()
-	defer logging.Finalize()
-
 	defer newAgent.Stop()
 	defaultAgent = newAgent
 	return m.Run()

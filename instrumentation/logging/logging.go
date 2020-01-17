@@ -5,6 +5,7 @@ import (
 	"os"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/opentracing/opentracing-go"
 	"github.com/opentracing/opentracing-go/log"
@@ -13,129 +14,115 @@ import (
 	"go.undefinedlabs.com/scopeagent/tags"
 )
 
-type stdIO struct {
-	oldIO     *os.File
-	readPipe  *os.File
-	writePipe *os.File
-	sync      *sync.WaitGroup
+type instrumentedIO struct {
+	orig            **os.File
+	base            *os.File
+	rPipe           *os.File
+	wPipe           *os.File
+	hSync           sync.WaitGroup
+	logRecordsMutex sync.RWMutex
+	logRecords      []opentracing.LogRecord
+	isError         bool
 }
 
-var (
-	stdOut           *stdIO
-	stdErr           *stdIO
-	currentSpan      opentracing.Span
-	currentSpanMutex sync.RWMutex
-)
-
-// Initialize logging instrumentation
-func Init() {
-
-	// Replaces stdout and stderr
-	stdOut = newStdIO(&os.Stdout, true)
-	stdErr = newStdIO(&os.Stderr, true)
-
-	// Starts stdIO pipe handlers
-	if stdOut != nil {
-		stdOut.sync.Add(1)
-		go stdIOHandler(stdOut, false)
-	}
-	if stdErr != nil {
-		stdErr.sync.Add(1)
-		go stdIOHandler(stdErr, true)
-	}
+// Patch Standard Output
+func PatchStdOut() {
+	instIO := patchIO(&os.Stdout, false)
+	logRecorders = append(logRecorders, instIO)
+	instIO.StartRecord()
 }
 
-// Finalize logging instrumentation
-func Finalize() {
-	stdOut.restore(&os.Stdout, true)
-	stdErr.restore(&os.Stderr, true)
+// Patch Standard Error
+func PatchStdErr() {
+	instIO := patchIO(&os.Stderr, true)
+	logRecorders = append(logRecorders, instIO)
+	instIO.StartRecord()
 }
 
-// Sets the current span for logger
-func SetCurrentSpan(span opentracing.Span) {
-	currentSpanMutex.Lock()
-	defer currentSpanMutex.Unlock()
-	currentSpan = span
-}
-
-// Creates and replaces a file instance with a pipe
-func newStdIO(file **os.File, replace bool) *stdIO {
+// Patch IO File
+func patchIO(base **os.File, isError bool) *instrumentedIO {
 	rPipe, wPipe, err := os.Pipe()
-	if err == nil {
-		stdIO := &stdIO{
-			readPipe:  rPipe,
-			writePipe: wPipe,
-			sync:      new(sync.WaitGroup),
-		}
-		if file != nil {
-			stdIO.oldIO = *file
-			if replace {
-				*file = wPipe
-			}
-		}
-		return stdIO
-	} else {
+	if err != nil {
 		instrumentation.Logger().Println(err)
+		return nil
 	}
-	return nil
+	instIO := &instrumentedIO{
+		orig:    base,
+		base:    *base,
+		rPipe:   rPipe,
+		wPipe:   wPipe,
+		isError: isError,
+	}
+	*base = wPipe
+	instIO.hSync.Add(1)
+	go instIO.ioHandler()
+	return instIO
 }
 
-// Restores the old file instance
-func (stdIO *stdIO) restore(file **os.File, replace bool) {
-	if file != nil {
-		// We force a flush of the file/pipe
-		_ = (*file).Sync()
-	}
-	if stdIO == nil {
-		return
-	}
-	if stdIO.readPipe != nil {
-		// We force a flush in the read pipe so we can write the latest data
-		_ = stdIO.readPipe.Sync()
-	}
-	if stdIO.writePipe != nil {
-		// We force a flush in the write pipe and close it
-		_ = stdIO.writePipe.Sync()
-		_ = stdIO.writePipe.Close()
-	}
-	if stdIO.readPipe != nil {
-		// We close the read pipe, this sends the EOF signal to the handler
-		_ = stdIO.readPipe.Close()
-	}
-	// Wait until the handler go routine is done
-	stdIO.sync.Wait()
-	if replace && file != nil {
-		*file = stdIO.oldIO
+// Start recording opentracing.LogRecord from logger
+func (i *instrumentedIO) StartRecord() {
+	i.logRecordsMutex.Lock()
+	defer i.logRecordsMutex.Unlock()
+	i.logRecords = make([]opentracing.LogRecord, 0)
+}
+
+// Stop recording opentracing.LogRecord and return all recorded items
+func (i *instrumentedIO) StopRecord() []opentracing.LogRecord {
+	i.logRecordsMutex.Lock()
+	defer i.logRecordsMutex.Unlock()
+	defer func() {
+		i.logRecords = nil
+	}()
+	_ = i.wPipe.Sync()
+	_ = i.rPipe.Sync()
+	return i.logRecords
+}
+
+// Close handler
+func (i *instrumentedIO) Restore() {
+	i.wPipe.Sync()
+	i.rPipe.Sync()
+	i.wPipe.Close()
+	i.rPipe.Close()
+	i.hSync.Wait()
+
+	if i.orig != nil {
+		*i.orig = i.base
 	}
 }
 
 // Handles the StdIO pipe for stdout and stderr
-func stdIOHandler(stdio *stdIO, isError bool) {
-	defer stdio.sync.Done()
-	reader := bufio.NewReader(stdio.readPipe)
+func (i *instrumentedIO) ioHandler() {
+	defer i.hSync.Done()
+	reader := bufio.NewReader(i.rPipe)
+	fields := []log.Field{
+		log.String(tags.EventType, tags.LogEvent),
+		log.String("log.logger", "std"),
+	}
 	for {
 		line, err := reader.ReadString('\n')
 		if err != nil {
 			// Error or EOF
 			break
 		}
-		currentSpanMutex.RLock()
-		if currentSpan != nil && len(strings.TrimSpace(line)) > 0 {
-			if isError {
-				currentSpan.LogFields(
-					log.String(tags.EventType, tags.LogEvent),
+		i.logRecordsMutex.RLock()
+		if i.logRecords != nil && len(strings.TrimSpace(line)) > 0 {
+			now := time.Now()
+			if i.isError {
+				fields = append(fields,
 					log.String(tags.EventMessage, line),
-					log.String(tags.LogEventLevel, tags.LogLevel_ERROR),
-				)
+					log.String(tags.LogEventLevel, tags.LogLevel_ERROR))
 			} else {
-				currentSpan.LogFields(
-					log.String(tags.EventType, tags.LogEvent),
+				fields = append(fields,
 					log.String(tags.EventMessage, line),
-					log.String(tags.LogEventLevel, tags.LogLevel_VERBOSE),
-				)
+					log.String(tags.LogEventLevel, tags.LogLevel_VERBOSE))
 			}
+			i.logRecords = append(i.logRecords, opentracing.LogRecord{
+				Timestamp: now,
+				Fields:    fields,
+			})
 		}
-		currentSpanMutex.RUnlock()
-		_, _ = stdio.oldIO.WriteString(line)
+		i.logRecordsMutex.RUnlock()
+		_, _ = (*i.base).WriteString(line)
 	}
 }

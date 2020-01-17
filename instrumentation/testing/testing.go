@@ -108,7 +108,7 @@ func StartTestFromCaller(t *testing.T, pc uintptr, opts ...Option) *Test {
 	span.SetBaggageItem("trace.kind", "test")
 	test.span = span
 	test.ctx = ctx
-	logging.SetCurrentSpan(span)
+
 	logging.StartRecord()
 
 	return test
@@ -122,8 +122,6 @@ func (test *Test) End() {
 	logRecords := logging.StopRecord()
 	// Extract logging buffer from testing.T
 	test.extractTestLoggerOutput()
-	// Sets the current span to nil
-	logging.SetCurrentSpan(nil)
 
 	finishOptions := opentracing.FinishOptions{
 		FinishTime: finishTime,
