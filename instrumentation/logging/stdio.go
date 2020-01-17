@@ -39,7 +39,7 @@ func PatchStdOut() {
 // Unpatch standard output
 func UnpatchStdOut() {
 	if patchedStdOut != nil {
-		patchedStdOut.Restore()
+		patchedStdOut.restore()
 		patchedStdOut = nil
 	}
 }
@@ -53,7 +53,7 @@ func PatchStdErr() {
 // Unpatch standard error
 func UnpatchStdErr() {
 	if patchedStdErr != nil {
-		patchedStdErr.Restore()
+		patchedStdErr.restore()
 		patchedStdErr = nil
 	}
 }
@@ -87,18 +87,16 @@ func (i *instrumentedIO) Reset() {
 
 // Stop recording opentracing.LogRecord and return all recorded items
 func (i *instrumentedIO) GetRecords() []opentracing.LogRecord {
-	i.logRecordsMutex.Lock()
-	defer i.logRecordsMutex.Unlock()
-	defer func() {
-		i.logRecords = nil
-	}()
+	i.logRecordsMutex.RLock()
+	defer i.Reset()
+	defer i.logRecordsMutex.RUnlock()
 	_ = i.wPipe.Sync()
 	_ = i.rPipe.Sync()
 	return i.logRecords
 }
 
 // Close handler
-func (i *instrumentedIO) Restore() {
+func (i *instrumentedIO) restore() {
 	i.wPipe.Sync()
 	i.rPipe.Sync()
 	i.wPipe.Close()
@@ -124,7 +122,6 @@ func (i *instrumentedIO) ioHandler() {
 			// Error or EOF
 			break
 		}
-		i.logRecordsMutex.RLock()
 		if len(strings.TrimSpace(line)) > 0 {
 			now := time.Now()
 			if i.isError {
@@ -136,12 +133,13 @@ func (i *instrumentedIO) ioHandler() {
 					log.String(tags.EventMessage, line),
 					log.String(tags.LogEventLevel, tags.LogLevel_VERBOSE))
 			}
+			i.logRecordsMutex.Lock()
 			i.logRecords = append(i.logRecords, opentracing.LogRecord{
 				Timestamp: now,
 				Fields:    fields,
 			})
+			i.logRecordsMutex.Unlock()
 		}
-		i.logRecordsMutex.RUnlock()
 		_, _ = (*i.base).WriteString(line)
 	}
 }
