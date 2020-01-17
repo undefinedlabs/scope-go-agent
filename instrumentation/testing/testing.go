@@ -226,16 +226,16 @@ func (test *Test) end() {
 }
 
 // Gets or create a test struct
-func getOrCreateTest(t *testing.T) (test *Test, exist bool) {
+func getOrCreateTest(t *testing.T) (test *Test, exists bool) {
 	testMapMutex.Lock()
 	defer testMapMutex.Unlock()
 	if testPtr, ok := testMap[t]; ok {
 		test = testPtr
-		exist = true
+		exists = true
 	} else {
 		test = &Test{t: t, onPanicHandler: defaultPanicHandler}
 		testMap[t] = test
-		exist = false
+		exists = false
 	}
 	return
 }
