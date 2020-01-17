@@ -33,16 +33,12 @@ type (
 	}
 )
 
-var (
-	otWriters []*OTWriter
-)
-
 // Patch the standard logger
 func PatchStandardLogger() {
 	currentWriter := getStdLoggerWriter()
 	otWriter := newInstrumentedWriter(stdlog.Prefix(), stdlog.Flags())
 	stdlog.SetOutput(io.MultiWriter(currentWriter, otWriter))
-	otWriters = append(otWriters, otWriter)
+	logRecorders = append(logRecorders, otWriter)
 	otWriter.StartRecord()
 }
 
@@ -51,32 +47,8 @@ func PatchLogger(logger *stdlog.Logger) {
 	currentWriter := logger.Writer()
 	otWriter := newInstrumentedWriter(logger.Prefix(), logger.Flags())
 	logger.SetOutput(io.MultiWriter(currentWriter, otWriter))
-	otWriters = append(otWriters, otWriter)
+	logRecorders = append(logRecorders, otWriter)
 	otWriter.StartRecord()
-}
-
-//
-// We are doing like this because there is no way to call span.LogFields with a custom timestamp on each event.
-// The only way is to create an opentracing.LogRecord array and call later:
-//  span.FinishWithOptions(opentracing.FinishOptions{
-//		LogRecords: logRecords,
-//	}
-//
-
-// Start record in all registered writers (used by the StartTest in order to generate new records for the span)
-func StartRecord() {
-	for _, writer := range otWriters {
-		writer.StartRecord()
-	}
-}
-
-// Stop record all registered writers (used by End in order to retrieve the records from the log and insert them in the span)
-func StopRecord() []opentracing.LogRecord {
-	var records []opentracing.LogRecord
-	for _, writer := range otWriters {
-		records = append(records, writer.StopRecord()...)
-	}
-	return records
 }
 
 // Create a new instrumented writer for loggers
