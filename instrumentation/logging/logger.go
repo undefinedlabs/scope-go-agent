@@ -15,7 +15,7 @@ import (
 )
 
 const (
-	LOG_REGEX_TEMPLATE = `(?m)^%s(?:(?P<date>\d{4}\/\d{1,2}\/\d{1,2}) )?(?:(?P<time>\d{1,2}:\d{1,2}:\d{1,2}(?:.\d{1,6})?) )?(?:(?:(?P<file>[\w\-. /\\:]+):(?P<line>\d+)): )?(.*)\n?$`
+	LOG_REGEX_TEMPLATE = `(?m)^%s(?:(?P<date>\d{4}\/\d{1,2}\/\d{1,2}) )?(?:(?P<time>\d{1,2}:\d{1,2}:\d{1,2}(?:.\d{1,6})?) )?(?:(?:(?P<file>[\w\-. \/\\:]+):(?P<line>\d+)): )?(.*)\n?$`
 )
 
 type (
@@ -24,7 +24,6 @@ type (
 		logFlags        int
 		logRecords      []opentracing.LogRecord
 		logRecordsMutex sync.RWMutex
-		logBuffer       []byte
 		regex           *regexp.Regexp
 		timeLayout      string
 	}
@@ -47,6 +46,7 @@ func PatchStandardLogger() {
 	loggerWriter := newInstrumentedWriter(oldLoggerWriter, stdlog.Prefix(), stdlog.Flags())
 	stdlog.SetOutput(loggerWriter)
 	otWriters = append(otWriters, loggerWriter)
+	loggerWriter.StartRecord()
 }
 
 // Patch a logger
@@ -54,6 +54,7 @@ func PatchLogger(logger *stdlog.Logger) {
 	nWriter := newInstrumentedWriter(logger.Writer(), logger.Prefix(), logger.Flags())
 	logger.SetOutput(nWriter)
 	otWriters = append(otWriters, nWriter)
+	nWriter.StartRecord()
 }
 
 //
@@ -102,10 +103,7 @@ func (w *OTWriter) Write(p []byte) (n int, err error) {
 	w.logRecordsMutex.RLock()
 	defer w.logRecordsMutex.RUnlock()
 	if w.logRecords != nil {
-		w.logBuffer = append(w.logBuffer, p...)
-		if len(p) > 0 && p[len(p)-1] == '\n' { // If we detect end of line we process the buffer
-			w.flushBuffer()
-		}
+		w.process(p)
 	}
 	return w.base.Write(p)
 }
@@ -114,7 +112,6 @@ func (w *OTWriter) Write(p []byte) (n int, err error) {
 func (w *OTWriter) StartRecord() {
 	w.logRecordsMutex.Lock()
 	defer w.logRecordsMutex.Unlock()
-	w.logBuffer = nil
 	w.logRecords = make([]opentracing.LogRecord, 0)
 }
 
@@ -125,17 +122,16 @@ func (w *OTWriter) StopRecord() []opentracing.LogRecord {
 	defer func() {
 		w.logRecords = nil
 	}()
-	w.flushBuffer()
 	return w.logRecords
 }
 
-// Process the current buffer and create new log items struct to store
-func (w *OTWriter) flushBuffer() {
-	if w.logRecords == nil || len(w.logBuffer) == 0 {
+// Process bytes and create new log items struct to store
+func (w *OTWriter) process(p []byte) {
+	if w.logRecords == nil || len(p) == 0 {
 		// Nothing to process
 		return
 	}
-	logBuffer := string(w.logBuffer)
+	logBuffer := string(p)
 	matches := w.regex.FindAllStringSubmatch(logBuffer, -1)
 	if matches == nil || len(matches) == 0 {
 		// If there are no matches we return without cleaning the buffer
@@ -167,7 +163,6 @@ func (w *OTWriter) flushBuffer() {
 		}
 	}
 	w.storeLogRecord(item)
-	w.logBuffer = nil
 }
 
 // Stores a new log record from the logItem
