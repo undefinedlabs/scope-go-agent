@@ -25,16 +25,37 @@ type instrumentedIO struct {
 	isError         bool
 }
 
-// Patch Standard Output
+var (
+	patchedStdOut *instrumentedIO
+	patchedStdErr *instrumentedIO
+)
+
+// Patch standard output
 func PatchStdOut() {
-	instIO := patchIO(&os.Stdout, false)
-	recorders = append(recorders, instIO)
+	patchedStdOut = patchIO(&os.Stdout, false)
+	recorders = append(recorders, patchedStdOut)
 }
 
-// Patch Standard Error
+// Unpatch standard output
+func UnpatchStdOut() {
+	if patchedStdOut != nil {
+		patchedStdOut.Restore()
+		patchedStdOut = nil
+	}
+}
+
+// Patch standard error
 func PatchStdErr() {
-	instIO := patchIO(&os.Stderr, true)
-	recorders = append(recorders, instIO)
+	patchedStdErr = patchIO(&os.Stderr, true)
+	recorders = append(recorders, patchedStdErr)
+}
+
+// Unpatch standard error
+func UnpatchStdErr() {
+	if patchedStdErr != nil {
+		patchedStdErr.Restore()
+		patchedStdErr = nil
+	}
 }
 
 // Patch IO File

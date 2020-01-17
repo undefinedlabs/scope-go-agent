@@ -128,7 +128,6 @@ func (w *otWriter) process(p []byte) {
 	logBuffer := string(p)
 	matches := w.regex.FindAllStringSubmatch(logBuffer, -1)
 	if matches == nil || len(matches) == 0 {
-		// If there are no matches we return without cleaning the buffer
 		return
 	}
 	var item *logItem
