@@ -18,8 +18,8 @@ func Run(m *testing.M, opts ...agent.Option) int {
 	if err != nil {
 		return m.Run()
 	}
-	logging.Init()
-	defer logging.Finalize()
+
+	logging.PatchStandardLogger()
 
 	scopetesting.Init(m)
 	scopetesting.SetDefaultPanicHandler(func(test *scopetesting.Test) {
