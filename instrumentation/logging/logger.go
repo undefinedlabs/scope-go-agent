@@ -20,10 +20,8 @@ const (
 
 type (
 	OTWriter struct {
-		base            io.Writer
-		logFlags        int
-		logRecords      []opentracing.LogRecord
 		logRecordsMutex sync.RWMutex
+		logRecords      []opentracing.LogRecord
 		regex           *regexp.Regexp
 		timeLayout      string
 	}
@@ -36,25 +34,25 @@ type (
 )
 
 var (
-	otWriters       []*OTWriter
-	oldLoggerWriter io.Writer
+	otWriters []*OTWriter
 )
 
 // Patch the standard logger
 func PatchStandardLogger() {
-	oldLoggerWriter = getStdLoggerWriter()
-	loggerWriter := newInstrumentedWriter(oldLoggerWriter, stdlog.Prefix(), stdlog.Flags())
-	stdlog.SetOutput(loggerWriter)
-	otWriters = append(otWriters, loggerWriter)
-	loggerWriter.StartRecord()
+	currentWriter := getStdLoggerWriter()
+	otWriter := newInstrumentedWriter(stdlog.Prefix(), stdlog.Flags())
+	stdlog.SetOutput(io.MultiWriter(currentWriter, otWriter))
+	otWriters = append(otWriters, otWriter)
+	otWriter.StartRecord()
 }
 
 // Patch a logger
 func PatchLogger(logger *stdlog.Logger) {
-	nWriter := newInstrumentedWriter(logger.Writer(), logger.Prefix(), logger.Flags())
-	logger.SetOutput(nWriter)
-	otWriters = append(otWriters, nWriter)
-	nWriter.StartRecord()
+	currentWriter := logger.Writer()
+	otWriter := newInstrumentedWriter(logger.Prefix(), logger.Flags())
+	logger.SetOutput(io.MultiWriter(currentWriter, otWriter))
+	otWriters = append(otWriters, otWriter)
+	otWriter.StartRecord()
 }
 
 //
@@ -82,17 +80,11 @@ func StopRecord() []opentracing.LogRecord {
 }
 
 // Create a new instrumented writer for loggers
-func newInstrumentedWriter(base io.Writer, prefix string, flag int) *OTWriter {
-	if baseWriter, ok := base.(*OTWriter); ok {
-		// Avoid decorating twice
-		return baseWriter
-	}
+func newInstrumentedWriter(prefix string, flag int) *OTWriter {
 	writer := &OTWriter{
-		base:     base,
-		logFlags: flag,
-		regex:    regexp.MustCompile(fmt.Sprintf(LOG_REGEX_TEMPLATE, prefix)),
+		regex: regexp.MustCompile(fmt.Sprintf(LOG_REGEX_TEMPLATE, prefix)),
 	}
-	if flag == stdlog.LstdFlags|stdlog.Lmicroseconds {
+	if flag&(stdlog.LstdFlags|stdlog.Lmicroseconds) != 0 {
 		writer.timeLayout = "2006/01/02T15:04:05.000000"
 	}
 	return writer
@@ -105,7 +97,7 @@ func (w *OTWriter) Write(p []byte) (n int, err error) {
 	if w.logRecords != nil {
 		w.process(p)
 	}
-	return w.base.Write(p)
+	return len(p), nil
 }
 
 // Start recording opentracing.LogRecord from logger
@@ -155,11 +147,13 @@ func (w *OTWriter) process(p []byte) {
 				lineNumber: match[4],
 			}
 		}
-		if item.message == "" {
-			item.message = match[5]
-		} else {
-			// Multiline log item support
-			item.message = item.message + "\n" + match[5]
+		if item != nil {
+			if item.message == "" {
+				item.message = match[5]
+			} else {
+				// Multiline log item support
+				item.message = item.message + "\n" + match[5]
+			}
 		}
 	}
 	w.storeLogRecord(item)
