@@ -114,7 +114,7 @@ func (i *instrumentedIO) ioHandler() {
 	reader := bufio.NewReader(i.rPipe)
 	fields := []log.Field{
 		log.String(tags.EventType, tags.LogEvent),
-		log.String("log.logger", "std"),
+		log.String("log.logger", "stdOut"),
 	}
 	for {
 		line, err := reader.ReadString('\n')
