@@ -28,15 +28,13 @@ type instrumentedIO struct {
 // Patch Standard Output
 func PatchStdOut() {
 	instIO := patchIO(&os.Stdout, false)
-	logRecorders = append(logRecorders, instIO)
-	instIO.StartRecord()
+	recorders = append(recorders, instIO)
 }
 
 // Patch Standard Error
 func PatchStdErr() {
 	instIO := patchIO(&os.Stderr, true)
-	logRecorders = append(logRecorders, instIO)
-	instIO.StartRecord()
+	recorders = append(recorders, instIO)
 }
 
 // Patch IO File
@@ -60,14 +58,14 @@ func patchIO(base **os.File, isError bool) *instrumentedIO {
 }
 
 // Start recording opentracing.LogRecord from logger
-func (i *instrumentedIO) StartRecord() {
+func (i *instrumentedIO) Reset() {
 	i.logRecordsMutex.Lock()
 	defer i.logRecordsMutex.Unlock()
-	i.logRecords = make([]opentracing.LogRecord, 0)
+	i.logRecords = nil
 }
 
 // Stop recording opentracing.LogRecord and return all recorded items
-func (i *instrumentedIO) StopRecord() []opentracing.LogRecord {
+func (i *instrumentedIO) GetRecords() []opentracing.LogRecord {
 	i.logRecordsMutex.Lock()
 	defer i.logRecordsMutex.Unlock()
 	defer func() {
@@ -106,7 +104,7 @@ func (i *instrumentedIO) ioHandler() {
 			break
 		}
 		i.logRecordsMutex.RLock()
-		if i.logRecords != nil && len(strings.TrimSpace(line)) > 0 {
+		if len(strings.TrimSpace(line)) > 0 {
 			now := time.Now()
 			if i.isError {
 				fields = append(fields,

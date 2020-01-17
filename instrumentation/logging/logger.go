@@ -38,8 +38,7 @@ func PatchStandardLogger() {
 	currentWriter := getStdLoggerWriter()
 	otWriter := newInstrumentedWriter(stdlog.Prefix(), stdlog.Flags())
 	stdlog.SetOutput(io.MultiWriter(currentWriter, otWriter))
-	logRecorders = append(logRecorders, otWriter)
-	otWriter.StartRecord()
+	recorders = append(recorders, otWriter)
 }
 
 // Patch a logger
@@ -47,8 +46,7 @@ func PatchLogger(logger *stdlog.Logger) {
 	currentWriter := logger.Writer()
 	otWriter := newInstrumentedWriter(logger.Prefix(), logger.Flags())
 	logger.SetOutput(io.MultiWriter(currentWriter, otWriter))
-	logRecorders = append(logRecorders, otWriter)
-	otWriter.StartRecord()
+	recorders = append(recorders, otWriter)
 }
 
 // Create a new instrumented writer for loggers
@@ -66,21 +64,19 @@ func newInstrumentedWriter(prefix string, flag int) *OTWriter {
 func (w *OTWriter) Write(p []byte) (n int, err error) {
 	w.logRecordsMutex.RLock()
 	defer w.logRecordsMutex.RUnlock()
-	if w.logRecords != nil {
-		w.process(p)
-	}
+	w.process(p)
 	return len(p), nil
 }
 
 // Start recording opentracing.LogRecord from logger
-func (w *OTWriter) StartRecord() {
+func (w *OTWriter) Reset() {
 	w.logRecordsMutex.Lock()
 	defer w.logRecordsMutex.Unlock()
-	w.logRecords = make([]opentracing.LogRecord, 0)
+	w.logRecords = nil
 }
 
 // Stop recording opentracing.LogRecord and return all recorded items
-func (w *OTWriter) StopRecord() []opentracing.LogRecord {
+func (w *OTWriter) GetRecords() []opentracing.LogRecord {
 	w.logRecordsMutex.Lock()
 	defer w.logRecordsMutex.Unlock()
 	defer func() {
@@ -91,7 +87,7 @@ func (w *OTWriter) StopRecord() []opentracing.LogRecord {
 
 // Process bytes and create new log items struct to store
 func (w *OTWriter) process(p []byte) {
-	if w.logRecords == nil || len(p) == 0 {
+	if len(p) == 0 {
 		// Nothing to process
 		return
 	}

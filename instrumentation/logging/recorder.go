@@ -3,11 +3,11 @@ package logging
 import "github.com/opentracing/opentracing-go"
 
 type LogRecorder interface {
-	StartRecord()
-	StopRecord() []opentracing.LogRecord
+	Reset()
+	GetRecords() []opentracing.LogRecord
 }
 
-var logRecorders []LogRecorder
+var recorders []LogRecorder
 
 //
 // We are doing like this because there is no way to call span.LogFields with a custom timestamp on each event.
@@ -18,17 +18,17 @@ var logRecorders []LogRecorder
 //
 
 // Start record in all registered writers (used by the StartTest in order to generate new records for the span)
-func StartRecord() {
-	for _, writer := range logRecorders {
-		writer.StartRecord()
+func Reset() {
+	for _, writer := range recorders {
+		writer.Reset()
 	}
 }
 
 // Stop record all registered writers (used by End in order to retrieve the records from the log and insert them in the span)
-func StopRecord() []opentracing.LogRecord {
+func GetRecords() []opentracing.LogRecord {
 	var records []opentracing.LogRecord
-	for _, writer := range logRecorders {
-		records = append(records, writer.StopRecord()...)
+	for _, writer := range recorders {
+		records = append(records, writer.GetRecords()...)
 	}
 	return records
 }
