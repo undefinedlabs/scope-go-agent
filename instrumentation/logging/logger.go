@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"io"
 	stdlog "log"
-	"os"
 	"regexp"
 	"sync"
 	"time"
@@ -44,7 +43,7 @@ var (
 
 // Patch the standard logger
 func PatchStandardLogger() {
-	oldLoggerWriter = os.Stderr
+	oldLoggerWriter = getStdLoggerWriter()
 	loggerWriter := newInstrumentedWriter(oldLoggerWriter, stdlog.Prefix(), stdlog.Flags())
 	stdlog.SetOutput(loggerWriter)
 	otWriters = append(otWriters, loggerWriter)
@@ -83,6 +82,10 @@ func StopRecord() []opentracing.LogRecord {
 
 // Create a new instrumented writer for loggers
 func newInstrumentedWriter(base io.Writer, prefix string, flag int) *OTWriter {
+	if baseWriter, ok := base.(*OTWriter); ok {
+		// Avoid decorating twice
+		return baseWriter
+	}
 	writer := &OTWriter{
 		base:     base,
 		logFlags: flag,

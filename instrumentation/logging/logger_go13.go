@@ -1,13 +1,13 @@
-// +build "go1.13"
+// +build go1.13
 
 package logging
 
-import stdlog "log"
+import (
+	"io"
+	stdlog "log"
+)
 
-// Patch the standard logger
-func PatchStandardLogger() {
-	oldLoggerWriter = stdlog.Writer()
-	loggerWriter := newInstrumentedWriter(oldLoggerWriter, stdlog.Prefix(), stdlog.Flags())
-	stdlog.SetOutput(loggerWriter)
-	otWriters = append(otWriters, loggerWriter)
+// Gets the standard logger writer
+func getStdLoggerWriter() io.Writer {
+	return stdlog.Writer() // This func exist from go1.13
 }
