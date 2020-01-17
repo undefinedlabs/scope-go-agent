@@ -15,11 +15,11 @@ import (
 )
 
 const (
-	LOG_REGEX_TEMPLATE = `(?m)^%s(?:(?P<date>\d{4}\/\d{1,2}\/\d{1,2}) )?(?:(?P<time>\d{1,2}:\d{1,2}:\d{1,2}(?:.\d{1,6})?) )?(?:(?:(?P<file>[\w\-. \/\\:]+):(?P<line>\d+)): )?(.*)\n?$`
+	log_Regex_Template = `(?m)^%s(?:(?P<date>\d{4}\/\d{1,2}\/\d{1,2}) )?(?:(?P<time>\d{1,2}:\d{1,2}:\d{1,2}(?:.\d{1,6})?) )?(?:(?:(?P<file>[\w\-. \/\\:]+):(?P<line>\d+)): )?(.*)\n?$`
 )
 
 type (
-	OTWriter struct {
+	otWriter struct {
 		logRecordsMutex sync.RWMutex
 		logRecords      []opentracing.LogRecord
 		regex           *regexp.Regexp
@@ -31,28 +31,62 @@ type (
 		lineNumber string
 		message    string
 	}
+	loggerPatchInfo struct {
+		current  io.Writer
+		previous io.Writer
+	}
+)
+
+var (
+	patchedLoggersMutex sync.Mutex
+	patchedLoggers      = map[*stdlog.Logger]loggerPatchInfo{}
+	stdLoggerWriter     io.Writer
 )
 
 // Patch the standard logger
 func PatchStandardLogger() {
-	currentWriter := getStdLoggerWriter()
+	stdLoggerWriter := getStdLoggerWriter()
 	otWriter := newInstrumentedWriter(stdlog.Prefix(), stdlog.Flags())
-	stdlog.SetOutput(io.MultiWriter(currentWriter, otWriter))
+	stdlog.SetOutput(io.MultiWriter(stdLoggerWriter, otWriter))
 	recorders = append(recorders, otWriter)
+}
+
+// Unpatch the standard logger
+func UnpatchStandardLogger() {
+	stdlog.SetOutput(stdLoggerWriter)
 }
 
 // Patch a logger
 func PatchLogger(logger *stdlog.Logger) {
+	patchedLoggersMutex.Lock()
+	defer patchedLoggersMutex.Unlock()
+	if _, ok := patchedLoggers[logger]; ok {
+		return
+	}
 	currentWriter := logger.Writer()
 	otWriter := newInstrumentedWriter(logger.Prefix(), logger.Flags())
 	logger.SetOutput(io.MultiWriter(currentWriter, otWriter))
 	recorders = append(recorders, otWriter)
+	patchedLoggers[logger] = loggerPatchInfo{
+		current:  otWriter,
+		previous: currentWriter,
+	}
+}
+
+// Unpatch a logger
+func UnpatchLogger(logger *stdlog.Logger) {
+	patchedLoggersMutex.Lock()
+	defer patchedLoggersMutex.Unlock()
+	if logInfo, ok := patchedLoggers[logger]; ok {
+		logger.SetOutput(logInfo.previous)
+		delete(patchedLoggers, logger)
+	}
 }
 
 // Create a new instrumented writer for loggers
-func newInstrumentedWriter(prefix string, flag int) *OTWriter {
-	writer := &OTWriter{
-		regex: regexp.MustCompile(fmt.Sprintf(LOG_REGEX_TEMPLATE, prefix)),
+func newInstrumentedWriter(prefix string, flag int) *otWriter {
+	writer := &otWriter{
+		regex: regexp.MustCompile(fmt.Sprintf(log_Regex_Template, prefix)),
 	}
 	if flag&(stdlog.LstdFlags|stdlog.Lmicroseconds) != 0 {
 		writer.timeLayout = "2006/01/02T15:04:05.000000"
@@ -61,7 +95,7 @@ func newInstrumentedWriter(prefix string, flag int) *OTWriter {
 }
 
 // Write data to the channel and the base writer
-func (w *OTWriter) Write(p []byte) (n int, err error) {
+func (w *otWriter) Write(p []byte) (n int, err error) {
 	w.logRecordsMutex.RLock()
 	defer w.logRecordsMutex.RUnlock()
 	w.process(p)
@@ -69,14 +103,14 @@ func (w *OTWriter) Write(p []byte) (n int, err error) {
 }
 
 // Start recording opentracing.LogRecord from logger
-func (w *OTWriter) Reset() {
+func (w *otWriter) Reset() {
 	w.logRecordsMutex.Lock()
 	defer w.logRecordsMutex.Unlock()
 	w.logRecords = nil
 }
 
 // Stop recording opentracing.LogRecord and return all recorded items
-func (w *OTWriter) GetRecords() []opentracing.LogRecord {
+func (w *otWriter) GetRecords() []opentracing.LogRecord {
 	w.logRecordsMutex.Lock()
 	defer w.logRecordsMutex.Unlock()
 	defer func() {
@@ -86,7 +120,7 @@ func (w *OTWriter) GetRecords() []opentracing.LogRecord {
 }
 
 // Process bytes and create new log items struct to store
-func (w *OTWriter) process(p []byte) {
+func (w *otWriter) process(p []byte) {
 	if len(p) == 0 {
 		// Nothing to process
 		return
@@ -128,7 +162,7 @@ func (w *OTWriter) process(p []byte) {
 }
 
 // Stores a new log record from the logItem
-func (w *OTWriter) storeLogRecord(item *logItem) {
+func (w *otWriter) storeLogRecord(item *logItem) {
 	if item == nil {
 		return
 	}

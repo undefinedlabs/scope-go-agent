@@ -2,12 +2,12 @@ package logging
 
 import "github.com/opentracing/opentracing-go"
 
-type LogRecorder interface {
+type logRecorder interface {
 	Reset()
 	GetRecords() []opentracing.LogRecord
 }
 
-var recorders []LogRecorder
+var recorders []logRecorder
 
 //
 // We are doing like this because there is no way to call span.LogFields with a custom timestamp on each event.

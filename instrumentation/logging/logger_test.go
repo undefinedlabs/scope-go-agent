@@ -8,7 +8,7 @@ import (
 )
 
 func TestLoggingRegex(t *testing.T) {
-	re := regexp.MustCompile(fmt.Sprintf(LOG_REGEX_TEMPLATE, stdlog.Prefix()))
+	re := regexp.MustCompile(fmt.Sprintf(log_Regex_Template, stdlog.Prefix()))
 
 	var loglines = [][]string{
 		{"2009/01/23 01:23:23.123123 /a/b/c/d.go:23: message", "2009/01/23", "01:23:23.123123", "/a/b/c/d.go", "23", "message"},
