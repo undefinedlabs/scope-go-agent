@@ -23,6 +23,7 @@ func (test *Test) Error(args ...interface{}) {
 		log.String("log.internal_level", "Error"),
 		log.String("log.logger", "ScopeAgent"),
 	)
+	test.innerLoggerUsed = true
 	test.t.Error(args...)
 }
 func (test *Test) Errorf(format string, args ...interface{}) {
@@ -38,6 +39,7 @@ func (test *Test) Errorf(format string, args ...interface{}) {
 		log.String("log.internal_level", "Error"),
 		log.String("log.logger", "ScopeAgent"),
 	)
+	test.innerLoggerUsed = true
 	test.t.Errorf(format, args...)
 }
 func (test *Test) Fail() {
@@ -54,6 +56,7 @@ func (test *Test) Fatal(args ...interface{}) {
 		test.failReasonSource = fmt.Sprintf("%s:%d", file, line)
 	}
 	test.failReason = fmt.Sprint(args...)
+	test.innerLoggerUsed = true
 	test.t.Fatal(args...)
 }
 func (test *Test) Fatalf(format string, args ...interface{}) {
@@ -61,6 +64,7 @@ func (test *Test) Fatalf(format string, args ...interface{}) {
 		test.failReasonSource = fmt.Sprintf("%s:%d", file, line)
 	}
 	test.failReason = fmt.Sprintf(format, args...)
+	test.innerLoggerUsed = true
 	test.t.Fatalf(format, args...)
 }
 func (test *Test) Log(args ...interface{}) {
@@ -76,6 +80,7 @@ func (test *Test) Log(args ...interface{}) {
 		log.String("log.internal_level", "Log"),
 		log.String("log.logger", "ScopeAgent"),
 	)
+	test.innerLoggerUsed = true
 	test.t.Log(args...)
 }
 func (test *Test) Logf(format string, args ...interface{}) {
@@ -91,6 +96,7 @@ func (test *Test) Logf(format string, args ...interface{}) {
 		log.String("log.internal_level", "Log"),
 		log.String("log.logger", "ScopeAgent"),
 	)
+	test.innerLoggerUsed = true
 	test.t.Logf(format, args...)
 }
 func (test *Test) Name() string {
@@ -101,6 +107,7 @@ func (test *Test) Skip(args ...interface{}) {
 		test.skipReasonSource = fmt.Sprintf("%s:%d", file, line)
 	}
 	test.skipReason = fmt.Sprint(args...)
+	test.innerLoggerUsed = true
 	test.t.Skip(args...)
 }
 func (test *Test) SkipNow() {
@@ -111,6 +118,7 @@ func (test *Test) Skipf(format string, args ...interface{}) {
 		test.skipReasonSource = fmt.Sprintf("%s:%d", file, line)
 	}
 	test.skipReason = fmt.Sprintf(format, args...)
+	test.innerLoggerUsed = true
 	test.t.Skipf(format, args...)
 }
 func (test *Test) Skipped() bool {
