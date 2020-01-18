@@ -241,10 +241,8 @@ func NewAgent(options ...Option) (*Agent, error) {
 			return true
 		},
 		MaxLogsPerSpan: 10000,
-		OnSpanFinishPanic: func(rSpan *tracer.RawSpan, r interface{}) {
-			// Log the error in the current span
-			scopeError.LogErrorInRawSpan(rSpan, r)
-		},
+		// Log the error in the current span
+		OnSpanFinishPanic: scopeError.LogErrorInRawSpan,
 	})
 
 	instrumentation.SetTracer(agent.tracer)

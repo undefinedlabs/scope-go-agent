@@ -3,6 +3,7 @@ package tracer
 import (
 	"time"
 
+	"github.com/go-errors/errors"
 	"github.com/opentracing/opentracing-go"
 )
 
@@ -91,7 +92,7 @@ type Options struct {
 	// conditions the code may panic.
 	EnableSpanPool bool
 	// Func to call when a panic has been detected when a span is finalizing
-	OnSpanFinishPanic func(rSpan *RawSpan, r interface{})
+	OnSpanFinishPanic func(rSpan *RawSpan, err **errors.Error)
 }
 
 // DefaultOptions returns an Options object with a 1 in 64 sampling rate and
