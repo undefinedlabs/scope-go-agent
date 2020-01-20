@@ -45,6 +45,8 @@ var (
 	testMap                    = map[*testing.T]*Test{}
 	autoInstrumentedTestsMutex sync.RWMutex
 	autoInstrumentedTests      = map[*testing.T]bool{}
+	instrumentedBenchmarkMutex sync.RWMutex
+	instrumentedBenchmark      = map[*testing.B]bool{}
 
 	defaultPanicHandler = func(test *Test) {}
 
@@ -71,6 +73,21 @@ func Init(m *testing.M) {
 		}
 		// Replace internal tests with new test indirection
 		*intTests = tests
+	}
+	if bPointer, err := getFieldPointerOfM(m, "benchmarks"); err == nil {
+		intBenchmarks := (*[]testing.InternalBenchmark)(bPointer)
+		var benchmarks []testing.InternalBenchmark
+		for _, benchmark := range *intBenchmarks {
+			funcValue := benchmark.F
+			funcPointer := reflect.ValueOf(funcValue).Pointer()
+			benchmarks = append(benchmarks, testing.InternalBenchmark{
+				Name: benchmark.Name,
+				F: func(b *testing.B) { // Indirection of a original benchmark
+					startBenchmark(b, funcPointer, funcValue)
+				},
+			})
+		}
+		*intBenchmarks = benchmarks
 	}
 }
 
@@ -318,16 +335,42 @@ func addAutoInstrumentedTest(t *testing.T) {
 	autoInstrumentedTests[t] = true
 }
 
+// Adds an instrumented benchmark to the map
+func addInstrumentedBenchmark(b *testing.B) {
+	instrumentedBenchmarkMutex.Lock()
+	defer instrumentedBenchmarkMutex.Unlock()
+	instrumentedBenchmark[b] = true
+}
+
 // Starts a new benchmark using a pc as caller
 func StartBenchmark(b *testing.B, pc uintptr, benchFunc func(b *testing.B)) {
+	if !isBenchmarkInstrumented(b) {
+		startBenchmark(b, pc, benchFunc)
+	} else {
+		benchFunc(b)
+	}
+}
+
+func isBenchmarkInstrumented(b *testing.B) bool {
+	instrumentedBenchmarkMutex.RLock()
+	defer instrumentedBenchmarkMutex.RUnlock()
+	_, ok := instrumentedBenchmark[b]
+	return ok
+}
+
+func startBenchmark(b *testing.B, pc uintptr, benchFunc func(b *testing.B)) {
 	var bChild *testing.B
 	b.ReportAllocs()
 	b.ResetTimer()
 	startTime := time.Now()
 	result := b.Run("*", func(b1 *testing.B) {
+		addInstrumentedBenchmark(b1)
 		benchFunc(b1)
 		bChild = b1
 	})
+	if bChild == nil {
+		return
+	}
 	results, err := extractBenchmarkResult(bChild)
 	if err != nil {
 		instrumentation.Logger().Printf("Error while extracting the benchmark result object: %v\n", err)
