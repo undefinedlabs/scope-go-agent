@@ -27,25 +27,33 @@ type StackFrames struct {
 	Package    string
 }
 
+var MarkSpanAsError = errors.New("")
+
 // Write exception event in span using the recover data from panic
 func LogError(span opentracing.Span, recoverData interface{}, skipFrames int) {
 	var exceptionFields = getExceptionLogFields(recoverData, skipFrames+1)
 	span.LogFields(exceptionFields...)
 	span.SetTag("error", true)
 }
-func LogErrorInRawSpan(rawSpan *tracer.RawSpan, recoverData interface{}) {
-	var exceptionFields = getExceptionLogFields(recoverData, 1)
-	if rawSpan.Logs == nil {
-		rawSpan.Logs = []opentracing.LogRecord{}
-	}
+
+func LogErrorInRawSpan(rawSpan *tracer.RawSpan, err **errors.Error) {
 	if rawSpan.Tags == nil {
 		rawSpan.Tags = opentracing.Tags{}
 	}
-	rawSpan.Logs = append(rawSpan.Logs, opentracing.LogRecord{
-		Timestamp: time.Now(),
-		Fields:    exceptionFields,
-	})
-	rawSpan.Tags["error"] = true
+	if *err == MarkSpanAsError {
+		rawSpan.Tags["error"] = true
+	} else {
+		var exceptionFields = getExceptionLogFields(*err, 1)
+		if rawSpan.Logs == nil {
+			rawSpan.Logs = []opentracing.LogRecord{}
+		}
+		rawSpan.Logs = append(rawSpan.Logs, opentracing.LogRecord{
+			Timestamp: time.Now(),
+			Fields:    exceptionFields,
+		})
+		rawSpan.Tags["error"] = true
+		*err = MarkSpanAsError
+	}
 }
 
 // Gets the current stack frames array

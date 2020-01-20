@@ -166,7 +166,7 @@ func (s *spanImpl) Finish() {
 	if s.tracer != nil && s.tracer.options.OnSpanFinishPanic != nil && s.raw.ParentSpanID != 0 {
 		if r := recover(); r != nil {
 			currentError = errors.Wrap(r, 1)
-			s.tracer.options.OnSpanFinishPanic(&s.raw, currentError)
+			s.tracer.options.OnSpanFinishPanic(&s.raw, &currentError)
 		}
 	}
 
@@ -199,7 +199,7 @@ func (s *spanImpl) FinishWithOptions(opts opentracing.FinishOptions) {
 	if s.tracer != nil && s.tracer.options.OnSpanFinishPanic != nil && s.raw.ParentSpanID != 0 {
 		if r := recover(); r != nil {
 			currentError = errors.Wrap(r, 1)
-			s.tracer.options.OnSpanFinishPanic(&s.raw, currentError)
+			s.tracer.options.OnSpanFinishPanic(&s.raw, &currentError)
 		}
 	}
 

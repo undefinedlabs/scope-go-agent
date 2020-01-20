@@ -199,7 +199,9 @@ func (test *Test) end() {
 	if r := recover(); r != nil {
 		test.span.SetTag("test.status", tags.TestStatus_FAIL)
 		test.span.SetTag("error", true)
-		errors.LogError(test.span, r, 1)
+		if r != errors.MarkSpanAsError {
+			errors.LogError(test.span, r, 1)
+		}
 		test.span.FinishWithOptions(finishOptions)
 		if test.onPanicHandler != nil {
 			test.onPanicHandler(test)
