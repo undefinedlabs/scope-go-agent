@@ -1,10 +1,5 @@
 package testing
 
-import (
-	"fmt"
-	"runtime"
-)
-
 // ***************************
 // TB interface implementation
 func (test *Test) private() {}
@@ -36,19 +31,11 @@ func (test *Test) Failed() bool {
 
 // Deprecated: use `testing.T.Fatal` instead
 func (test *Test) Fatal(args ...interface{}) {
-	if _, file, line, ok := runtime.Caller(1); ok == true {
-		test.failReasonSource = fmt.Sprintf("%s:%d", file, line)
-	}
-	test.failReason = fmt.Sprint(args...)
 	test.t.Fatal(args...)
 }
 
 // Deprecated: use `testing.T.Fatalf` instead
 func (test *Test) Fatalf(format string, args ...interface{}) {
-	if _, file, line, ok := runtime.Caller(1); ok == true {
-		test.failReasonSource = fmt.Sprintf("%s:%d", file, line)
-	}
-	test.failReason = fmt.Sprintf(format, args...)
 	test.t.Fatalf(format, args...)
 }
 
@@ -69,10 +56,6 @@ func (test *Test) Name() string {
 
 // Deprecated: use `testing.T.Skip` instead
 func (test *Test) Skip(args ...interface{}) {
-	if _, file, line, ok := runtime.Caller(1); ok == true {
-		test.skipReasonSource = fmt.Sprintf("%s:%d", file, line)
-	}
-	test.skipReason = fmt.Sprint(args...)
 	test.t.Skip(args...)
 }
 
@@ -83,10 +66,6 @@ func (test *Test) SkipNow() {
 
 // Deprecated: use `testing.T.Skipf` instead
 func (test *Test) Skipf(format string, args ...interface{}) {
-	if _, file, line, ok := runtime.Caller(1); ok == true {
-		test.skipReasonSource = fmt.Sprintf("%s:%d", file, line)
-	}
-	test.skipReason = fmt.Sprintf(format, args...)
 	test.t.Skipf(format, args...)
 }
 
