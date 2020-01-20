@@ -2,8 +2,6 @@ package testing
 
 import (
 	"fmt"
-	"github.com/opentracing/opentracing-go/log"
-	"go.undefinedlabs.com/scopeagent/tags"
 	"runtime"
 )
 
@@ -13,35 +11,11 @@ func (test *Test) private() {}
 
 // Deprecated: use `testing.T.Error` instead
 func (test *Test) Error(args ...interface{}) {
-	var source string
-	if _, file, line, ok := runtime.Caller(1); ok == true {
-		source = fmt.Sprintf("%s:%d", file, line)
-	}
-	test.span.LogFields(
-		log.String(tags.EventType, tags.LogEvent),
-		log.String(tags.EventMessage, fmt.Sprint(args...)),
-		log.String(tags.EventSource, source),
-		log.String(tags.LogEventLevel, tags.LogLevel_ERROR),
-		log.String("log.internal_level", "Error"),
-		log.String("log.logger", "ScopeAgent"),
-	)
 	test.t.Error(args...)
 }
 
 // Deprecated: use `testing.T.Error` instead
 func (test *Test) Errorf(format string, args ...interface{}) {
-	var source string
-	if _, file, line, ok := runtime.Caller(1); ok == true {
-		source = fmt.Sprintf("%s:%d", file, line)
-	}
-	test.span.LogFields(
-		log.String(tags.EventType, tags.LogEvent),
-		log.String(tags.EventMessage, fmt.Sprintf(format, args...)),
-		log.String(tags.EventSource, source),
-		log.String(tags.LogEventLevel, tags.LogLevel_ERROR),
-		log.String("log.internal_level", "Error"),
-		log.String("log.logger", "ScopeAgent"),
-	)
 	test.t.Errorf(format, args...)
 }
 
@@ -80,35 +54,11 @@ func (test *Test) Fatalf(format string, args ...interface{}) {
 
 // Deprecated: use `testing.T.Log` instead
 func (test *Test) Log(args ...interface{}) {
-	var source string
-	if _, file, line, ok := runtime.Caller(1); ok == true {
-		source = fmt.Sprintf("%s:%d", file, line)
-	}
-	test.span.LogFields(
-		log.String(tags.EventType, tags.LogEvent),
-		log.String(tags.EventMessage, fmt.Sprint(args...)),
-		log.String(tags.EventSource, source),
-		log.String(tags.LogEventLevel, tags.LogLevel_INFO),
-		log.String("log.internal_level", "Log"),
-		log.String("log.logger", "ScopeAgent"),
-	)
 	test.t.Log(args...)
 }
 
 // Deprecated: use `testing.T.Logf` instead
 func (test *Test) Logf(format string, args ...interface{}) {
-	var source string
-	if _, file, line, ok := runtime.Caller(1); ok == true {
-		source = fmt.Sprintf("%s:%d", file, line)
-	}
-	test.span.LogFields(
-		log.String(tags.EventType, tags.LogEvent),
-		log.String(tags.EventMessage, fmt.Sprintf(format, args...)),
-		log.String(tags.EventSource, source),
-		log.String(tags.LogEventLevel, tags.LogLevel_INFO),
-		log.String("log.internal_level", "Log"),
-		log.String("log.logger", "ScopeAgent"),
-	)
 	test.t.Logf(format, args...)
 }
 
