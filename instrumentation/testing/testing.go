@@ -380,18 +380,22 @@ func startBenchmark(b *testing.B, pc uintptr, benchFunc func(b *testing.B)) {
 	// Extracting the benchmark func name (by removing any possible sub-benchmark suffix `{bench_func}/{sub_benchmark}`)
 	// to search the func source code bounds and to calculate the package name.
 	fullTestName := b.Name()
+
+	// We detect if the parent benchmark is instrumented, and if so we remove the "*" SubBenchmark from the previous instrumentation
+	parentBenchmark := getParentBenchmark(b)
+	if parentBenchmark != nil && isBenchmarkInstrumented(parentBenchmark) {
+		parentName := parentBenchmark.Name()
+		if strings.Index(fullTestName, parentName) == 0 && len(parentName) > 2 {
+			fullTestName = parentName[:len(parentName)-2] + fullTestName[len(parentName):]
+		}
+	}
+
 	testNameSlash := strings.IndexByte(fullTestName, '/')
 	funcName := fullTestName
 	if testNameSlash >= 0 {
 		funcName = fullTestName[:testNameSlash]
 	}
-
-	funcFullName := runtime.FuncForPC(pc).Name()
-	funcNameIndex := strings.LastIndex(funcFullName, funcName)
-	if funcNameIndex < 1 {
-		funcNameIndex = len(funcFullName)
-	}
-	packageName := funcFullName[:funcNameIndex-1]
+	packageName := getBenchmarkSuite(b)
 
 	sourceBounds, _ := ast.GetFuncSourceForName(pc, funcName)
 	var testCode string
@@ -410,7 +414,7 @@ func startBenchmark(b *testing.B, pc uintptr, benchFunc func(b *testing.B)) {
 		"test.type":      "benchmark",
 	}, opentracing.StartTime(startTime))
 
-	span, _ := opentracing.StartSpanFromContextWithTracer(context.Background(), instrumentation.Tracer(), b.Name(), startOptions...)
+	span, _ := opentracing.StartSpanFromContextWithTracer(context.Background(), instrumentation.Tracer(), fullTestName, startOptions...)
 	span.SetBaggageItem("trace.kind", "test")
 	avg := math.Round((float64(results.T.Nanoseconds())/float64(results.N))*100) / 100
 	span.SetTag("benchmark.runs", results.N)
@@ -425,6 +429,26 @@ func startBenchmark(b *testing.B, pc uintptr, benchFunc func(b *testing.B)) {
 	span.FinishWithOptions(opentracing.FinishOptions{
 		FinishTime: startTime.Add(results.T),
 	})
+}
+
+func getParentBenchmark(b *testing.B) *testing.B {
+	val := reflect.Indirect(reflect.ValueOf(b))
+	member := val.FieldByName("parent")
+	if member.IsValid() {
+		ptrToY := unsafe.Pointer(member.UnsafeAddr())
+		return *(**testing.B)(ptrToY)
+	}
+	return nil
+}
+
+func getBenchmarkSuite(b *testing.B) string {
+	val := reflect.Indirect(reflect.ValueOf(b))
+	member := val.FieldByName("importPath")
+	if member.IsValid() {
+		ptrToY := unsafe.Pointer(member.UnsafeAddr())
+		return *(*string)(ptrToY)
+	}
+	return ""
 }
 
 //Extract benchmark result from the private result field in testing.B
