@@ -82,7 +82,7 @@ func Init(m *testing.M) {
 			funcPointer := reflect.ValueOf(funcValue).Pointer()
 			benchmarks = append(benchmarks, testing.InternalBenchmark{
 				Name: benchmark.Name,
-				F: func(b *testing.B) { // Indirection of a original benchmark
+				F: func(b *testing.B) { // Indirection of the original benchmark
 					startBenchmark(b, funcPointer, funcValue)
 				},
 			})
@@ -345,8 +345,10 @@ func addInstrumentedBenchmark(b *testing.B) {
 // Starts a new benchmark using a pc as caller
 func StartBenchmark(b *testing.B, pc uintptr, benchFunc func(b *testing.B)) {
 	if !isBenchmarkInstrumented(b) {
+		// If the current benchmark is not instrumented, we instrument it.
 		startBenchmark(b, pc, benchFunc)
 	} else {
+		// If the benchmark is already instrumented, we passthrough to the benchFunc
 		benchFunc(b)
 	}
 }
@@ -395,7 +397,7 @@ func startBenchmark(b *testing.B, pc uintptr, benchFunc func(b *testing.B)) {
 	if testNameSlash >= 0 {
 		funcName = fullTestName[:testNameSlash]
 	}
-	packageName := getBenchmarkSuite(b)
+	packageName := getBenchmarkSuiteName(b)
 
 	sourceBounds, _ := ast.GetFuncSourceForName(pc, funcName)
 	var testCode string
@@ -441,7 +443,7 @@ func getParentBenchmark(b *testing.B) *testing.B {
 	return nil
 }
 
-func getBenchmarkSuite(b *testing.B) string {
+func getBenchmarkSuiteName(b *testing.B) string {
 	val := reflect.Indirect(reflect.ValueOf(b))
 	member := val.FieldByName("importPath")
 	if member.IsValid() {
