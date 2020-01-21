@@ -38,6 +38,10 @@ type (
 	}
 
 	Option func(*Test)
+
+	Benchmark struct {
+		b *testing.B
+	}
 )
 
 var (
@@ -45,8 +49,9 @@ var (
 	testMap                    = map[*testing.T]*Test{}
 	autoInstrumentedTestsMutex sync.RWMutex
 	autoInstrumentedTests      = map[*testing.T]bool{}
+
 	instrumentedBenchmarkMutex sync.RWMutex
-	instrumentedBenchmark      = map[*testing.B]bool{}
+	instrumentedBenchmark      = map[*testing.B]*Benchmark{}
 
 	defaultPanicHandler = func(test *Test) {}
 
@@ -335,13 +340,6 @@ func addAutoInstrumentedTest(t *testing.T) {
 	autoInstrumentedTests[t] = true
 }
 
-// Adds an instrumented benchmark to the map
-func addInstrumentedBenchmark(b *testing.B) {
-	instrumentedBenchmarkMutex.Lock()
-	defer instrumentedBenchmarkMutex.Unlock()
-	instrumentedBenchmark[b] = true
-}
-
 // Starts a new benchmark using a pc as caller
 func StartBenchmark(b *testing.B, pc uintptr, benchFunc func(b *testing.B)) {
 	if !isBenchmarkInstrumented(b) {
@@ -353,11 +351,37 @@ func StartBenchmark(b *testing.B, pc uintptr, benchFunc func(b *testing.B)) {
 	}
 }
 
+// Runs an auto instrumented sub benchmark
+func (bench *Benchmark) Run(name string, f func(b *testing.B)) bool {
+	pc, _, _, _ := runtime.Caller(1)
+	return bench.b.Run(name, func(innerB *testing.B) {
+		startBenchmark(innerB, pc, f)
+	})
+}
+
+// Adds an instrumented benchmark to the map
+func addInstrumentedBenchmark(b *testing.B, value *Benchmark) {
+	instrumentedBenchmarkMutex.Lock()
+	defer instrumentedBenchmarkMutex.Unlock()
+	instrumentedBenchmark[b] = value
+}
+
+// Gets if the benchmark is instrumented
 func isBenchmarkInstrumented(b *testing.B) bool {
 	instrumentedBenchmarkMutex.RLock()
 	defer instrumentedBenchmarkMutex.RUnlock()
 	_, ok := instrumentedBenchmark[b]
 	return ok
+}
+
+// Gets the Benchmark struct from *testing.Benchmark
+func GetBenchmark(b *testing.B) *Benchmark {
+	instrumentedBenchmarkMutex.RLock()
+	defer instrumentedBenchmarkMutex.RUnlock()
+	if bench, ok := instrumentedBenchmark[b]; ok {
+		return bench
+	}
+	return nil
 }
 
 func startBenchmark(b *testing.B, pc uintptr, benchFunc func(b *testing.B)) {
@@ -366,7 +390,7 @@ func startBenchmark(b *testing.B, pc uintptr, benchFunc func(b *testing.B)) {
 	b.ResetTimer()
 	startTime := time.Now()
 	result := b.Run("*", func(b1 *testing.B) {
-		addInstrumentedBenchmark(b1)
+		addInstrumentedBenchmark(b1, &Benchmark{b: b1})
 		benchFunc(b1)
 		bChild = b1
 	})
