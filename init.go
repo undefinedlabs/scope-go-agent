@@ -28,6 +28,10 @@ func Run(m *testing.M, opts ...agent.Option) int {
 			defaultAgent.PrintReport()
 		}
 	})
+
+	scopetesting.PatchTestingLogger()
+	defer scopetesting.UnpatchTestingLogger()
+
 	defer newAgent.Stop()
 	defaultAgent = newAgent
 	return m.Run()
