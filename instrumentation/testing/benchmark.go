@@ -112,11 +112,6 @@ func startBenchmark(b *testing.B, pc uintptr, benchFunc func(b *testing.B)) {
 			}
 		}
 		fullTestName = strings.Join(nameSegments, "/")
-
-		parentName := parentBenchmark.Name()
-		if strings.Index(fullTestName, parentName) == 0 && len(parentName) > 2 {
-			fullTestName = parentName[:len(parentName)-2] + fullTestName[len(parentName):]
-		}
 	}
 
 	testNameSlash := strings.IndexByte(fullTestName, '/')
