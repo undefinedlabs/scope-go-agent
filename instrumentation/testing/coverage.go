@@ -124,7 +124,7 @@ func endCoverage() *coverage {
 	for key, value := range fileMap {
 
 		// Ensure sorting of line and column
-		sort.Slice(value, func(i, j int) bool {
+		sort.Slice(value[:], func(i, j int) bool {
 			if value[i][0] == value[j][0] {
 				return value[i][1] < value[j][1]
 			}
