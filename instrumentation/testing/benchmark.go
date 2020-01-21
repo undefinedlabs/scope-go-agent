@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"math"
 	"reflect"
+	"regexp"
 	"runtime"
 	"strings"
 	"sync"
@@ -28,6 +29,7 @@ type (
 var (
 	instrumentedBenchmarkMutex sync.RWMutex
 	instrumentedBenchmark      = map[*testing.B]*Benchmark{}
+	benchNameRegex             = regexp.MustCompile(`([\w-_:!@#\$%&()=]*)(\/\*\&\/)?`)
 )
 
 // Starts a new benchmark using a pc as caller
@@ -79,12 +81,15 @@ func startBenchmark(b *testing.B, pc uintptr, benchFunc func(b *testing.B)) {
 	b.ReportAllocs()
 	b.ResetTimer()
 	startTime := time.Now()
-	result := b.Run("*", func(b1 *testing.B) {
+	result := b.Run("*&", func(b1 *testing.B) {
 		addInstrumentedBenchmark(b1, &Benchmark{b: b1})
 		benchFunc(b1)
 		bChild = b1
 	})
 	if bChild == nil {
+		return
+	}
+	if getBenchmarkHasSub(bChild) > 0 {
 		return
 	}
 	results, err := extractBenchmarkResult(bChild)
@@ -100,6 +105,14 @@ func startBenchmark(b *testing.B, pc uintptr, benchFunc func(b *testing.B)) {
 	// We detect if the parent benchmark is instrumented, and if so we remove the "*" SubBenchmark from the previous instrumentation
 	parentBenchmark := getParentBenchmark(b)
 	if parentBenchmark != nil && isBenchmarkInstrumented(parentBenchmark) {
+		var nameSegments []string
+		for _, match := range benchNameRegex.FindAllStringSubmatch(fullTestName, -1) {
+			if match[1] != "" {
+				nameSegments = append(nameSegments, match[1])
+			}
+		}
+		fullTestName = strings.Join(nameSegments, "/")
+
 		parentName := parentBenchmark.Name()
 		if strings.Index(fullTestName, parentName) == 0 && len(parentName) > 2 {
 			fullTestName = parentName[:len(parentName)-2] + fullTestName[len(parentName):]
@@ -165,6 +178,16 @@ func getBenchmarkSuiteName(b *testing.B) string {
 		return *(*string)(ptrToY)
 	}
 	return ""
+}
+
+func getBenchmarkHasSub(b *testing.B) int32 {
+	val := reflect.Indirect(reflect.ValueOf(b))
+	member := val.FieldByName("hasSub")
+	if member.IsValid() {
+		ptrToY := unsafe.Pointer(member.UnsafeAddr())
+		return *(*int32)(ptrToY)
+	}
+	return 0
 }
 
 //Extract benchmark result from the private result field in testing.B
