@@ -10,7 +10,6 @@ import (
 	"path"
 	"path/filepath"
 	"runtime"
-	"sort"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -122,15 +121,15 @@ func endCoverage() *coverage {
 	}
 	files := make([]fileCoverage, 0)
 	for key, value := range fileMap {
-
-		// Ensure sorting of line and column
-		sort.Slice(value[:], func(i, j int) bool {
-			if value[i][0] == value[j][0] {
-				return value[i][1] < value[j][1]
-			}
-			return value[i][0] < value[j][0]
-		})
-
+		/*
+			// Ensure sorting of line and column
+			sort.Slice(value[:], func(i, j int) bool {
+				if value[i][0] == value[j][0] {
+					return value[i][1] < value[j][1]
+				}
+				return value[i][0] < value[j][0]
+			})
+		*/
 		// Check if we have collision on line and column in consecutive boundaries
 		// This collision happens on coverage with for loops, the `{` char of the for appears twice in two blocks
 		for i := 0; i <= len(value)-4; i = i + 4 {
