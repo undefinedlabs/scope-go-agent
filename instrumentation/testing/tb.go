@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/opentracing/opentracing-go/log"
 	"go.undefinedlabs.com/scopeagent/tags"
+	"runtime"
 )
 
 // ***************************
@@ -129,4 +130,16 @@ func (test *Test) Skipped() bool {
 // Deprecated: use `testing.T.Helper` instead
 func (test *Test) Helper() {
 	test.t.Helper()
+}
+
+func getSourceFileAndNumber() string {
+	var source string
+	if _, file, line, ok := runtime.Caller(6); ok == true {
+		// The monkey patching version adds 4 frames to the stack.
+		source = fmt.Sprintf("%s:%d", file, line)
+	} else if _, file, line, ok := runtime.Caller(2); ok == true {
+		// If we don't have monkey patching then we skip 2 frames
+		source = fmt.Sprintf("%s:%d", file, line)
+	}
+	return source
 }

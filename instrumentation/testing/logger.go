@@ -1,7 +1,6 @@
 package testing
 
 import (
-	"fmt"
 	"reflect"
 	"runtime"
 	"testing"
@@ -13,21 +12,30 @@ import (
 )
 
 var (
-	// *testing.common type
-	commonPtr reflect.Type
-	// patches
-	patches []*mpatch.Patch
+	commonPtr       reflect.Type         // *testing.common type
+	patches         []*mpatch.Patch      // patches
+	skippedPointers = map[uintptr]bool{} // pointers to skip
 )
 
 func init() {
+	// We get the *testing.common type to use in the patch method
 	var t testing.T
 	typeOfT := reflect.TypeOf(t)
 	if cm, ok := typeOfT.FieldByName("common"); ok {
 		commonPtr = reflect.PtrTo(cm.Type)
 	}
+
+	// We extract all methods pointer of Test, to avoid logging twice
+	var test *Test
+	typeOfTest := reflect.TypeOf(test)
+	for i := 0; i < typeOfTest.NumMethod(); i++ {
+		method := typeOfTest.Method(i)
+		skippedPointers[method.Func.Pointer()] = true
+	}
 }
 
 func PatchTestingLogger() {
+
 	patchError()
 	patchErrorf()
 	patchFatal()
@@ -111,14 +119,6 @@ func getArgs(in reflect.Value) []interface{} {
 	return args
 }
 
-func getSourceFileAndNumber() string {
-	var source string
-	if _, file, line, ok := runtime.Caller(5); ok == true {
-		source = fmt.Sprintf("%s:%d", file, line)
-	}
-	return source
-}
-
 func patch(methodName string, methodBody func(test *Test, argsValues []reflect.Value)) {
 	if method, ok := commonPtr.MethodByName(methodName); ok {
 		var patch *mpatch.Patch
@@ -129,6 +129,13 @@ func patch(methodName string, methodBody func(test *Test, argsValues []reflect.V
 				defer func() {
 					logOnError(patch.Patch())
 				}()
+				// We check if the caller is not a method of Test struct, to avoid duplicate logs
+				if pc, _, _, ok := runtime.Caller(3); ok {
+					fnc := runtime.FuncForPC(pc)
+					if _, ok := skippedPointers[fnc.Entry()]; ok {
+						return nil
+					}
+				}
 				t := (*testing.T)(unsafe.Pointer(in[0].Pointer()))
 				if t != nil {
 					in = in[1:]
