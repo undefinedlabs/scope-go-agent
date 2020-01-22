@@ -3,6 +3,7 @@ package testing
 import (
 	"reflect"
 	"runtime"
+	"sync"
 	"testing"
 	"unsafe"
 
@@ -12,10 +13,11 @@ import (
 )
 
 var (
-	commonPtr       reflect.Type         // *testing.common type
-	patches         []*mpatch.Patch      // patches
-	skippedPointers = map[uintptr]bool{} // pointers to skip
-	patchPointers   = map[uintptr]bool{} // pointers of patch funcs
+	commonPtr          reflect.Type         // *testing.common type
+	patches            []*mpatch.Patch      // patches
+	skippedPointers    = map[uintptr]bool{} // pointers to skip
+	patchPointersMutex sync.Mutex
+	patchPointers      = map[uintptr]bool{} // pointers of patch funcs
 )
 
 func init() {
@@ -36,6 +38,8 @@ func init() {
 }
 
 func PatchTestingLogger() {
+	patchPointersMutex.Lock()
+	defer patchPointersMutex.Unlock()
 	patchError()
 	patchErrorf()
 	patchFatal()
@@ -47,10 +51,13 @@ func PatchTestingLogger() {
 }
 
 func UnpatchTestingLogger() {
+	patchPointersMutex.Lock()
+	defer patchPointersMutex.Unlock()
 	for _, patch := range patches {
 		logOnError(patch.Unpatch())
 	}
 	patches = nil
+	patchPointers = map[uintptr]bool{}
 }
 
 func patchError() {
