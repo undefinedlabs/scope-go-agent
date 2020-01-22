@@ -35,7 +35,6 @@ func init() {
 }
 
 func PatchTestingLogger() {
-
 	patchError()
 	patchErrorf()
 	patchFatal()
