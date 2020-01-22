@@ -48,10 +48,7 @@ func PatchTestingLogger() {
 
 func UnpatchTestingLogger() {
 	for _, patch := range patches {
-		err := patch.Unpatch()
-		if err != nil {
-			instrumentation.Logger().Println(err)
-		}
+		logOnError(patch.Unpatch())
 	}
 	patches = nil
 }
