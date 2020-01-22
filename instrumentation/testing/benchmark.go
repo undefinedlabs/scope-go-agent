@@ -27,14 +27,14 @@ type (
 )
 
 var (
-	instrumentedBenchmarkMutex sync.RWMutex
-	instrumentedBenchmark      = map[*testing.B]*Benchmark{}
-	benchNameRegex             = regexp.MustCompile(`([\w-_:!@#\$%&()=]*)(\/\*\&\/)?`)
+	benchmarkMapMutex  sync.RWMutex
+	benchmarkMap       = map[*testing.B]*Benchmark{}
+	benchmarkNameRegex = regexp.MustCompile(`([\w-_:!@#\$%&()=]*)(\/\*\&\/)?`)
 )
 
 // Starts a new benchmark using a pc as caller
 func StartBenchmark(b *testing.B, pc uintptr, benchFunc func(b *testing.B)) {
-	if !isBenchmarkInstrumented(b) {
+	if !hasBenchmark(b) {
 		// If the current benchmark is not instrumented, we instrument it.
 		startBenchmark(b, pc, benchFunc)
 	} else {
@@ -51,26 +51,26 @@ func (bench *Benchmark) Run(name string, f func(b *testing.B)) bool {
 	})
 }
 
-// Adds an instrumented benchmark to the map
-func addInstrumentedBenchmark(b *testing.B, value *Benchmark) {
-	instrumentedBenchmarkMutex.Lock()
-	defer instrumentedBenchmarkMutex.Unlock()
-	instrumentedBenchmark[b] = value
+// Adds a benchmark struct to the map
+func addBenchmark(b *testing.B, value *Benchmark) {
+	benchmarkMapMutex.Lock()
+	defer benchmarkMapMutex.Unlock()
+	benchmarkMap[b] = value
 }
 
-// Gets if the benchmark is instrumented
-func isBenchmarkInstrumented(b *testing.B) bool {
-	instrumentedBenchmarkMutex.RLock()
-	defer instrumentedBenchmarkMutex.RUnlock()
-	_, ok := instrumentedBenchmark[b]
+// Gets if the benchmark struct exist
+func hasBenchmark(b *testing.B) bool {
+	benchmarkMapMutex.RLock()
+	defer benchmarkMapMutex.RUnlock()
+	_, ok := benchmarkMap[b]
 	return ok
 }
 
 // Gets the Benchmark struct from *testing.Benchmark
 func GetBenchmark(b *testing.B) *Benchmark {
-	instrumentedBenchmarkMutex.RLock()
-	defer instrumentedBenchmarkMutex.RUnlock()
-	if bench, ok := instrumentedBenchmark[b]; ok {
+	benchmarkMapMutex.RLock()
+	defer benchmarkMapMutex.RUnlock()
+	if bench, ok := benchmarkMap[b]; ok {
 		return bench
 	}
 	return nil
@@ -82,7 +82,7 @@ func startBenchmark(b *testing.B, pc uintptr, benchFunc func(b *testing.B)) {
 	b.ResetTimer()
 	startTime := time.Now()
 	result := b.Run("*&", func(b1 *testing.B) {
-		addInstrumentedBenchmark(b1, &Benchmark{b: b1})
+		addBenchmark(b1, &Benchmark{b: b1})
 		benchFunc(b1)
 		bChild = b1
 	})
@@ -104,9 +104,9 @@ func startBenchmark(b *testing.B, pc uintptr, benchFunc func(b *testing.B)) {
 
 	// We detect if the parent benchmark is instrumented, and if so we remove the "*" SubBenchmark from the previous instrumentation
 	parentBenchmark := getParentBenchmark(b)
-	if parentBenchmark != nil && isBenchmarkInstrumented(parentBenchmark) {
+	if parentBenchmark != nil && hasBenchmark(parentBenchmark) {
 		var nameSegments []string
-		for _, match := range benchNameRegex.FindAllStringSubmatch(fullTestName, -1) {
+		for _, match := range benchmarkNameRegex.FindAllStringSubmatch(fullTestName, -1) {
 			if match[1] != "" {
 				nameSegments = append(nameSegments, match[1])
 			}
