@@ -15,6 +15,7 @@ var (
 	commonPtr       reflect.Type         // *testing.common type
 	patches         []*mpatch.Patch      // patches
 	skippedPointers = map[uintptr]bool{} // pointers to skip
+	patchPointers   = map[uintptr]bool{} // pointers of patch funcs
 )
 
 func init() {
@@ -53,56 +54,73 @@ func UnpatchTestingLogger() {
 }
 
 func patchError() {
-	patch("Error", func(test *Test, argsValues []reflect.Value) {
+	fn := func(test *Test, argsValues []reflect.Value) {
 		args := getArgs(argsValues[0])
 		test.Error(args...)
-	})
+	}
+	patch("Error", fn)
+	patchPointers[reflect.ValueOf(fn).Pointer()] = true
+
 }
 func patchErrorf() {
-	patch("Errorf", func(test *Test, argsValues []reflect.Value) {
+	fn := func(test *Test, argsValues []reflect.Value) {
 		format := argsValues[0].String()
 		args := getArgs(argsValues[1])
 		test.Errorf(format, args...)
-	})
+	}
+	patch("Errorf", fn)
+	patchPointers[reflect.ValueOf(fn).Pointer()] = true
 }
 func patchFatal() {
-	patch("Fatal", func(test *Test, argsValues []reflect.Value) {
+	fn := func(test *Test, argsValues []reflect.Value) {
 		args := getArgs(argsValues[0])
 		test.Fatal(args...)
-	})
+	}
+	patch("Fatal", fn)
+	patchPointers[reflect.ValueOf(fn).Pointer()] = true
 }
 func patchFatalf() {
-	patch("Fatalf", func(test *Test, argsValues []reflect.Value) {
+	fn := func(test *Test, argsValues []reflect.Value) {
 		format := argsValues[0].String()
 		args := getArgs(argsValues[1])
 		test.Fatalf(format, args...)
-	})
+	}
+	patch("Fatalf", fn)
+	patchPointers[reflect.ValueOf(fn).Pointer()] = true
 }
 func patchLog() {
-	patch("Log", func(test *Test, argsValues []reflect.Value) {
+	fn := func(test *Test, argsValues []reflect.Value) {
 		args := getArgs(argsValues[0])
 		test.Log(args...)
-	})
+	}
+	patch("Log", fn)
+	patchPointers[reflect.ValueOf(fn).Pointer()] = true
 }
 func patchLogf() {
-	patch("Logf", func(test *Test, argsValues []reflect.Value) {
+	fn := func(test *Test, argsValues []reflect.Value) {
 		format := argsValues[0].String()
 		args := getArgs(argsValues[1])
 		test.Logf(format, args...)
-	})
+	}
+	patch("Logf", fn)
+	patchPointers[reflect.ValueOf(fn).Pointer()] = true
 }
 func patchSkip() {
-	patch("Skip", func(test *Test, argsValues []reflect.Value) {
+	fn := func(test *Test, argsValues []reflect.Value) {
 		args := getArgs(argsValues[0])
 		test.Skip(args...)
-	})
+	}
+	patch("Skip", fn)
+	patchPointers[reflect.ValueOf(fn).Pointer()] = true
 }
 func patchSkipf() {
-	patch("Skipf", func(test *Test, argsValues []reflect.Value) {
+	fn := func(test *Test, argsValues []reflect.Value) {
 		format := argsValues[0].String()
 		args := getArgs(argsValues[1])
 		test.Skipf(format, args...)
-	})
+	}
+	patch("Skipf", fn)
+	patchPointers[reflect.ValueOf(fn).Pointer()] = true
 }
 
 func getArgs(in reflect.Value) []interface{} {
