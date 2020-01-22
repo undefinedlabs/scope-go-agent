@@ -38,6 +38,10 @@ type (
 			Err string
 		}
 	}
+	blockWithCount struct {
+		block *testing.CoverBlock
+		count int
+	}
 )
 
 //go:linkname cover testing.cover
@@ -100,23 +104,27 @@ func endCoverage() *coverage {
 	for name, counts := range cover.Counters {
 		if file, ok := filePathData[name]; ok {
 			blocks := cover.Blocks[name]
-			blockStack := make([]*testing.CoverBlock, 0)
+			blockStack := make([]*blockWithCount, 0)
 			for i := range counts {
 				count = atomic.LoadUint32(&counts[i])
 				atomic.StoreUint32(&counts[i], counters[name][i]+count)
 				if count > 0 {
+					iCount := int(count)
 					curBlock := blocks[i]
 					var prvBlock *testing.CoverBlock
 					blockStackLen := len(blockStack)
 					if blockStackLen > 0 {
-						prvBlock = blockStack[blockStackLen-1]
+						prvBlock = blockStack[blockStackLen-1].block
 					}
 
 					if prvBlock == nil {
 						fileMap[file] = append(fileMap[file], []int{
-							int(curBlock.Line0), int(curBlock.Col0), int(count),
+							int(curBlock.Line0), int(curBlock.Col0), iCount,
 						})
-						blockStack = append(blockStack, &curBlock)
+						blockStack = append(blockStack, &blockWithCount{
+							block: &curBlock,
+							count: iCount,
+						})
 					} else if contains(prvBlock, &curBlock) {
 						pBoundCol := int(curBlock.Col0)
 						cBoundCol := int(curBlock.Col0)
@@ -129,33 +137,50 @@ func endCoverage() *coverage {
 							int(curBlock.Line0), pBoundCol, -1,
 						})
 						fileMap[file] = append(fileMap[file], []int{
-							int(curBlock.Line0), cBoundCol, int(count),
+							int(curBlock.Line0), cBoundCol, iCount,
 						})
-						blockStack = append(blockStack, &curBlock)
+						blockStack = append(blockStack, &blockWithCount{
+							block: &curBlock,
+							count: iCount,
+						})
 					} else {
 						pBoundCol := int(prvBlock.Col1)
 						cBoundCol := int(curBlock.Col0)
-						if pBoundCol > 0 {
-							pBoundCol--
-						} else {
-							cBoundCol++
+						if prvBlock.Line1 == curBlock.Line0 {
+							if pBoundCol > 0 {
+								pBoundCol--
+							} else {
+								cBoundCol++
+							}
 						}
 						fileMap[file] = append(fileMap[file], []int{
 							int(prvBlock.Line1), pBoundCol, -1,
 						})
 						fileMap[file] = append(fileMap[file], []int{
-							int(curBlock.Line0), cBoundCol, int(count),
+							int(curBlock.Line0), cBoundCol, iCount,
 						})
-						blockStack[blockStackLen-1] = &curBlock
+						blockStack[blockStackLen-1] = &blockWithCount{
+							block: &curBlock,
+							count: iCount,
+						}
 					}
 				}
 			}
 
 			if len(blockStack) > 0 {
-				prvBlock := blockStack[len(blockStack)-1]
-				fileMap[file] = append(fileMap[file], []int{
-					int(prvBlock.Line1), int(prvBlock.Col1), -1,
-				})
+				var prvBlock *blockWithCount
+				for i := len(blockStack) - 1; i >= 0; i-- {
+					cBlock := blockStack[i]
+					if prvBlock != nil {
+						fileMap[file] = append(fileMap[file], []int{
+							int(prvBlock.block.Line1), int(prvBlock.block.Col1) + 1, cBlock.count,
+						})
+					}
+					fileMap[file] = append(fileMap[file], []int{
+						int(cBlock.block.Line1), int(cBlock.block.Col1), -1,
+					})
+					prvBlock = cBlock
+				}
 			}
 		}
 
@@ -177,12 +202,15 @@ func endCoverage() *coverage {
 	return coverageData
 }
 
-func contains(outter, inner *testing.CoverBlock) bool {
-	if outter != nil && inner != nil {
-		return outter.Line0 < inner.Line0 &&
-			outter.Col0 < inner.Col0 &&
-			outter.Line1 > inner.Line1 &&
-			outter.Col1 > inner.Col1
+func contains(outer, inner *testing.CoverBlock) bool {
+	if outer != nil && inner != nil {
+		if outer.Line0 > inner.Line0 || (outer.Line0 == inner.Line0 && outer.Col0 > inner.Col0) {
+			return false
+		}
+		if outer.Line1 < inner.Line1 || (outer.Line1 == inner.Line1 && outer.Col1 < inner.Col1) {
+			return false
+		}
+		return true
 	}
 	return false
 }
