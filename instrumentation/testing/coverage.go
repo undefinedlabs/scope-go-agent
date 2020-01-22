@@ -96,54 +96,72 @@ func endCoverage() *coverage {
 	defer countersMutex.Unlock()
 
 	fileMap := map[string][][]int{}
-	var active, total int64
 	var count uint32
 	for name, counts := range cover.Counters {
-		blocks := cover.Blocks[name]
-		for i := range counts {
-			stmts := int64(blocks[i].Stmts)
-			total += stmts
-			count = atomic.LoadUint32(&counts[i])
-			atomic.StoreUint32(&counts[i], counters[name][i]+count)
-			if count > 0 {
-				active += stmts
-				curBlock := blocks[i]
-				if file, ok := filePathData[name]; ok {
-					fileMap[file] = append(fileMap[file], []int{
-						int(curBlock.Line0), int(curBlock.Col0), int(count),
-					})
-					fileMap[file] = append(fileMap[file], []int{
-						int(curBlock.Line1), int(curBlock.Col1), -1,
-					})
+		if file, ok := filePathData[name]; ok {
+			blocks := cover.Blocks[name]
+			blockStack := make([]*testing.CoverBlock, 0)
+			for i := range counts {
+				count = atomic.LoadUint32(&counts[i])
+				atomic.StoreUint32(&counts[i], counters[name][i]+count)
+				if count > 0 {
+					curBlock := blocks[i]
+					var prvBlock *testing.CoverBlock
+					blockStackLen := len(blockStack)
+					if blockStackLen > 0 {
+						prvBlock = blockStack[blockStackLen-1]
+					}
+
+					if prvBlock == nil {
+						fileMap[file] = append(fileMap[file], []int{
+							int(curBlock.Line0), int(curBlock.Col0), int(count),
+						})
+						blockStack = append(blockStack, &curBlock)
+					} else if contains(prvBlock, &curBlock) {
+						pBoundCol := int(curBlock.Col0)
+						cBoundCol := int(curBlock.Col0)
+						if pBoundCol > 0 {
+							pBoundCol--
+						} else {
+							cBoundCol++
+						}
+						fileMap[file] = append(fileMap[file], []int{
+							int(curBlock.Line0), pBoundCol, -1,
+						})
+						fileMap[file] = append(fileMap[file], []int{
+							int(curBlock.Line0), cBoundCol, int(count),
+						})
+						blockStack = append(blockStack, &curBlock)
+					} else {
+						pBoundCol := int(prvBlock.Col1)
+						cBoundCol := int(curBlock.Col0)
+						if pBoundCol > 0 {
+							pBoundCol--
+						} else {
+							cBoundCol++
+						}
+						fileMap[file] = append(fileMap[file], []int{
+							int(prvBlock.Line1), pBoundCol, -1,
+						})
+						fileMap[file] = append(fileMap[file], []int{
+							int(curBlock.Line0), cBoundCol, int(count),
+						})
+						blockStack[blockStackLen-1] = &curBlock
+					}
 				}
 			}
-		}
-	}
-	files := make([]fileCoverage, 0)
-	for key, value := range fileMap {
-		/*
-			// Ensure sorting of line and column
-			sort.Slice(value[:], func(i, j int) bool {
-				if value[i][0] == value[j][0] {
-					return value[i][1] < value[j][1]
-				}
-				return value[i][0] < value[j][0]
-			})
-		*/
-		// Check if we have collision on line and column in consecutive boundaries
-		// This collision happens on coverage with for loops, the `{` char of the for appears twice in two blocks
-		for i := 0; i <= len(value)-4; i = i + 4 {
-			cBound1 := value[i+1]
-			nBound0 := value[i+2]
-			if cBound1[0] == nBound0[0] {
-				// Same line
-				if cBound1[1] == nBound0[1] {
-					// Same column, so we move one column backward in the first boundary
-					cBound1[1] = cBound1[1] - 1
-				}
+
+			if len(blockStack) > 0 {
+				prvBlock := blockStack[len(blockStack)-1]
+				fileMap[file] = append(fileMap[file], []int{
+					int(prvBlock.Line1), int(prvBlock.Col1), -1,
+				})
 			}
 		}
 
+	}
+	files := make([]fileCoverage, 0)
+	for key, value := range fileMap {
 		files = append(files, fileCoverage{
 			Filename:   key,
 			Boundaries: value,
@@ -157,6 +175,16 @@ func endCoverage() *coverage {
 		Files:   files,
 	}
 	return coverageData
+}
+
+func contains(outter, inner *testing.CoverBlock) bool {
+	if outter != nil && inner != nil {
+		return outter.Line0 < inner.Line0 &&
+			outter.Col0 < inner.Col0 &&
+			outter.Line1 > inner.Line1 &&
+			outter.Col1 > inner.Col1
+	}
+	return false
 }
 
 // Functions to find the absolute path from coverage data.
