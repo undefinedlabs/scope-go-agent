@@ -1,75 +1,127 @@
 package testing
 
+import (
+	"fmt"
+	"github.com/opentracing/opentracing-go/log"
+	"go.undefinedlabs.com/scopeagent/tags"
+)
+
 // ***************************
 // TB interface implementation
 func (test *Test) private() {}
 
-// Deprecated: use `testing.T.Error` instead
 func (test *Test) Error(args ...interface{}) {
+	test.span.LogFields(
+		log.String(tags.EventType, tags.LogEvent),
+		log.String(tags.EventMessage, fmt.Sprint(args...)),
+		log.String(tags.EventSource, getSourceFileAndNumber()),
+		log.String(tags.LogEventLevel, tags.LogLevel_ERROR),
+		log.String("log.internal_level", "Error"),
+		log.String("log.logger", "testing"),
+	)
 	test.t.Error(args...)
 }
 
-// Deprecated: use `testing.T.Errorf` instead
 func (test *Test) Errorf(format string, args ...interface{}) {
+	test.span.LogFields(
+		log.String(tags.EventType, tags.LogEvent),
+		log.String(tags.EventMessage, fmt.Sprintf(format, args...)),
+		log.String(tags.EventSource, getSourceFileAndNumber()),
+		log.String(tags.LogEventLevel, tags.LogLevel_ERROR),
+		log.String("log.internal_level", "Error"),
+		log.String("log.logger", "testing"),
+	)
 	test.t.Errorf(format, args...)
 }
 
-// Deprecated: use `testing.T.Fail` instead
 func (test *Test) Fail() {
 	test.t.Fail()
 }
 
-// Deprecated: use `testing.T.FailNow` instead
 func (test *Test) FailNow() {
 	test.t.FailNow()
 }
 
-// Deprecated: use `testing.T.Failed` instead
 func (test *Test) Failed() bool {
 	return test.t.Failed()
 }
 
-// Deprecated: use `testing.T.Fatal` instead
 func (test *Test) Fatal(args ...interface{}) {
+	test.span.LogFields(
+		log.String(tags.EventType, tags.EventTestFailure),
+		log.String(tags.EventMessage, fmt.Sprint(args...)),
+		log.String(tags.EventSource, getSourceFileAndNumber()),
+		log.String("log.internal_level", "Fatal"),
+		log.String("log.logger", "testing"),
+	)
 	test.t.Fatal(args...)
 }
 
-// Deprecated: use `testing.T.Fatalf` instead
 func (test *Test) Fatalf(format string, args ...interface{}) {
+	test.span.LogFields(
+		log.String(tags.EventType, tags.EventTestFailure),
+		log.String(tags.EventMessage, fmt.Sprintf(format, args...)),
+		log.String(tags.EventSource, getSourceFileAndNumber()),
+		log.String("log.internal_level", "Fatal"),
+		log.String("log.logger", "testing"),
+	)
 	test.t.Fatalf(format, args...)
 }
 
-// Deprecated: use `testing.T.Log` instead
 func (test *Test) Log(args ...interface{}) {
+	test.span.LogFields(
+		log.String(tags.EventType, tags.LogEvent),
+		log.String(tags.EventMessage, fmt.Sprint(args...)),
+		log.String(tags.EventSource, getSourceFileAndNumber()),
+		log.String(tags.LogEventLevel, tags.LogLevel_INFO),
+		log.String("log.internal_level", "Log"),
+		log.String("log.logger", "testing"),
+	)
 	test.t.Log(args...)
 }
 
-// Deprecated: use `testing.T.Logf` instead
 func (test *Test) Logf(format string, args ...interface{}) {
+	test.span.LogFields(
+		log.String(tags.EventType, tags.LogEvent),
+		log.String(tags.EventMessage, fmt.Sprintf(format, args...)),
+		log.String(tags.EventSource, getSourceFileAndNumber()),
+		log.String(tags.LogEventLevel, tags.LogLevel_INFO),
+		log.String("log.internal_level", "Log"),
+		log.String("log.logger", "testing"),
+	)
 	test.t.Logf(format, args...)
 }
 
-// Deprecated: use `testing.T.Name` instead
 func (test *Test) Name() string {
 	return test.t.Name()
 }
 
-// Deprecated: use `testing.T.Skip` instead
 func (test *Test) Skip(args ...interface{}) {
+	test.span.LogFields(
+		log.String(tags.EventType, tags.EventTestSkip),
+		log.String(tags.EventMessage, fmt.Sprint(args...)),
+		log.String(tags.EventSource, getSourceFileAndNumber()),
+		log.String("log.internal_level", "Skip"),
+		log.String("log.logger", "testing"),
+	)
 	test.t.Skip(args...)
 }
 
-// Deprecated: use `testing.T.SkipNow` instead
 func (test *Test) SkipNow() {
 	test.t.SkipNow()
 }
 
-// Deprecated: use `testing.T.Skipf` instead
 func (test *Test) Skipf(format string, args ...interface{}) {
+	test.span.LogFields(
+		log.String(tags.EventType, tags.EventTestSkip),
+		log.String(tags.EventMessage, fmt.Sprintf(format, args...)),
+		log.String(tags.EventSource, getSourceFileAndNumber()),
+		log.String("log.internal_level", "Skip"),
+		log.String("log.logger", "testing"),
+	)
 	test.t.Skipf(format, args...)
 }
 
-// Deprecated: use `testing.T.Skipped` instead
 func (test *Test) Skipped() bool {
 	return test.t.Skipped()
 }
