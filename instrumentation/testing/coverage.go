@@ -10,6 +10,7 @@ import (
 	"path"
 	"path/filepath"
 	"runtime"
+	"sort"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -99,91 +100,94 @@ func endCoverage() *coverage {
 	countersMutex.Lock()
 	defer countersMutex.Unlock()
 
-	fileMap := map[string][][]int{}
-	var count uint32
+	var covSource = map[string][]*blockWithCount{}
 	for name, counts := range cover.Counters {
 		if file, ok := filePathData[name]; ok {
 			blocks := cover.Blocks[name]
-			blockStack := make([]*blockWithCount, 0)
 			for i := range counts {
-				count = atomic.LoadUint32(&counts[i])
+				count := atomic.LoadUint32(&counts[i])
 				atomic.StoreUint32(&counts[i], counters[name][i]+count)
-				if count > 0 {
-					iCount := int(count)
-					curBlock := blocks[i]
-					var prvBlock *testing.CoverBlock
-					blockStackLen := len(blockStack)
-					if blockStackLen > 0 {
-						prvBlock = blockStack[blockStackLen-1].block
-					}
+				covSource[file] = append(covSource[file], &blockWithCount{
+					block: &blocks[i],
+					count: int(count),
+				})
+			}
+			sort.Slice(covSource[file][:], func(i, j int) bool {
+				if covSource[file][i].block.Line0 == covSource[file][j].block.Line0 {
+					return covSource[file][i].block.Col0 == covSource[file][j].block.Col0
+				}
+				return covSource[file][i].block.Line0 < covSource[file][j].block.Line0
+			})
+		}
+	}
 
-					if prvBlock == nil {
-						fileMap[file] = append(fileMap[file], []int{
-							int(curBlock.Line0), int(curBlock.Col0), iCount,
-						})
-						blockStack = append(blockStack, &blockWithCount{
-							block: &curBlock,
-							count: iCount,
-						})
-					} else if contains(prvBlock, &curBlock) {
-						pBoundCol := int(curBlock.Col0)
-						cBoundCol := int(curBlock.Col0)
+	fileMap := map[string][][]int{}
+	for file, blockCount := range covSource {
+		blockStack := make([]*blockWithCount, 0)
+		for _, curBlock := range blockCount {
+			if curBlock.count > 0 {
+				var prvBlock *testing.CoverBlock
+				blockStackLen := len(blockStack)
+				if blockStackLen > 0 {
+					prvBlock = blockStack[blockStackLen-1].block
+				}
+
+				if prvBlock == nil {
+					fileMap[file] = append(fileMap[file], []int{
+						int(curBlock.block.Line0), int(curBlock.block.Col0), curBlock.count,
+					})
+					blockStack = append(blockStack, curBlock)
+				} else if contains(prvBlock, curBlock.block) {
+					pBoundCol := int(curBlock.block.Col0)
+					cBoundCol := int(curBlock.block.Col0)
+					if pBoundCol > 0 {
+						pBoundCol--
+					} else {
+						cBoundCol++
+					}
+					fileMap[file] = append(fileMap[file], []int{
+						int(curBlock.block.Line0), pBoundCol, -1,
+					})
+					fileMap[file] = append(fileMap[file], []int{
+						int(curBlock.block.Line0), cBoundCol, curBlock.count,
+					})
+					blockStack = append(blockStack, curBlock)
+				} else {
+					pBoundCol := int(prvBlock.Col1)
+					cBoundCol := int(curBlock.block.Col0)
+					if prvBlock.Line1 == curBlock.block.Line0 {
 						if pBoundCol > 0 {
 							pBoundCol--
 						} else {
 							cBoundCol++
 						}
-						fileMap[file] = append(fileMap[file], []int{
-							int(curBlock.Line0), pBoundCol, -1,
-						})
-						fileMap[file] = append(fileMap[file], []int{
-							int(curBlock.Line0), cBoundCol, iCount,
-						})
-						blockStack = append(blockStack, &blockWithCount{
-							block: &curBlock,
-							count: iCount,
-						})
-					} else {
-						pBoundCol := int(prvBlock.Col1)
-						cBoundCol := int(curBlock.Col0)
-						if prvBlock.Line1 == curBlock.Line0 {
-							if pBoundCol > 0 {
-								pBoundCol--
-							} else {
-								cBoundCol++
-							}
-						}
-						fileMap[file] = append(fileMap[file], []int{
-							int(prvBlock.Line1), pBoundCol, -1,
-						})
-						fileMap[file] = append(fileMap[file], []int{
-							int(curBlock.Line0), cBoundCol, iCount,
-						})
-						blockStack[blockStackLen-1] = &blockWithCount{
-							block: &curBlock,
-							count: iCount,
-						}
-					}
-				}
-			}
-
-			if len(blockStack) > 0 {
-				var prvBlock *blockWithCount
-				for i := len(blockStack) - 1; i >= 0; i-- {
-					cBlock := blockStack[i]
-					if prvBlock != nil {
-						fileMap[file] = append(fileMap[file], []int{
-							int(prvBlock.block.Line1), int(prvBlock.block.Col1) + 1, cBlock.count,
-						})
 					}
 					fileMap[file] = append(fileMap[file], []int{
-						int(cBlock.block.Line1), int(cBlock.block.Col1), -1,
+						int(prvBlock.Line1), pBoundCol, -1,
 					})
-					prvBlock = cBlock
+					fileMap[file] = append(fileMap[file], []int{
+						int(curBlock.block.Line0), cBoundCol, curBlock.count,
+					})
+					blockStack[blockStackLen-1] = curBlock
 				}
 			}
 		}
 
+		if len(blockStack) > 0 {
+			var prvBlock *blockWithCount
+			for i := len(blockStack) - 1; i >= 0; i-- {
+				cBlock := blockStack[i]
+				if prvBlock != nil {
+					fileMap[file] = append(fileMap[file], []int{
+						int(prvBlock.block.Line1), int(prvBlock.block.Col1) + 1, cBlock.count,
+					})
+				}
+				fileMap[file] = append(fileMap[file], []int{
+					int(cBlock.block.Line1), int(cBlock.block.Col1), -1,
+				})
+				prvBlock = cBlock
+			}
+		}
 	}
 	files := make([]fileCoverage, 0)
 	for key, value := range fileMap {
