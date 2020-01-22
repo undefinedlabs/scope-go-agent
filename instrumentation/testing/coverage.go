@@ -112,9 +112,9 @@ func endCoverage() *coverage {
 					count: int(count),
 				})
 			}
-			sort.Slice(covSource[file][:], func(i, j int) bool {
+			sort.SliceStable(covSource[file][:], func(i, j int) bool {
 				if covSource[file][i].block.Line0 == covSource[file][j].block.Line0 {
-					return covSource[file][i].block.Col0 == covSource[file][j].block.Col0
+					return covSource[file][i].block.Col0 < covSource[file][j].block.Col0
 				}
 				return covSource[file][i].block.Line0 < covSource[file][j].block.Line0
 			})
