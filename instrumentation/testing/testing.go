@@ -2,9 +2,7 @@ package testing
 
 import (
 	"context"
-	stdErrors "errors"
 	"fmt"
-	"math"
 	"reflect"
 	"regexp"
 	"runtime"
@@ -50,29 +48,6 @@ var (
 
 	TESTING_LOG_REGEX = regexp.MustCompile(`(?m)^ {4}(?P<file>[\w\/\.]+):(?P<line>\d+): (?P<message>(.*\n {8}.*)*.*)`)
 )
-
-// Initialize the testing instrumentation
-func Init(m *testing.M) {
-	if tPointer, err := getFieldPointerOfM(m, "tests"); err == nil {
-		intTests := (*[]testing.InternalTest)(tPointer)
-		tests := make([]testing.InternalTest, 0)
-		for _, test := range *intTests {
-			funcValue := test.F
-			funcPointer := reflect.ValueOf(funcValue).Pointer()
-			tests = append(tests, testing.InternalTest{
-				Name: test.Name,
-				F: func(t *testing.T) { // Creating a new test function as an indirection of the original test
-					addAutoInstrumentedTest(t)
-					tStruct := StartTestFromCaller(t, funcPointer)
-					defer tStruct.end()
-					funcValue(t)
-				},
-			})
-		}
-		// Replace internal tests with new test indirection
-		*intTests = tests
-	}
-}
 
 // Options for starting a new test
 func WithContext(ctx context.Context) Option {
@@ -318,97 +293,9 @@ func addAutoInstrumentedTest(t *testing.T) {
 	autoInstrumentedTests[t] = true
 }
 
-// Starts a new benchmark using a pc as caller
-func StartBenchmark(b *testing.B, pc uintptr, benchFunc func(b *testing.B)) {
-	var bChild *testing.B
-	b.ReportAllocs()
-	b.ResetTimer()
-	startTime := time.Now()
-	result := b.Run("*", func(b1 *testing.B) {
-		benchFunc(b1)
-		bChild = b1
-	})
-	results, err := extractBenchmarkResult(bChild)
-	if err != nil {
-		instrumentation.Logger().Printf("Error while extracting the benchmark result object: %v\n", err)
-		return
-	}
-
-	// Extracting the benchmark func name (by removing any possible sub-benchmark suffix `{bench_func}/{sub_benchmark}`)
-	// to search the func source code bounds and to calculate the package name.
-	fullTestName := b.Name()
-	testNameSlash := strings.IndexByte(fullTestName, '/')
-	funcName := fullTestName
-	if testNameSlash >= 0 {
-		funcName = fullTestName[:testNameSlash]
-	}
-
-	funcFullName := runtime.FuncForPC(pc).Name()
-	funcNameIndex := strings.LastIndex(funcFullName, funcName)
-	if funcNameIndex < 1 {
-		funcNameIndex = len(funcFullName)
-	}
-	packageName := funcFullName[:funcNameIndex-1]
-
-	sourceBounds, _ := ast.GetFuncSourceForName(pc, funcName)
-	var testCode string
-	if sourceBounds != nil {
-		testCode = fmt.Sprintf("%s:%d:%d", sourceBounds.File, sourceBounds.Start.Line, sourceBounds.End.Line)
-	}
-
-	var startOptions []opentracing.StartSpanOption
-	startOptions = append(startOptions, opentracing.Tags{
-		"span.kind":      "test",
-		"test.name":      fullTestName,
-		"test.suite":     packageName,
-		"test.code":      testCode,
-		"test.framework": "testing",
-		"test.language":  "go",
-		"test.type":      "benchmark",
-	}, opentracing.StartTime(startTime))
-
-	span, _ := opentracing.StartSpanFromContextWithTracer(context.Background(), instrumentation.Tracer(), b.Name(), startOptions...)
-	span.SetBaggageItem("trace.kind", "test")
-	avg := math.Round((float64(results.T.Nanoseconds())/float64(results.N))*100) / 100
-	span.SetTag("benchmark.runs", results.N)
-	span.SetTag("benchmark.duration.mean", avg)
-	span.SetTag("benchmark.memory.mean_allocations", results.AllocsPerOp())
-	span.SetTag("benchmark.memory.mean_bytes_allocations", results.AllocedBytesPerOp())
-	if result {
-		span.SetTag("test.status", "PASS")
-	} else {
-		span.SetTag("test.status", "FAIL")
-	}
-	span.FinishWithOptions(opentracing.FinishOptions{
-		FinishTime: startTime.Add(results.T),
-	})
-}
-
-//Extract benchmark result from the private result field in testing.B
-func extractBenchmarkResult(b *testing.B) (*testing.BenchmarkResult, error) {
-	val := reflect.Indirect(reflect.ValueOf(b))
-	member := val.FieldByName("result")
-	if member.IsValid() {
-		ptrToY := unsafe.Pointer(member.UnsafeAddr())
-		return (*testing.BenchmarkResult)(ptrToY), nil
-	}
-	return nil, stdErrors.New("result can't be retrieved")
-}
-
 // Sets the default panic handler
 func SetDefaultPanicHandler(handler func(*Test)) {
 	if handler != nil {
 		defaultPanicHandler = handler
 	}
-}
-
-// Gets a private field from the testing.M struct using reflection
-func getFieldPointerOfM(m *testing.M, fieldName string) (unsafe.Pointer, error) {
-	val := reflect.Indirect(reflect.ValueOf(m))
-	member := val.FieldByName(fieldName)
-	if member.IsValid() {
-		ptrToY := unsafe.Pointer(member.UnsafeAddr())
-		return ptrToY, nil
-	}
-	return nil, stdErrors.New("field can't be retrieved")
 }

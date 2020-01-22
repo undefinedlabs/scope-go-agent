@@ -53,6 +53,11 @@ func GetContextFromTest(t *testing.T) context.Context {
 	return nil
 }
 
+// Gets the *Benchmark from a *testing.B
+func GetBenchmark(b *testing.B) *scopetesting.Benchmark {
+	return scopetesting.GetBenchmark(b)
+}
+
 // Instruments the given benchmark func
 //
 // Example of usage:
