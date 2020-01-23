@@ -2,7 +2,6 @@ package testing
 
 import (
 	"reflect"
-	"runtime"
 	"sync"
 	"testing"
 	"unsafe"
@@ -13,9 +12,10 @@ import (
 )
 
 var (
-	commonPtr          reflect.Type         // *testing.common type
-	patches            []*mpatch.Patch      // patches
-	skippedPointers    = map[uintptr]bool{} // pointers to skip
+	commonPtr          reflect.Type // *testing.common type
+	patchLock          sync.Mutex
+	patchesMutex       sync.RWMutex
+	patches            = map[string]*mpatch.Patch{} // patches
 	patchPointersMutex sync.RWMutex
 	patchPointers      = map[uintptr]bool{} // pointers of patch funcs
 )
@@ -26,14 +26,6 @@ func init() {
 	typeOfT := reflect.TypeOf(t)
 	if cm, ok := typeOfT.FieldByName("common"); ok {
 		commonPtr = reflect.PtrTo(cm.Type)
-	}
-
-	// We extract all methods pointer of Test, to avoid logging twice
-	var test *Test
-	typeOfTest := reflect.TypeOf(test)
-	for i := 0; i < typeOfTest.NumMethod(); i++ {
-		method := typeOfTest.Method(i)
-		skippedPointers[method.Func.Pointer()] = true
 	}
 }
 
@@ -56,113 +48,81 @@ func UnpatchTestingLogger() {
 	for _, patch := range patches {
 		logOnError(patch.Unpatch())
 	}
-	patches = nil
+	patches = map[string]*mpatch.Patch{}
 	patchPointers = map[uintptr]bool{}
 }
 
 func patchError() {
-	fn := func(test *Test, argsValues []reflect.Value, bypass bool) {
+	fn := func(test *Test, argsValues []reflect.Value) {
 		args := getArgs(argsValues[0])
-		if bypass {
-			test.t.Error(args...)
-		} else {
-			test.Error(args...)
-		}
+		test.Error(args...)
 	}
 	patch("Error", fn)
 	patchPointers[reflect.ValueOf(fn).Pointer()] = true
 }
 
 func patchErrorf() {
-	fn := func(test *Test, argsValues []reflect.Value, bypass bool) {
+	fn := func(test *Test, argsValues []reflect.Value) {
 		format := argsValues[0].String()
 		args := getArgs(argsValues[1])
-		if bypass {
-			test.t.Errorf(format, args...)
-		} else {
-			test.Errorf(format, args...)
-		}
+		test.Errorf(format, args...)
 	}
 	patch("Errorf", fn)
 	patchPointers[reflect.ValueOf(fn).Pointer()] = true
 }
 
 func patchFatal() {
-	fn := func(test *Test, argsValues []reflect.Value, bypass bool) {
+	fn := func(test *Test, argsValues []reflect.Value) {
 		args := getArgs(argsValues[0])
-		if bypass {
-			test.t.Fatal(args...)
-		} else {
-			test.Fatal(args...)
-		}
+		test.Fatal(args...)
 	}
 	patch("Fatal", fn)
 	patchPointers[reflect.ValueOf(fn).Pointer()] = true
 }
 
 func patchFatalf() {
-	fn := func(test *Test, argsValues []reflect.Value, bypass bool) {
+	fn := func(test *Test, argsValues []reflect.Value) {
 		format := argsValues[0].String()
 		args := getArgs(argsValues[1])
-		if bypass {
-			test.t.Fatalf(format, args...)
-		} else {
-			test.Fatalf(format, args...)
-		}
+		test.Fatalf(format, args...)
 	}
 	patch("Fatalf", fn)
 	patchPointers[reflect.ValueOf(fn).Pointer()] = true
 }
 
 func patchLog() {
-	fn := func(test *Test, argsValues []reflect.Value, bypass bool) {
+	fn := func(test *Test, argsValues []reflect.Value) {
 		args := getArgs(argsValues[0])
-		if bypass {
-			test.t.Log(args...)
-		} else {
-			test.Log(args...)
-		}
+		test.Log(args...)
 	}
 	patch("Log", fn)
 	patchPointers[reflect.ValueOf(fn).Pointer()] = true
 }
 
 func patchLogf() {
-	fn := func(test *Test, argsValues []reflect.Value, bypass bool) {
+	fn := func(test *Test, argsValues []reflect.Value) {
 		format := argsValues[0].String()
 		args := getArgs(argsValues[1])
-		if bypass {
-			test.t.Logf(format, args...)
-		} else {
-			test.Logf(format, args...)
-		}
+		test.Logf(format, args...)
 	}
 	patch("Logf", fn)
 	patchPointers[reflect.ValueOf(fn).Pointer()] = true
 }
 
 func patchSkip() {
-	fn := func(test *Test, argsValues []reflect.Value, bypass bool) {
+	fn := func(test *Test, argsValues []reflect.Value) {
 		args := getArgs(argsValues[0])
-		if bypass {
-			test.t.Skip(args...)
-		} else {
-			test.Skip(args...)
-		}
+		test.Skip(args...)
 	}
 	patch("Skip", fn)
 	patchPointers[reflect.ValueOf(fn).Pointer()] = true
 }
 
 func patchSkipf() {
-	fn := func(test *Test, argsValues []reflect.Value, bypass bool) {
+	fn := func(test *Test, argsValues []reflect.Value) {
 		format := argsValues[0].String()
 		args := getArgs(argsValues[1])
-		if bypass {
-			test.t.Skipf(format, args...)
-		} else {
-			test.Skipf(format, args...)
-		}
+		test.Skipf(format, args...)
 	}
 	patch("Skipf", fn)
 	patchPointers[reflect.ValueOf(fn).Pointer()] = true
@@ -178,7 +138,10 @@ func getArgs(in reflect.Value) []interface{} {
 	return args
 }
 
-func patch(methodName string, methodBody func(test *Test, argsValues []reflect.Value, bypass bool)) {
+func patch(methodName string, methodBody func(test *Test, argsValues []reflect.Value)) {
+	patchesMutex.Lock()
+	defer patchesMutex.Unlock()
+
 	var method reflect.Method
 	var ok bool
 	if method, ok = commonPtr.MethodByName(methodName); !ok {
@@ -188,10 +151,6 @@ func patch(methodName string, methodBody func(test *Test, argsValues []reflect.V
 	var methodPatch *mpatch.Patch
 	var err error
 	methodPatch, err = mpatch.PatchMethodWithMakeFunc(method, func(in []reflect.Value) []reflect.Value {
-		logOnError(methodPatch.Unpatch())
-		defer func() {
-			logOnError(methodPatch.Patch())
-		}()
 		t := (*testing.T)(unsafe.Pointer(in[0].Pointer()))
 		if t == nil {
 			instrumentation.Logger().Println("testing.T is nil")
@@ -202,20 +161,12 @@ func patch(methodName string, methodBody func(test *Test, argsValues []reflect.V
 			instrumentation.Logger().Printf("test struct for %v doesn't exist\n", t.Name())
 			return nil
 		}
-		bypass := false
-		// We check if the caller is not a method of Test struct, to avoid duplicate logs
-		if pc, _, _, ok := runtime.Caller(3); ok {
-			fnc := runtime.FuncForPC(pc)
-			if _, ok := skippedPointers[fnc.Entry()]; ok {
-				bypass = true
-			}
-		}
-		methodBody(test, in[1:], bypass)
+		methodBody(test, in[1:])
 		return nil
 	})
 	logOnError(err)
 	if err == nil {
-		patches = append(patches, methodPatch)
+		patches[methodName] = methodPatch
 	}
 }
 
@@ -232,4 +183,10 @@ func isAPatchPointer(ptr uintptr) bool {
 		return true
 	}
 	return false
+}
+
+func getMethodPatch(methodName string) *mpatch.Patch {
+	patchesMutex.RLock()
+	defer patchesMutex.RUnlock()
+	return patches[methodName]
 }

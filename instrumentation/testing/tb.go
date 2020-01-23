@@ -12,6 +12,13 @@ import (
 func (test *Test) private() {}
 
 func (test *Test) Error(args ...interface{}) {
+	methodPatch := getMethodPatch("Error")
+	if methodPatch != nil {
+		patchesMutex.Lock()
+		defer patchesMutex.Unlock()
+		methodPatch.Unpatch()
+		defer methodPatch.Patch()
+	}
 	test.t.Helper()
 	test.span.LogFields(
 		log.String(tags.EventType, tags.LogEvent),
@@ -25,6 +32,13 @@ func (test *Test) Error(args ...interface{}) {
 }
 
 func (test *Test) Errorf(format string, args ...interface{}) {
+	methodPatch := getMethodPatch("Errorf")
+	if methodPatch != nil {
+		patchesMutex.Lock()
+		defer patchesMutex.Unlock()
+		methodPatch.Unpatch()
+		defer methodPatch.Patch()
+	}
 	test.t.Helper()
 	test.span.LogFields(
 		log.String(tags.EventType, tags.LogEvent),
@@ -53,6 +67,13 @@ func (test *Test) Failed() bool {
 }
 
 func (test *Test) Fatal(args ...interface{}) {
+	methodPatch := getMethodPatch("Fatal")
+	if methodPatch != nil {
+		patchesMutex.Lock()
+		defer patchesMutex.Unlock()
+		methodPatch.Unpatch()
+		defer methodPatch.Patch()
+	}
 	test.t.Helper()
 	test.span.LogFields(
 		log.String(tags.EventType, tags.EventTestFailure),
@@ -65,6 +86,13 @@ func (test *Test) Fatal(args ...interface{}) {
 }
 
 func (test *Test) Fatalf(format string, args ...interface{}) {
+	methodPatch := getMethodPatch("Fatalf")
+	if methodPatch != nil {
+		patchesMutex.Lock()
+		defer patchesMutex.Unlock()
+		methodPatch.Unpatch()
+		defer methodPatch.Patch()
+	}
 	test.t.Helper()
 	test.span.LogFields(
 		log.String(tags.EventType, tags.EventTestFailure),
@@ -77,6 +105,13 @@ func (test *Test) Fatalf(format string, args ...interface{}) {
 }
 
 func (test *Test) Log(args ...interface{}) {
+	methodPatch := getMethodPatch("Log")
+	if methodPatch != nil {
+		patchesMutex.Lock()
+		defer patchesMutex.Unlock()
+		methodPatch.Unpatch()
+		defer methodPatch.Patch()
+	}
 	test.t.Helper()
 	test.span.LogFields(
 		log.String(tags.EventType, tags.LogEvent),
@@ -90,6 +125,13 @@ func (test *Test) Log(args ...interface{}) {
 }
 
 func (test *Test) Logf(format string, args ...interface{}) {
+	methodPatch := getMethodPatch("Logf")
+	if methodPatch != nil {
+		patchesMutex.Lock()
+		defer patchesMutex.Unlock()
+		methodPatch.Unpatch()
+		defer methodPatch.Patch()
+	}
 	test.t.Helper()
 	test.span.LogFields(
 		log.String(tags.EventType, tags.LogEvent),
@@ -107,6 +149,13 @@ func (test *Test) Name() string {
 }
 
 func (test *Test) Skip(args ...interface{}) {
+	methodPatch := getMethodPatch("Skip")
+	if methodPatch != nil {
+		patchesMutex.Lock()
+		defer patchesMutex.Unlock()
+		methodPatch.Unpatch()
+		defer methodPatch.Patch()
+	}
 	test.t.Helper()
 	test.span.LogFields(
 		log.String(tags.EventType, tags.EventTestSkip),
@@ -124,6 +173,13 @@ func (test *Test) SkipNow() {
 }
 
 func (test *Test) Skipf(format string, args ...interface{}) {
+	methodPatch := getMethodPatch("Skipf")
+	if methodPatch != nil {
+		patchesMutex.Lock()
+		defer patchesMutex.Unlock()
+		methodPatch.Unpatch()
+		defer methodPatch.Patch()
+	}
 	test.t.Helper()
 	test.span.LogFields(
 		log.String(tags.EventType, tags.EventTestSkip),
