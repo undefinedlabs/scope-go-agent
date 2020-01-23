@@ -30,8 +30,6 @@ func init() {
 }
 
 func PatchTestingLogger() {
-	patchPointersMutex.Lock()
-	defer patchPointersMutex.Unlock()
 	patchError()
 	patchErrorf()
 	patchFatal()
@@ -43,6 +41,8 @@ func PatchTestingLogger() {
 }
 
 func UnpatchTestingLogger() {
+	patchLock.Lock()
+	defer patchLock.Unlock()
 	patchPointersMutex.Lock()
 	defer patchPointersMutex.Unlock()
 	for _, patch := range patches {
@@ -53,79 +53,63 @@ func UnpatchTestingLogger() {
 }
 
 func patchError() {
-	fn := func(test *Test, argsValues []reflect.Value) {
+	patch("Error", func(test *Test, argsValues []reflect.Value) {
 		args := getArgs(argsValues[0])
 		test.Error(args...)
-	}
-	patch("Error", fn)
-	patchPointers[reflect.ValueOf(fn).Pointer()] = true
+	})
 }
 
 func patchErrorf() {
-	fn := func(test *Test, argsValues []reflect.Value) {
+	patch("Errorf", func(test *Test, argsValues []reflect.Value) {
 		format := argsValues[0].String()
 		args := getArgs(argsValues[1])
 		test.Errorf(format, args...)
-	}
-	patch("Errorf", fn)
-	patchPointers[reflect.ValueOf(fn).Pointer()] = true
+	})
 }
 
 func patchFatal() {
-	fn := func(test *Test, argsValues []reflect.Value) {
+	patch("Fatal", func(test *Test, argsValues []reflect.Value) {
 		args := getArgs(argsValues[0])
 		test.Fatal(args...)
-	}
-	patch("Fatal", fn)
-	patchPointers[reflect.ValueOf(fn).Pointer()] = true
+	})
 }
 
 func patchFatalf() {
-	fn := func(test *Test, argsValues []reflect.Value) {
+	patch("Fatalf", func(test *Test, argsValues []reflect.Value) {
 		format := argsValues[0].String()
 		args := getArgs(argsValues[1])
 		test.Fatalf(format, args...)
-	}
-	patch("Fatalf", fn)
-	patchPointers[reflect.ValueOf(fn).Pointer()] = true
+	})
 }
 
 func patchLog() {
-	fn := func(test *Test, argsValues []reflect.Value) {
+	patch("Log", func(test *Test, argsValues []reflect.Value) {
 		args := getArgs(argsValues[0])
 		test.Log(args...)
-	}
-	patch("Log", fn)
-	patchPointers[reflect.ValueOf(fn).Pointer()] = true
+	})
 }
 
 func patchLogf() {
-	fn := func(test *Test, argsValues []reflect.Value) {
+	patch("Logf", func(test *Test, argsValues []reflect.Value) {
 		format := argsValues[0].String()
 		args := getArgs(argsValues[1])
 		test.Logf(format, args...)
-	}
-	patch("Logf", fn)
-	patchPointers[reflect.ValueOf(fn).Pointer()] = true
+	})
 }
 
 func patchSkip() {
-	fn := func(test *Test, argsValues []reflect.Value) {
+	patch("Skip", func(test *Test, argsValues []reflect.Value) {
 		args := getArgs(argsValues[0])
 		test.Skip(args...)
-	}
-	patch("Skip", fn)
-	patchPointers[reflect.ValueOf(fn).Pointer()] = true
+	})
 }
 
 func patchSkipf() {
-	fn := func(test *Test, argsValues []reflect.Value) {
+	patch("Skipf", func(test *Test, argsValues []reflect.Value) {
 		format := argsValues[0].String()
 		args := getArgs(argsValues[1])
 		test.Skipf(format, args...)
-	}
-	patch("Skipf", fn)
-	patchPointers[reflect.ValueOf(fn).Pointer()] = true
+	})
 }
 
 func getArgs(in reflect.Value) []interface{} {
@@ -141,6 +125,8 @@ func getArgs(in reflect.Value) []interface{} {
 func patch(methodName string, methodBody func(test *Test, argsValues []reflect.Value)) {
 	patchesMutex.Lock()
 	defer patchesMutex.Unlock()
+	patchPointersMutex.Lock()
+	defer patchPointersMutex.Unlock()
 
 	var method reflect.Method
 	var ok bool
@@ -167,6 +153,7 @@ func patch(methodName string, methodBody func(test *Test, argsValues []reflect.V
 	logOnError(err)
 	if err == nil {
 		patches[methodName] = methodPatch
+		patchPointers[reflect.ValueOf(methodBody).Pointer()] = true
 	}
 }
 
