@@ -365,3 +365,12 @@ func parseDSN(dsnString string) (apiKey string, apiEndpoint string, err error) {
 	apiEndpoint = uri.String()
 	return
 }
+
+func (a *Agent) getUrl(pathValue string) string {
+	uri, err := url.Parse(a.apiEndpoint)
+	if err != nil {
+		a.logger.Fatal(err)
+	}
+	uri.Path = path.Join(uri.Path, pathValue)
+	return uri.String()
+}
