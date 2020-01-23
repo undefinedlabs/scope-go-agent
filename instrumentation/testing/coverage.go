@@ -95,6 +95,17 @@ func startCoverage() {
 	}
 }
 
+// Restore counters
+func restoreCoverageCounters() {
+	countersMutex.Lock()
+	defer countersMutex.Unlock()
+	for name, counts := range cover.Counters {
+		for i := range counts {
+			atomic.StoreUint32(&counts[i], counters[name][i]+atomic.LoadUint32(&counts[i]))
+		}
+	}
+}
+
 // Get the counters values and extract the coverage info
 func endCoverage() *coverage {
 	countersMutex.Lock()

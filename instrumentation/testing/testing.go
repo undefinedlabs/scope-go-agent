@@ -2,6 +2,7 @@ package testing
 
 import (
 	"context"
+	stdErrors "errors"
 	"fmt"
 	"reflect"
 	"regexp"
@@ -169,8 +170,17 @@ func (test *Test) end() {
 		LogRecords: logRecords,
 	}
 
-	cov := endCoverage()
-	test.span.SetTag(tags.Coverage, *cov)
+	// Checks if the current test is running parallel to extract the coverage or not
+	if pointer, err := getFieldPointerOfT(test.t, "isParallel"); err == nil {
+		isParallel := *(*bool)(pointer)
+		if isParallel {
+			instrumentation.Logger().Printf("CodePath in parallel test is not supported: %v\n", test.t.Name())
+			restoreCoverageCounters()
+		} else {
+			cov := endCoverage()
+			test.span.SetTag(tags.Coverage, *cov)
+		}
+	}
 
 	if r := recover(); r != nil {
 		test.span.SetTag("test.status", tags.TestStatus_FAIL)
@@ -263,4 +273,15 @@ func SetDefaultPanicHandler(handler func(*Test)) {
 	if handler != nil {
 		defaultPanicHandler = handler
 	}
+}
+
+// Gets a private field from the testing.T struct using reflection
+func getFieldPointerOfT(t *testing.T, fieldName string) (unsafe.Pointer, error) {
+	val := reflect.Indirect(reflect.ValueOf(t))
+	member := val.FieldByName(fieldName)
+	if member.IsValid() {
+		ptrToY := unsafe.Pointer(member.UnsafeAddr())
+		return ptrToY, nil
+	}
+	return nil, stdErrors.New("field can't be retrieved")
 }
