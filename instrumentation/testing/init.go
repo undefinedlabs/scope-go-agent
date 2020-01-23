@@ -3,7 +3,6 @@ package testing
 import (
 	stdErrors "errors"
 	"github.com/undefinedlabs/go-mpatch"
-	"go.undefinedlabs.com/scopeagent/instrumentation"
 	"os"
 	"reflect"
 	"testing"
@@ -62,9 +61,7 @@ func Init(m *testing.M) {
 				defer UnpatchTestingLogger()
 				return m.Run()
 			})
-			if err != nil {
-				instrumentation.Logger().Println(err)
-			}
+			logOnError(err)
 		}
 	}
 }

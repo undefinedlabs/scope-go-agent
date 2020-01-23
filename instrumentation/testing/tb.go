@@ -137,7 +137,7 @@ func getSourceFileAndNumber() string {
 	if pc, file, line, ok := runtime.Caller(2); ok == true {
 		pcEntry := runtime.FuncForPC(pc).Entry()
 		// Try to detect the patch function
-		if _, ok := patchPointers[pcEntry]; ok {
+		if isAPatchPointer(pcEntry) {
 			// The monkey patching version adds 4 frames to the stack.
 			if _, file, line, ok := runtime.Caller(6); ok == true {
 				source = fmt.Sprintf("%s:%d", file, line)
