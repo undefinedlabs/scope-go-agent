@@ -2,11 +2,12 @@ package testing
 
 import (
 	stdErrors "errors"
-	"github.com/undefinedlabs/go-mpatch"
 	"os"
 	"reflect"
 	"testing"
 	"unsafe"
+
+	"github.com/undefinedlabs/go-mpatch"
 )
 
 // Initialize the testing instrumentation
