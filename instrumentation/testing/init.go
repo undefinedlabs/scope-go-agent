@@ -70,11 +70,11 @@ func Init(m *testing.M) {
 			var err error
 			runPatch, err = mpatch.PatchMethodByReflect(tRunMethod, func(t *testing.T, name string, f func(t *testing.T)) bool {
 				logOnError(runPatch.Unpatch())
-				defer func() {
-					logOnError(runPatch.Patch())
-				}()
+				defer func() { logOnError(runPatch.Patch()) }()
 				pc, _, _, _ := runtime.Caller(1)
 				return t.Run(name, func(childT *testing.T) {
+					logOnError(runPatch.Patch())
+					defer func() { logOnError(runPatch.Unpatch()) }()
 					addAutoInstrumentedTest(childT)
 					childTest := StartTestFromCaller(childT, pc)
 					defer childTest.end()
