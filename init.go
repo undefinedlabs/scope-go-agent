@@ -28,6 +28,7 @@ func Run(m *testing.M, opts ...agent.Option) int {
 			defaultAgent.PrintReport()
 		}
 	})
+
 	defer newAgent.Stop()
 	defaultAgent = newAgent
 	return m.Run()

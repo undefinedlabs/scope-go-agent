@@ -2,9 +2,12 @@ package testing
 
 import (
 	stdErrors "errors"
+	"os"
 	"reflect"
 	"testing"
 	"unsafe"
+
+	"github.com/undefinedlabs/go-mpatch"
 )
 
 // Initialize the testing instrumentation
@@ -42,6 +45,25 @@ func Init(m *testing.M) {
 			})
 		}
 		*intBenchmarks = benchmarks
+	}
+
+	if envDMPatch, set := os.LookupEnv("SCOPE_DISABLE_MONKEY_PATCHING"); !set || envDMPatch == "" {
+		// We monkey patch the `testing.M.Run()` func to patch and unpatch the testing logger methods
+		mType := reflect.ValueOf(m).Type()
+		if mRunMethod, ok := mType.MethodByName("Run"); ok {
+			var runPatch *mpatch.Patch
+			var err error
+			runPatch, err = mpatch.PatchMethodByReflect(mRunMethod, func(m *testing.M) int {
+				logOnError(runPatch.Unpatch())
+				defer func() {
+					logOnError(runPatch.Patch())
+				}()
+				PatchTestingLogger()
+				defer UnpatchTestingLogger()
+				return m.Run()
+			})
+			logOnError(err)
+		}
 	}
 }
 
