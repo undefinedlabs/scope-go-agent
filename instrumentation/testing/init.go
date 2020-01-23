@@ -2,8 +2,12 @@ package testing
 
 import (
 	"flag"
+	"os"
 	"reflect"
+	"runtime"
 	"testing"
+
+	"github.com/undefinedlabs/go-mpatch"
 
 	"go.undefinedlabs.com/scopeagent/instrumentation"
 	"go.undefinedlabs.com/scopeagent/reflection"
@@ -55,5 +59,29 @@ func Init(m *testing.M) {
 			})
 		}
 		*intBenchmarks = benchmarks
+	}
+
+	if envDMPatch, set := os.LookupEnv("SCOPE_DISABLE_MONKEY_PATCHING"); !set || envDMPatch == "" {
+		// We monkey patch the `testing.T.Run()` func to auto instrument sub tests
+		var t *testing.T
+		tType := reflect.TypeOf(t)
+		if tRunMethod, ok := tType.MethodByName("Run"); ok {
+			var runPatch *mpatch.Patch
+			var err error
+			runPatch, err = mpatch.PatchMethodByReflect(tRunMethod, func(t *testing.T, name string, f func(t *testing.T)) bool {
+				logOnError(runPatch.Unpatch())
+				defer func() {
+					logOnError(runPatch.Patch())
+				}()
+				pc, _, _, _ := runtime.Caller(1)
+				return t.Run(name, func(childT *testing.T) {
+					addAutoInstrumentedTest(childT)
+					childTest := StartTestFromCaller(childT, pc)
+					defer childTest.end()
+					f(childT)
+				})
+			})
+			logOnError(err)
+		}
 	}
 }
