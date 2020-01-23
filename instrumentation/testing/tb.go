@@ -12,6 +12,7 @@ import (
 func (test *Test) private() {}
 
 func (test *Test) Error(args ...interface{}) {
+	test.t.Helper()
 	test.span.LogFields(
 		log.String(tags.EventType, tags.LogEvent),
 		log.String(tags.EventMessage, fmt.Sprint(args...)),
@@ -24,6 +25,7 @@ func (test *Test) Error(args ...interface{}) {
 }
 
 func (test *Test) Errorf(format string, args ...interface{}) {
+	test.t.Helper()
 	test.span.LogFields(
 		log.String(tags.EventType, tags.LogEvent),
 		log.String(tags.EventMessage, fmt.Sprintf(format, args...)),
@@ -36,18 +38,22 @@ func (test *Test) Errorf(format string, args ...interface{}) {
 }
 
 func (test *Test) Fail() {
+	test.t.Helper()
 	test.t.Fail()
 }
 
 func (test *Test) FailNow() {
+	test.t.Helper()
 	test.t.FailNow()
 }
 
 func (test *Test) Failed() bool {
+	test.t.Helper()
 	return test.t.Failed()
 }
 
 func (test *Test) Fatal(args ...interface{}) {
+	test.t.Helper()
 	test.span.LogFields(
 		log.String(tags.EventType, tags.EventTestFailure),
 		log.String(tags.EventMessage, fmt.Sprint(args...)),
@@ -59,6 +65,7 @@ func (test *Test) Fatal(args ...interface{}) {
 }
 
 func (test *Test) Fatalf(format string, args ...interface{}) {
+	test.t.Helper()
 	test.span.LogFields(
 		log.String(tags.EventType, tags.EventTestFailure),
 		log.String(tags.EventMessage, fmt.Sprintf(format, args...)),
@@ -70,6 +77,7 @@ func (test *Test) Fatalf(format string, args ...interface{}) {
 }
 
 func (test *Test) Log(args ...interface{}) {
+	test.t.Helper()
 	test.span.LogFields(
 		log.String(tags.EventType, tags.LogEvent),
 		log.String(tags.EventMessage, fmt.Sprint(args...)),
@@ -82,6 +90,7 @@ func (test *Test) Log(args ...interface{}) {
 }
 
 func (test *Test) Logf(format string, args ...interface{}) {
+	test.t.Helper()
 	test.span.LogFields(
 		log.String(tags.EventType, tags.LogEvent),
 		log.String(tags.EventMessage, fmt.Sprintf(format, args...)),
@@ -98,6 +107,7 @@ func (test *Test) Name() string {
 }
 
 func (test *Test) Skip(args ...interface{}) {
+	test.t.Helper()
 	test.span.LogFields(
 		log.String(tags.EventType, tags.EventTestSkip),
 		log.String(tags.EventMessage, fmt.Sprint(args...)),
@@ -109,10 +119,12 @@ func (test *Test) Skip(args ...interface{}) {
 }
 
 func (test *Test) SkipNow() {
+	test.t.Helper()
 	test.t.SkipNow()
 }
 
 func (test *Test) Skipf(format string, args ...interface{}) {
+	test.t.Helper()
 	test.span.LogFields(
 		log.String(tags.EventType, tags.EventTestSkip),
 		log.String(tags.EventMessage, fmt.Sprintf(format, args...)),
