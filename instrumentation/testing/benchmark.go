@@ -4,7 +4,6 @@ import (
 	"context"
 	stdErrors "errors"
 	"fmt"
-	"go.undefinedlabs.com/scopeagent/runner"
 	"math"
 	"reflect"
 	"regexp"
@@ -19,6 +18,7 @@ import (
 
 	"go.undefinedlabs.com/scopeagent/ast"
 	"go.undefinedlabs.com/scopeagent/instrumentation"
+	"go.undefinedlabs.com/scopeagent/runner"
 )
 
 type (

@@ -1,17 +1,16 @@
 package runner
 
 import (
-	"errors"
 	"io/ioutil"
 	"log"
-	"reflect"
 	"regexp"
 	"strconv"
 	"sync"
 	"testing"
-	"unsafe"
 
 	goerrors "github.com/go-errors/errors"
+
+	"go.undefinedlabs.com/scopeagent/reflection"
 )
 
 type (
@@ -65,7 +64,7 @@ func Run(m *testing.M, exitOnError bool, failRetriesCount int, logger *log.Logge
 
 // Initialize test runner, replace the internal test with an indirection
 func (r *testRunner) init() {
-	if tPointer, err := getFieldPointerOfM(r.m, "tests"); err == nil {
+	if tPointer, err := reflection.GetFieldPointerOfM(r.m, "tests"); err == nil {
 		tests := make([]testing.InternalTest, 0)
 		internalTests := (*[]testing.InternalTest)(tPointer)
 		for _, test := range *internalTests {
@@ -168,40 +167,18 @@ func (td *testDescriptor) run(t *testing.T) {
 
 // Sets the test failure flag
 func setTestFailureFlag(t *testing.T, value bool) {
-	if ptr, err := getFieldPointerOfT(t, "failed"); err == nil {
+	if ptr, err := reflection.GetFieldPointerOfT(t, "failed"); err == nil {
 		*(*bool)(ptr) = value
 	}
 }
 
 // Gets the parent from a test
 func getTestParent(t *testing.T) *testing.T {
-	if parentPtr, err := getFieldPointerOfT(t, "parent"); err == nil {
+	if parentPtr, err := reflection.GetFieldPointerOfT(t, "parent"); err == nil {
 		parentTPointer := (**testing.T)(parentPtr)
 		if parentTPointer != nil && *parentTPointer != nil {
 			return *parentTPointer
 		}
 	}
 	return nil
-}
-
-// Gets a pointer of a private or public field in a testing.M struct
-func getFieldPointerOfM(m *testing.M, fieldName string) (unsafe.Pointer, error) {
-	val := reflect.Indirect(reflect.ValueOf(m))
-	member := val.FieldByName(fieldName)
-	if member.IsValid() {
-		ptrToY := unsafe.Pointer(member.UnsafeAddr())
-		return ptrToY, nil
-	}
-	return nil, errors.New("field can't be retrieved")
-}
-
-// Gets a pointer of a private or public field in a testing.T struct
-func getFieldPointerOfT(t *testing.T, fieldName string) (unsafe.Pointer, error) {
-	val := reflect.Indirect(reflect.ValueOf(t))
-	member := val.FieldByName(fieldName)
-	if member.IsValid() {
-		ptrToY := unsafe.Pointer(member.UnsafeAddr())
-		return ptrToY, nil
-	}
-	return nil, errors.New("field can't be retrieved")
 }

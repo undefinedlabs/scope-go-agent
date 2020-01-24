@@ -1,18 +1,18 @@
 package testing
 
 import (
-	stdErrors "errors"
 	"os"
 	"reflect"
 	"testing"
-	"unsafe"
 
 	"github.com/undefinedlabs/go-mpatch"
+
+	"go.undefinedlabs.com/scopeagent/reflection"
 )
 
 // Initialize the testing instrumentation
 func Init(m *testing.M) {
-	if tPointer, err := getFieldPointerOfM(m, "tests"); err == nil {
+	if tPointer, err := reflection.GetFieldPointerOfM(m, "tests"); err == nil {
 		intTests := (*[]testing.InternalTest)(tPointer)
 		tests := make([]testing.InternalTest, 0)
 		for _, test := range *intTests {
@@ -31,7 +31,7 @@ func Init(m *testing.M) {
 		// Replace internal tests with new test indirection
 		*intTests = tests
 	}
-	if bPointer, err := getFieldPointerOfM(m, "benchmarks"); err == nil {
+	if bPointer, err := reflection.GetFieldPointerOfM(m, "benchmarks"); err == nil {
 		intBenchmarks := (*[]testing.InternalBenchmark)(bPointer)
 		var benchmarks []testing.InternalBenchmark
 		for _, benchmark := range *intBenchmarks {
@@ -65,15 +65,4 @@ func Init(m *testing.M) {
 			logOnError(err)
 		}
 	}
-}
-
-// Gets a private field from the testing.M struct using reflection
-func getFieldPointerOfM(m *testing.M, fieldName string) (unsafe.Pointer, error) {
-	val := reflect.Indirect(reflect.ValueOf(m))
-	member := val.FieldByName(fieldName)
-	if member.IsValid() {
-		ptrToY := unsafe.Pointer(member.UnsafeAddr())
-		return ptrToY, nil
-	}
-	return nil, stdErrors.New("field can't be retrieved")
 }
