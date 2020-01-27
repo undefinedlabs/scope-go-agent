@@ -53,4 +53,6 @@ const (
 	TestStatus_SKIP = "SKIP"
 
 	TestingMode = "testing"
+
+	ConfigurationKeys = "configuration.keys"
 )
