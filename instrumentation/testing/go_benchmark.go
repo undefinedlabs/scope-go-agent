@@ -74,7 +74,8 @@ func (b *goB) run() bool
 //go:linkname (*goB).add testing.(*B).add
 func (b *goB) add(other testing.BenchmarkResult)
 
-// we clone the same (*testing.B).Run implementation because the Patch overwrite the original implementation with the jump
+// we clone the same (*testing.B).Run implementation because the Patch
+// overwrites the original implementation with the jump
 func (b *goB) Run(name string, f func(b *testing.B)) bool {
 	atomic.StoreInt32(&b.hasSub, 1)
 	benchmarkLock.Unlock()

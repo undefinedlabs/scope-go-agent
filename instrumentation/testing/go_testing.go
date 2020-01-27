@@ -78,7 +78,8 @@ func tRunner(t *goT, fn func(t *goT)) {
 	goTRunner(t.ToTestingT(), func(t *testing.T) { fn(FromTestingT(t)) })
 }
 
-// we clone the same (*testing.T).Run implementation because the Patch overwrite the original implementation with the jump
+// we clone the same (*testing.T).Run implementation because the Patch
+// overwrites the original implementation with the jump
 func (t *goT) Run(name string, f func(t *goT)) bool {
 	atomic.StoreInt32(&t.hasSub, 1)
 	testName, ok, _ := t.context.match.fullName(&t.goCommon, name)

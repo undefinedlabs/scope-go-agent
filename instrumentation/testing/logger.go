@@ -174,7 +174,6 @@ func patch(methodName string, methodBody func(test *Test, argsValues []interface
 func logOnError(err error) {
 	if err != nil {
 		instrumentation.Logger().Println(err)
-		fmt.Println(err)
 	}
 }
 
