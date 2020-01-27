@@ -139,6 +139,9 @@ func WithConfigurationKeys(keys []string) Option {
 
 func WithConfiguration(values map[string]interface{}) Option {
 	return func(agent *Agent) {
+		if values == nil {
+			return
+		}
 		var keys []string
 		for k, v := range values {
 			agent.metadata[k] = v
