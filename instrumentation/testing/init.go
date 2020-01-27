@@ -54,7 +54,11 @@ func Init(m *testing.M) {
 			benchmarks = append(benchmarks, testing.InternalBenchmark{
 				Name: benchmark.Name,
 				F: func(b *testing.B) { // Indirection of the original benchmark
-					startBenchmark(b, funcPointer, funcValue)
+					if envDMPatch, set := os.LookupEnv("SCOPE_DISABLE_MONKEY_PATCHING"); !set || envDMPatch == "" {
+						funcValue(b)
+					} else {
+						startBenchmark(b, funcPointer, funcValue)
+					}
 				},
 			})
 		}
@@ -66,18 +70,28 @@ func Init(m *testing.M) {
 		var t *testing.T
 		tType := reflect.TypeOf(t)
 		if tRunMethod, ok := tType.MethodByName("Run"); ok {
-			var runPatch *mpatch.Patch
-			var err error
-			runPatch, err = mpatch.PatchMethodByReflect(tRunMethod, func(t *testing.T, name string, f func(t *testing.T)) bool {
+			_, err := mpatch.PatchMethodByReflect(tRunMethod, func(t *testing.T, name string, f func(t *testing.T)) bool {
 				pc, _, _, _ := runtime.Caller(1)
-				logOnError(runPatch.Unpatch())
-				defer runPatch.Patch()
-				return t.Run(name, func(childT *testing.T) {
-					_ = runPatch.Patch()
+				gT := FromTestingT(t)
+				return gT.Run(name, func(childGoT *goT) {
+					childT := childGoT.ToTestingT()
 					addAutoInstrumentedTest(childT)
 					childTest := StartTestFromCaller(childT, pc)
 					defer childTest.end()
 					f(childT)
+				})
+			})
+			logOnError(err)
+		}
+
+		// We monkey patch the `testing.B.Run()` func to auto instrument sub benchmark
+		var b *testing.B
+		bType := reflect.TypeOf(b)
+		if bRunMethod, ok := bType.MethodByName("Run"); ok {
+			_, err := mpatch.PatchMethodByReflect(bRunMethod, func(b *testing.B, name string, f func(b *testing.B)) bool {
+				pc, _, _, _ := runtime.Caller(1)
+				return FromTestingB(b).Run(name, func(b *testing.B) {
+					StartBenchmark(b, pc, f)
 				})
 			})
 			logOnError(err)

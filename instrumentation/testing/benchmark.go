@@ -43,7 +43,7 @@ func StartBenchmark(b *testing.B, pc uintptr, benchFunc func(b *testing.B)) {
 // Runs an auto instrumented sub benchmark
 func (bench *Benchmark) Run(name string, f func(b *testing.B)) bool {
 	pc, _, _, _ := runtime.Caller(1)
-	return bench.b.Run(name, func(innerB *testing.B) {
+	return FromTestingB(bench.b).Run(name, func(innerB *testing.B) {
 		startBenchmark(innerB, pc, f)
 	})
 }
@@ -78,7 +78,7 @@ func startBenchmark(b *testing.B, pc uintptr, benchFunc func(b *testing.B)) {
 	b.ReportAllocs()
 	b.ResetTimer()
 	startTime := time.Now()
-	result := b.Run("*&", func(b1 *testing.B) {
+	result := FromTestingB(b).Run("*&", func(b1 *testing.B) {
 		addBenchmark(b1, &Benchmark{b: b1})
 		benchFunc(b1)
 		bChild = b1
