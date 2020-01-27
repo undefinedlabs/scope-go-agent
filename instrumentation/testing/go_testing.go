@@ -2,7 +2,8 @@
 	The purpose with this file is to clone the struct alignment of the testing.T struct so we can assign a *testing.T
 	pointer to the *goT to have access to the internal private fields.
 
-	We use this to create a Run clone method to be called from the subtest auto instrumentation
+	We use this to create a Run clone method to be called from the sub test auto instrumentation (because the original
+	method is replaced with the Patch)
 */
 package testing
 
@@ -61,8 +62,8 @@ const maxStackLen = 50
 //go:linkname matchMutex testing.matchMutex
 var matchMutex sync.Mutex
 
-//go:linkname goTRunner testing.tRunner
-func goTRunner(t *testing.T, fn func(t *testing.T))
+//go:linkname tRunner testing.tRunner
+func tRunner(t *testing.T, fn func(t *testing.T))
 
 //go:linkname rewrite testing.rewrite
 func rewrite(s string) string
@@ -73,14 +74,9 @@ func shouldFailFast() bool
 //go:linkname (*goMatcher).fullName testing.(*matcher).fullName
 func (m *goMatcher) fullName(c *goCommon, subname string) (name string, ok, partial bool)
 
-// this method calls the original testing.tRunner by converting *goT to *testing.T
-func tRunner(t *goT, fn func(t *goT)) {
-	goTRunner(t.ToTestingT(), func(t *testing.T) { fn(FromTestingT(t)) })
-}
-
 // we clone the same (*testing.T).Run implementation because the Patch
 // overwrites the original implementation with the jump
-func (t *goT) Run(name string, f func(t *goT)) bool {
+func (t *goT) Run(name string, f func(t *testing.T)) bool {
 	atomic.StoreInt32(&t.hasSub, 1)
 	testName, ok, _ := t.context.match.fullName(&t.goCommon, name)
 	if !ok || shouldFailFast() {
@@ -110,7 +106,7 @@ func (t *goT) Run(name string, f func(t *goT)) bool {
 		fmt.Fprintf(root.w, "=== RUN   %s\n", t.name)
 		root.mu.Unlock()
 	}
-	go tRunner(t, f)
+	go tRunner(t.ToTestingT(), f)
 	if !<-t.signal {
 		runtime.Goexit()
 	}

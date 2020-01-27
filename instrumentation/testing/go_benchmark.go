@@ -2,7 +2,8 @@
 	The purpose with this file is to clone the struct alignment of the testing.B struct so we can assign a *testing.B
 	pointer to the *goB to have access to the internal private fields.
 
-	We use this to create a Run clone method to be called from the subtest auto instrumentation
+	We use this to create a Run clone method to be called from the sub benchmark auto instrumentation (because the original
+	method is replaced with the Patch)
 */
 
 package testing

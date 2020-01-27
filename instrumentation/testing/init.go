@@ -73,8 +73,7 @@ func Init(m *testing.M) {
 			_, err := mpatch.PatchMethodByReflect(tRunMethod, func(t *testing.T, name string, f func(t *testing.T)) bool {
 				pc, _, _, _ := runtime.Caller(1)
 				gT := FromTestingT(t)
-				return gT.Run(name, func(childGoT *goT) {
-					childT := childGoT.ToTestingT()
+				return gT.Run(name, func(childT *testing.T) {
 					addAutoInstrumentedTest(childT)
 					childTest := StartTestFromCaller(childT, pc)
 					defer childTest.end()
