@@ -305,7 +305,8 @@ func (a *Agent) Flush() error {
 	if a.debugMode {
 		a.logger.Println("Scope agent is flushing all pending spans manually")
 	}
-	return a.recorder.SendSpans()
+	err, _ := a.recorder.SendSpans()
+	return err
 }
 
 func generateAgentID() string {

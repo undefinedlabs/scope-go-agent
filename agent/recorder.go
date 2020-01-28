@@ -92,13 +92,17 @@ func (r *SpanRecorder) loop() error {
 					}
 				}
 				cTime = time.Now()
-				err := r.SendSpans()
+				err, shouldExit := r.SendSpans()
 				if err != nil {
 					r.logger.Printf("error sending spans: %v\n", err)
 				}
+				if shouldExit {
+					ticker.Stop()
+					return nil
+				}
 			}
 		case <-r.t.Dying():
-			err := r.SendSpans()
+			err, _ := r.SendSpans()
 			if err != nil {
 				r.logger.Printf("error sending spans: %v\n", err)
 			}
@@ -109,7 +113,7 @@ func (r *SpanRecorder) loop() error {
 }
 
 // Sends the spans in the buffer to Scope
-func (r *SpanRecorder) SendSpans() error {
+func (r *SpanRecorder) SendSpans() (error, bool) {
 	r.Lock()
 	spans := r.spans
 	r.spans = nil
@@ -126,10 +130,11 @@ func (r *SpanRecorder) SendSpans() error {
 	buf, err := encodePayload(payload)
 	if err != nil {
 		r.koSend++
-		return err
+		return err, false
 	}
 
 	payloadSent := false
+	shouldExit := false
 	var lastError error
 	for i := 0; i <= 3; i++ {
 		if r.debugMode {
@@ -137,7 +142,11 @@ func (r *SpanRecorder) SendSpans() error {
 		}
 		statusCode, err := r.callIngest(buf)
 		if err != nil {
-			if statusCode < 500 {
+			if statusCode == 401 {
+				shouldExit = true
+				lastError = err
+				break
+			} else if statusCode < 500 {
 				lastError = err
 				break
 			} else {
@@ -154,10 +163,10 @@ func (r *SpanRecorder) SendSpans() error {
 		r.okSend++
 	} else {
 		r.koSend++
-		return lastError
+		return lastError, shouldExit
 	}
 
-	return nil
+	return nil, shouldExit
 }
 
 // Sends the encoded `payload` to the Scope ingest endpoint
