@@ -102,6 +102,7 @@ func (r *SpanRecorder) loop() error {
 				}
 				if shouldExit {
 					ticker.Stop()
+					r.t.Kill(err)
 					return nil
 				}
 			}
@@ -167,10 +168,9 @@ func (r *SpanRecorder) SendSpans() (error, bool) {
 		r.okSend++
 	} else {
 		r.koSend++
-		return lastError, shouldExit
 	}
 
-	return nil, shouldExit
+	return lastError, shouldExit
 }
 
 // Sends the encoded `payload` to the Scope ingest endpoint
