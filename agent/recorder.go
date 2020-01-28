@@ -64,6 +64,10 @@ func NewSpanRecorder(agent *Agent) *SpanRecorder {
 func (r *SpanRecorder) RecordSpan(span tracer.RawSpan) {
 	r.Lock()
 	defer r.Unlock()
+	if !r.t.Alive() {
+		r.logger.Printf("an span is received but the recorder is already disposed.\n")
+		return
+	}
 	r.spans = append(r.spans, span)
 	if r.debugMode {
 		r.logger.Printf("record span: %+v\n", span)
