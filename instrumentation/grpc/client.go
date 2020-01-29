@@ -13,21 +13,14 @@ import (
 	"sync/atomic"
 )
 
-// OpenTracingClientInterceptor returns a grpc.UnaryClientInterceptor suitable
+// ScopeClientInterceptor returns a grpc.UnaryClientInterceptor suitable
 // for use in a grpc.Dial call.
-//
-// For example:
-//
-//     conn, err := grpc.Dial(
-//         address,
-//         ...,  // (existing DialOptions)
-//         grpc.WithUnaryInterceptor(otgrpc.OpenTracingClientInterceptor(tracer)))
 //
 // All gRPC client spans will inject the OpenTracing SpanContext into the gRPC
 // metadata; they will also look in the context.Context for an active
 // in-process parent Span and establish a ChildOf reference if such a parent
 // Span could be found.
-func OpenTracingClientInterceptor(tracer opentracing.Tracer, optFuncs ...Option) grpc.UnaryClientInterceptor {
+func ScopeClientInterceptor(optFuncs ...Option) grpc.UnaryClientInterceptor {
 	otgrpcOpts := newOptions()
 	otgrpcOpts.apply(optFuncs...)
 	return func(
@@ -47,6 +40,7 @@ func OpenTracingClientInterceptor(tracer opentracing.Tracer, optFuncs ...Option)
 			!otgrpcOpts.inclusionFunc(parentCtx, method, req, resp) {
 			return invoker(ctx, method, req, resp, cc, opts...)
 		}
+		tracer := instrumentation.Tracer()
 		clientSpan := tracer.StartSpan(
 			method,
 			opentracing.ChildOf(parentCtx),
@@ -81,22 +75,15 @@ func OpenTracingClientInterceptor(tracer opentracing.Tracer, optFuncs ...Option)
 	}
 }
 
-// OpenTracingStreamClientInterceptor returns a grpc.StreamClientInterceptor suitable
+// ScopeStreamClientInterceptor returns a grpc.StreamClientInterceptor suitable
 // for use in a grpc.Dial call. The interceptor instruments streaming RPCs by creating
 // a single span to correspond to the lifetime of the RPC's stream.
-//
-// For example:
-//
-//     conn, err := grpc.Dial(
-//         address,
-//         ...,  // (existing DialOptions)
-//         grpc.WithStreamInterceptor(otgrpc.OpenTracingStreamClientInterceptor(tracer)))
 //
 // All gRPC client spans will inject the OpenTracing SpanContext into the gRPC
 // metadata; they will also look in the context.Context for an active
 // in-process parent Span and establish a ChildOf reference if such a parent
 // Span could be found.
-func OpenTracingStreamClientInterceptor(tracer opentracing.Tracer, optFuncs ...Option) grpc.StreamClientInterceptor {
+func ScopeStreamClientInterceptor(optFuncs ...Option) grpc.StreamClientInterceptor {
 	otgrpcOpts := newOptions()
 	otgrpcOpts.apply(optFuncs...)
 	return func(
@@ -117,6 +104,7 @@ func OpenTracingStreamClientInterceptor(tracer opentracing.Tracer, optFuncs ...O
 			return streamer(ctx, desc, cc, method, opts...)
 		}
 
+		tracer := instrumentation.Tracer()
 		clientSpan := tracer.StartSpan(
 			method,
 			opentracing.ChildOf(parentCtx),
@@ -140,11 +128,11 @@ func OpenTracingStreamClientInterceptor(tracer opentracing.Tracer, optFuncs ...O
 		} else {
 			clientSpan.SetTag(Status, "OK")
 		}
-		return newOpenTracingClientStream(cs, method, desc, clientSpan, otgrpcOpts), nil
+		return newScopeClientStream(cs, method, desc, clientSpan, otgrpcOpts), nil
 	}
 }
 
-func newOpenTracingClientStream(cs grpc.ClientStream, method string, desc *grpc.StreamDesc, clientSpan opentracing.Span, otgrpcOpts *options) grpc.ClientStream {
+func newScopeClientStream(cs grpc.ClientStream, method string, desc *grpc.StreamDesc, clientSpan opentracing.Span, otgrpcOpts *options) grpc.ClientStream {
 	finishChan := make(chan struct{})
 
 	isFinished := new(int32)
@@ -178,7 +166,7 @@ func newOpenTracingClientStream(cs grpc.ClientStream, method string, desc *grpc.
 			finishFunc(cs.Context().Err())
 		}
 	}()
-	otcs := &openTracingClientStream{
+	otcs := &scopeClientStream{
 		ClientStream: cs,
 		desc:         desc,
 		finishFunc:   finishFunc,
@@ -191,20 +179,20 @@ func newOpenTracingClientStream(cs grpc.ClientStream, method string, desc *grpc.
 	// In such cases, there's nothing that triggers the span to finish. We,
 	// therefore, set a finalizer so that the span and the context goroutine will
 	// at least be cleaned up when the garbage collector is run.
-	runtime.SetFinalizer(otcs, func(otcs *openTracingClientStream) {
+	runtime.SetFinalizer(otcs, func(otcs *scopeClientStream) {
 		otcs.finishFunc(nil)
 	})
 	return otcs
 }
 
-type openTracingClientStream struct {
+type scopeClientStream struct {
 	grpc.ClientStream
 	desc       *grpc.StreamDesc
 	finishFunc func(error)
 	span       opentracing.Span
 }
 
-func (cs *openTracingClientStream) Header() (metadata.MD, error) {
+func (cs *scopeClientStream) Header() (metadata.MD, error) {
 	md, err := cs.ClientStream.Header()
 	if err != nil {
 		cs.finishFunc(err)
@@ -214,7 +202,7 @@ func (cs *openTracingClientStream) Header() (metadata.MD, error) {
 	return md, err
 }
 
-func (cs *openTracingClientStream) SendMsg(m interface{}) error {
+func (cs *scopeClientStream) SendMsg(m interface{}) error {
 	err := cs.ClientStream.SendMsg(m)
 	if err != nil {
 		cs.finishFunc(err)
@@ -222,7 +210,7 @@ func (cs *openTracingClientStream) SendMsg(m interface{}) error {
 	return err
 }
 
-func (cs *openTracingClientStream) RecvMsg(m interface{}) error {
+func (cs *scopeClientStream) RecvMsg(m interface{}) error {
 	err := cs.ClientStream.RecvMsg(m)
 	if err == io.EOF {
 		cs.finishFunc(nil)
@@ -237,7 +225,7 @@ func (cs *openTracingClientStream) RecvMsg(m interface{}) error {
 	return err
 }
 
-func (cs *openTracingClientStream) CloseSend() error {
+func (cs *scopeClientStream) CloseSend() error {
 	err := cs.ClientStream.CloseSend()
 	if err != nil {
 		cs.finishFunc(err)
@@ -263,14 +251,18 @@ func injectSpanContext(ctx context.Context, tracer opentracing.Tracer, clientSpa
 
 // Get client interceptors
 func GetClientInterceptors() []grpc.DialOption {
-	tracer := instrumentation.Tracer()
 	return []grpc.DialOption{
-		grpc.WithUnaryInterceptor(OpenTracingClientInterceptor(tracer)),
-		grpc.WithStreamInterceptor(OpenTracingStreamClientInterceptor(tracer)),
+		grpc.WithUnaryInterceptor(ScopeClientInterceptor()),
+		grpc.WithStreamInterceptor(ScopeStreamClientInterceptor()),
 	}
 }
 
 func Dial(target string, opts ...grpc.DialOption) (*grpc.ClientConn, error) {
 	opts = append(opts, GetClientInterceptors()...)
 	return grpc.Dial(target, opts...)
+}
+
+func DialContext(ctx context.Context, target string, opts ...grpc.DialOption) (conn *grpc.ClientConn, err error) {
+	opts = append(opts, GetClientInterceptors()...)
+	return grpc.DialContext(ctx, target, opts...)
 }

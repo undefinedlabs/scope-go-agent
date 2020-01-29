@@ -10,14 +10,8 @@ import (
 	"google.golang.org/grpc/metadata"
 )
 
-// OpenTracingServerInterceptor returns a grpc.UnaryServerInterceptor suitable
+// ScopeServerInterceptor returns a grpc.UnaryServerInterceptor suitable
 // for use in a grpc.NewServer call.
-//
-// For example:
-//
-//     s := grpc.NewServer(
-//         ...,  // (existing ServerOptions)
-//         grpc.UnaryInterceptor(otgrpc.OpenTracingServerInterceptor(tracer)))
 //
 // All gRPC server spans will look for an OpenTracing SpanContext in the gRPC
 // metadata; if found, the server span will act as the ChildOf that RPC
@@ -25,7 +19,7 @@ import (
 //
 // Root or not, the server Span will be embedded in the context.Context for the
 // application-specific gRPC handler(s) to access.
-func OpenTracingServerInterceptor(tracer opentracing.Tracer, optFuncs ...Option) grpc.UnaryServerInterceptor {
+func ScopeServerInterceptor(optFuncs ...Option) grpc.UnaryServerInterceptor {
 	otgrpcOpts := newOptions()
 	otgrpcOpts.apply(optFuncs...)
 	return func(
@@ -34,6 +28,7 @@ func OpenTracingServerInterceptor(tracer opentracing.Tracer, optFuncs ...Option)
 		info *grpc.UnaryServerInfo,
 		handler grpc.UnaryHandler,
 	) (resp interface{}, err error) {
+		tracer := instrumentation.Tracer()
 		spanContext, err := extractSpanContext(ctx, tracer)
 		if err != nil && err != opentracing.ErrSpanContextNotFound {
 			// TODO: establish some sort of error reporting mechanism here. We
@@ -75,15 +70,9 @@ func OpenTracingServerInterceptor(tracer opentracing.Tracer, optFuncs ...Option)
 	}
 }
 
-// OpenTracingStreamServerInterceptor returns a grpc.StreamServerInterceptor suitable
+// ScopeStreamServerInterceptor returns a grpc.StreamServerInterceptor suitable
 // for use in a grpc.NewServer call. The interceptor instruments streaming RPCs by
 // creating a single span to correspond to the lifetime of the RPC's stream.
-//
-// For example:
-//
-//     s := grpc.NewServer(
-//         ...,  // (existing ServerOptions)
-//         grpc.StreamInterceptor(otgrpc.OpenTracingStreamServerInterceptor(tracer)))
 //
 // All gRPC server spans will look for an OpenTracing SpanContext in the gRPC
 // metadata; if found, the server span will act as the ChildOf that RPC
@@ -91,15 +80,14 @@ func OpenTracingServerInterceptor(tracer opentracing.Tracer, optFuncs ...Option)
 //
 // Root or not, the server Span will be embedded in the context.Context for the
 // application-specific gRPC handler(s) to access.
-func OpenTracingStreamServerInterceptor(tracer opentracing.Tracer, optFuncs ...Option) grpc.StreamServerInterceptor {
+func ScopeStreamServerInterceptor(optFuncs ...Option) grpc.StreamServerInterceptor {
 	otgrpcOpts := newOptions()
 	otgrpcOpts.apply(optFuncs...)
 	return func(srv interface{}, ss grpc.ServerStream, info *grpc.StreamServerInfo, handler grpc.StreamHandler) error {
+		tracer := instrumentation.Tracer()
 		spanContext, err := extractSpanContext(ss.Context(), tracer)
 		if err != nil && err != opentracing.ErrSpanContextNotFound {
-			// TODO: establish some sort of error reporting mechanism here. We
-			// don't know where to put such an error and must rely on Tracer
-			// implementations to do something appropriate for the time being.
+			instrumentation.Logger().Println(err)
 		}
 		if otgrpcOpts.inclusionFunc != nil &&
 			!otgrpcOpts.inclusionFunc(spanContext, info.FullMethod, nil, nil) {
@@ -121,7 +109,7 @@ func OpenTracingStreamServerInterceptor(tracer opentracing.Tracer, optFuncs ...O
 			serverSpan.SetTag(MethodType, "SERVER_STREAMING")
 		}
 
-		ss = &openTracingServerStream{
+		ss = &scopeServerStream{
 			ServerStream: ss,
 			ctx:          opentracing.ContextWithSpan(ss.Context(), serverSpan),
 		}
@@ -137,12 +125,12 @@ func OpenTracingStreamServerInterceptor(tracer opentracing.Tracer, optFuncs ...O
 	}
 }
 
-type openTracingServerStream struct {
+type scopeServerStream struct {
 	grpc.ServerStream
 	ctx context.Context
 }
 
-func (ss *openTracingServerStream) Context() context.Context {
+func (ss *scopeServerStream) Context() context.Context {
 	return ss.ctx
 }
 
@@ -156,10 +144,9 @@ func extractSpanContext(ctx context.Context, tracer opentracing.Tracer) (opentra
 
 // Get server interceptors
 func GetServerInterceptors() []grpc.ServerOption {
-	tracer := instrumentation.Tracer()
 	return []grpc.ServerOption{
-		grpc.UnaryInterceptor(OpenTracingServerInterceptor(tracer)),
-		grpc.StreamInterceptor(OpenTracingStreamServerInterceptor(tracer)),
+		grpc.UnaryInterceptor(ScopeServerInterceptor()),
+		grpc.StreamInterceptor(ScopeStreamServerInterceptor()),
 	}
 }
 
