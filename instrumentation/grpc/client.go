@@ -47,6 +47,9 @@ func OpenTracingClientInterceptor(tracer opentracing.Tracer, optFuncs ...Option)
 			!otgrpcOpts.inclusionFunc(parentCtx, method, req, resp) {
 			return invoker(ctx, method, req, resp, cc, opts...)
 		}
+		if _, ok := tracer.(opentracing.NoopTracer); ok {
+			tracer = instrumentation.Tracer()
+		}
 		clientSpan := tracer.StartSpan(
 			method,
 			opentracing.ChildOf(parentCtx),
@@ -117,6 +120,9 @@ func OpenTracingStreamClientInterceptor(tracer opentracing.Tracer, optFuncs ...O
 			return streamer(ctx, desc, cc, method, opts...)
 		}
 
+		if _, ok := tracer.(opentracing.NoopTracer); ok {
+			tracer = instrumentation.Tracer()
+		}
 		clientSpan := tracer.StartSpan(
 			method,
 			opentracing.ChildOf(parentCtx),
@@ -273,4 +279,9 @@ func GetClientInterceptors() []grpc.DialOption {
 func Dial(target string, opts ...grpc.DialOption) (*grpc.ClientConn, error) {
 	opts = append(opts, GetClientInterceptors()...)
 	return grpc.Dial(target, opts...)
+}
+
+func DialContext(ctx context.Context, target string, opts ...grpc.DialOption) (conn *grpc.ClientConn, err error) {
+	opts = append(opts, GetClientInterceptors()...)
+	return grpc.DialContext(ctx, target, opts...)
 }

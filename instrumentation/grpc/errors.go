@@ -21,6 +21,33 @@ const (
 	ServerError Class = "5xx"
 )
 
+var classStrings = map[Class]string{
+	Unknown:     "Unknown (0xx)",
+	Success:     "Success (2xx)",
+	ClientError: "ClientError (4xx)",
+	ServerError: "ServerError (5xx)",
+}
+
+var codeStrings = map[codes.Code]string{
+	codes.OK:                 "OK",
+	codes.Canceled:           "Canceled",
+	codes.Unknown:            "Unknown",
+	codes.InvalidArgument:    "InvalidArgument",
+	codes.DeadlineExceeded:   "DeadlineExceeded",
+	codes.NotFound:           "NotFound",
+	codes.AlreadyExists:      "AlreadyExists",
+	codes.PermissionDenied:   "PermissionDenied",
+	codes.ResourceExhausted:  "ResourceExhausted",
+	codes.FailedPrecondition: "FailedPrecondition",
+	codes.Aborted:            "Aborted",
+	codes.OutOfRange:         "OutOfRange",
+	codes.Unimplemented:      "Unimplemented",
+	codes.Internal:           "Internal",
+	codes.Unavailable:        "Unavailable",
+	codes.DataLoss:           "DataLoss",
+	codes.Unauthenticated:    "Unauthenticated",
+}
+
 // ErrorClass returns the class of the given error
 func ErrorClass(err error) Class {
 	if s, ok := status.FromError(err); ok {
@@ -58,8 +85,17 @@ func SetSpanTags(span opentracing.Span, err error, client bool) {
 	if s, ok := status.FromError(err); ok {
 		code = s.Code()
 	}
-	span.SetTag(Status, code)
-	span.SetTag("response_class", c)
+	if value, ok := codeStrings[code]; ok {
+		span.SetTag(Status, value)
+	} else {
+		span.SetTag(Status, code)
+	}
+	if value, ok := classStrings[c]; ok {
+		span.SetTag("response_class", value)
+	} else {
+		span.SetTag("response_class", c)
+	}
+
 	if err == nil {
 		return
 	}

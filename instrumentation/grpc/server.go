@@ -34,11 +34,12 @@ func OpenTracingServerInterceptor(tracer opentracing.Tracer, optFuncs ...Option)
 		info *grpc.UnaryServerInfo,
 		handler grpc.UnaryHandler,
 	) (resp interface{}, err error) {
+		if _, ok := tracer.(opentracing.NoopTracer); ok {
+			tracer = instrumentation.Tracer()
+		}
 		spanContext, err := extractSpanContext(ctx, tracer)
 		if err != nil && err != opentracing.ErrSpanContextNotFound {
-			// TODO: establish some sort of error reporting mechanism here. We
-			// don't know where to put such an error and must rely on Tracer
-			// implementations to do something appropriate for the time being.
+			instrumentation.Logger().Println(err)
 		}
 		if otgrpcOpts.inclusionFunc != nil &&
 			!otgrpcOpts.inclusionFunc(spanContext, info.FullMethod, req, nil) {
@@ -95,11 +96,12 @@ func OpenTracingStreamServerInterceptor(tracer opentracing.Tracer, optFuncs ...O
 	otgrpcOpts := newOptions()
 	otgrpcOpts.apply(optFuncs...)
 	return func(srv interface{}, ss grpc.ServerStream, info *grpc.StreamServerInfo, handler grpc.StreamHandler) error {
+		if _, ok := tracer.(opentracing.NoopTracer); ok {
+			tracer = instrumentation.Tracer()
+		}
 		spanContext, err := extractSpanContext(ss.Context(), tracer)
 		if err != nil && err != opentracing.ErrSpanContextNotFound {
-			// TODO: establish some sort of error reporting mechanism here. We
-			// don't know where to put such an error and must rely on Tracer
-			// implementations to do something appropriate for the time being.
+			instrumentation.Logger().Println(err)
 		}
 		if otgrpcOpts.inclusionFunc != nil &&
 			!otgrpcOpts.inclusionFunc(spanContext, info.FullMethod, nil, nil) {
