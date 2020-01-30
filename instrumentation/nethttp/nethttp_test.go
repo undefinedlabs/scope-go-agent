@@ -27,9 +27,10 @@ func TestMain(m *testing.M) {
 }
 
 func TestHttpClient(t *testing.T) {
+	r.Reset()
 	_, ctx := opentracing.StartSpanFromContextWithTracer(context.Background(), instrumentation.Tracer(), "Test")
 
-	req, err := http.NewRequest("GET", "https://google.com", nil)
+	req, err := http.NewRequest("GET", "https://www.google.com/", nil)
 	if err != nil {
 		t.Fatalf("%+v", err)
 	}
@@ -50,13 +51,14 @@ func TestHttpClient(t *testing.T) {
 	checkTags(t, spans[0].Tags, map[string]string{
 		"component":     "net/http",
 		"http.method":   "GET",
-		"http.url":      "https://google.com",
-		"peer.hostname": "google.com",
+		"http.url":      "https://www.google.com/",
+		"peer.hostname": "www.google.com",
 		"peer.port":     "443",
 	})
 }
 
 func TestHttpServer(t *testing.T) {
+	r.Reset()
 	sp, ctx := opentracing.StartSpanFromContextWithTracer(context.Background(), instrumentation.Tracer(), "Test")
 	sp.SetBaggageItem("trace.kind", "test")
 
