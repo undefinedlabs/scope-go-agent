@@ -13,14 +13,21 @@ import (
 	"sync/atomic"
 )
 
-// ScopeClientInterceptor returns a grpc.UnaryClientInterceptor suitable
+// OpenTracingClientInterceptor returns a grpc.UnaryClientInterceptor suitable
 // for use in a grpc.Dial call.
+//
+// For example:
+//
+//     conn, err := grpc.Dial(
+//         address,
+//         ...,  // (existing DialOptions)
+//         grpc.WithUnaryInterceptor(otgrpc.OpenTracingClientInterceptor(tracer)))
 //
 // All gRPC client spans will inject the OpenTracing SpanContext into the gRPC
 // metadata; they will also look in the context.Context for an active
 // in-process parent Span and establish a ChildOf reference if such a parent
 // Span could be found.
-func ScopeClientInterceptor(optFuncs ...Option) grpc.UnaryClientInterceptor {
+func OpenTracingClientInterceptor(tracer opentracing.Tracer, optFuncs ...Option) grpc.UnaryClientInterceptor {
 	otgrpcOpts := newOptions()
 	otgrpcOpts.apply(optFuncs...)
 	return func(
@@ -40,7 +47,9 @@ func ScopeClientInterceptor(optFuncs ...Option) grpc.UnaryClientInterceptor {
 			!otgrpcOpts.inclusionFunc(parentCtx, method, req, resp) {
 			return invoker(ctx, method, req, resp, cc, opts...)
 		}
-		tracer := instrumentation.Tracer()
+		if _, ok := tracer.(opentracing.NoopTracer); ok {
+			tracer = instrumentation.Tracer()
+		}
 		clientSpan := tracer.StartSpan(
 			method,
 			opentracing.ChildOf(parentCtx),
@@ -75,15 +84,22 @@ func ScopeClientInterceptor(optFuncs ...Option) grpc.UnaryClientInterceptor {
 	}
 }
 
-// ScopeStreamClientInterceptor returns a grpc.StreamClientInterceptor suitable
+// OpenTracingStreamClientInterceptor returns a grpc.StreamClientInterceptor suitable
 // for use in a grpc.Dial call. The interceptor instruments streaming RPCs by creating
 // a single span to correspond to the lifetime of the RPC's stream.
+//
+// For example:
+//
+//     conn, err := grpc.Dial(
+//         address,
+//         ...,  // (existing DialOptions)
+//         grpc.WithStreamInterceptor(otgrpc.OpenTracingStreamClientInterceptor(tracer)))
 //
 // All gRPC client spans will inject the OpenTracing SpanContext into the gRPC
 // metadata; they will also look in the context.Context for an active
 // in-process parent Span and establish a ChildOf reference if such a parent
 // Span could be found.
-func ScopeStreamClientInterceptor(optFuncs ...Option) grpc.StreamClientInterceptor {
+func OpenTracingStreamClientInterceptor(tracer opentracing.Tracer, optFuncs ...Option) grpc.StreamClientInterceptor {
 	otgrpcOpts := newOptions()
 	otgrpcOpts.apply(optFuncs...)
 	return func(
@@ -104,7 +120,9 @@ func ScopeStreamClientInterceptor(optFuncs ...Option) grpc.StreamClientIntercept
 			return streamer(ctx, desc, cc, method, opts...)
 		}
 
-		tracer := instrumentation.Tracer()
+		if _, ok := tracer.(opentracing.NoopTracer); ok {
+			tracer = instrumentation.Tracer()
+		}
 		clientSpan := tracer.StartSpan(
 			method,
 			opentracing.ChildOf(parentCtx),
@@ -128,11 +146,11 @@ func ScopeStreamClientInterceptor(optFuncs ...Option) grpc.StreamClientIntercept
 		} else {
 			clientSpan.SetTag(Status, "OK")
 		}
-		return newScopeClientStream(cs, method, desc, clientSpan, otgrpcOpts), nil
+		return newOpenTracingClientStream(cs, method, desc, clientSpan, otgrpcOpts), nil
 	}
 }
 
-func newScopeClientStream(cs grpc.ClientStream, method string, desc *grpc.StreamDesc, clientSpan opentracing.Span, otgrpcOpts *options) grpc.ClientStream {
+func newOpenTracingClientStream(cs grpc.ClientStream, method string, desc *grpc.StreamDesc, clientSpan opentracing.Span, otgrpcOpts *options) grpc.ClientStream {
 	finishChan := make(chan struct{})
 
 	isFinished := new(int32)
@@ -166,7 +184,7 @@ func newScopeClientStream(cs grpc.ClientStream, method string, desc *grpc.Stream
 			finishFunc(cs.Context().Err())
 		}
 	}()
-	otcs := &scopeClientStream{
+	otcs := &openTracingClientStream{
 		ClientStream: cs,
 		desc:         desc,
 		finishFunc:   finishFunc,
@@ -179,20 +197,20 @@ func newScopeClientStream(cs grpc.ClientStream, method string, desc *grpc.Stream
 	// In such cases, there's nothing that triggers the span to finish. We,
 	// therefore, set a finalizer so that the span and the context goroutine will
 	// at least be cleaned up when the garbage collector is run.
-	runtime.SetFinalizer(otcs, func(otcs *scopeClientStream) {
+	runtime.SetFinalizer(otcs, func(otcs *openTracingClientStream) {
 		otcs.finishFunc(nil)
 	})
 	return otcs
 }
 
-type scopeClientStream struct {
+type openTracingClientStream struct {
 	grpc.ClientStream
 	desc       *grpc.StreamDesc
 	finishFunc func(error)
 	span       opentracing.Span
 }
 
-func (cs *scopeClientStream) Header() (metadata.MD, error) {
+func (cs *openTracingClientStream) Header() (metadata.MD, error) {
 	md, err := cs.ClientStream.Header()
 	if err != nil {
 		cs.finishFunc(err)
@@ -202,7 +220,7 @@ func (cs *scopeClientStream) Header() (metadata.MD, error) {
 	return md, err
 }
 
-func (cs *scopeClientStream) SendMsg(m interface{}) error {
+func (cs *openTracingClientStream) SendMsg(m interface{}) error {
 	err := cs.ClientStream.SendMsg(m)
 	if err != nil {
 		cs.finishFunc(err)
@@ -210,7 +228,7 @@ func (cs *scopeClientStream) SendMsg(m interface{}) error {
 	return err
 }
 
-func (cs *scopeClientStream) RecvMsg(m interface{}) error {
+func (cs *openTracingClientStream) RecvMsg(m interface{}) error {
 	err := cs.ClientStream.RecvMsg(m)
 	if err == io.EOF {
 		cs.finishFunc(nil)
@@ -225,7 +243,7 @@ func (cs *scopeClientStream) RecvMsg(m interface{}) error {
 	return err
 }
 
-func (cs *scopeClientStream) CloseSend() error {
+func (cs *openTracingClientStream) CloseSend() error {
 	err := cs.ClientStream.CloseSend()
 	if err != nil {
 		cs.finishFunc(err)
@@ -251,9 +269,10 @@ func injectSpanContext(ctx context.Context, tracer opentracing.Tracer, clientSpa
 
 // Get client interceptors
 func GetClientInterceptors() []grpc.DialOption {
+	tracer := instrumentation.Tracer()
 	return []grpc.DialOption{
-		grpc.WithUnaryInterceptor(ScopeClientInterceptor()),
-		grpc.WithStreamInterceptor(ScopeStreamClientInterceptor()),
+		grpc.WithUnaryInterceptor(OpenTracingClientInterceptor(tracer)),
+		grpc.WithStreamInterceptor(OpenTracingStreamClientInterceptor(tracer)),
 	}
 }
 
