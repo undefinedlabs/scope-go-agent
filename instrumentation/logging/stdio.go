@@ -112,25 +112,26 @@ func (i *instrumentedIO) restore() {
 func (i *instrumentedIO) ioHandler() {
 	defer i.hSync.Done()
 	reader := bufio.NewReader(i.rPipe)
-	fields := []log.Field{
-		log.String(tags.EventType, tags.LogEvent),
-		log.String("log.logger", "stdOut"),
-	}
 	for {
 		line, err := reader.ReadString('\n')
 		if err != nil {
 			// Error or EOF
 			break
 		}
-		if len(strings.TrimSpace(line)) > 0 {
+		nLine := line[:len(line)-1] // removes the last '\n'
+		fields := []log.Field{
+			log.String(tags.EventType, tags.LogEvent),
+			log.String("log.logger", "stdOut"),
+		}
+		if len(strings.TrimSpace(nLine)) > 0 {
 			now := time.Now()
 			if i.isError {
 				fields = append(fields,
-					log.String(tags.EventMessage, line),
+					log.String(tags.EventMessage, nLine),
 					log.String(tags.LogEventLevel, tags.LogLevel_ERROR))
 			} else {
 				fields = append(fields,
-					log.String(tags.EventMessage, line),
+					log.String(tags.EventMessage, nLine),
 					log.String(tags.LogEventLevel, tags.LogLevel_VERBOSE))
 			}
 			i.logRecordsMutex.Lock()
