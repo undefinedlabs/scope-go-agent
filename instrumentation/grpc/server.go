@@ -11,7 +11,6 @@ import (
 )
 
 // OpenTracingServerInterceptor returns a grpc.UnaryServerInterceptor suitable
-// ScopeServerInterceptor returns a grpc.UnaryServerInterceptor suitable
 // for use in a grpc.NewServer call.
 //
 // For example:
@@ -78,7 +77,6 @@ func OpenTracingServerInterceptor(tracer opentracing.Tracer, optFuncs ...Option)
 }
 
 // OpenTracingStreamServerInterceptor returns a grpc.StreamServerInterceptor suitable
-// ScopeStreamServerInterceptor returns a grpc.StreamServerInterceptor suitable
 // for use in a grpc.NewServer call. The interceptor instruments streaming RPCs by
 // creating a single span to correspond to the lifetime of the RPC's stream.
 //
