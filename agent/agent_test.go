@@ -95,7 +95,7 @@ func TestWithConfiguration(t *testing.T) {
 	agent.Stop()
 
 	if agentKeys, ok := agent.metadata[tags.ConfigurationKeys]; ok {
-		if !reflect.DeepEqual(myKeys, agentKeys) {
+		if !sameElements(myKeys, agentKeys.([]string)) {
 			t.Fatal("the configuration keys array are different", agentKeys, myKeys)
 		}
 	} else {
@@ -111,4 +111,20 @@ func TestWithConfiguration(t *testing.T) {
 			t.Fatal("the configuration maps are different")
 		}
 	}
+}
+
+func sameElements(a, b []string) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for _, v := range a {
+		found := false
+		for _, v2 := range b {
+			found = found || v == v2
+		}
+		if !found {
+			return false
+		}
+	}
+	return true
 }
