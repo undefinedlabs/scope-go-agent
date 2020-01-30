@@ -40,8 +40,6 @@ func (s *server) SayHelloAgain(ctx context.Context, in *pb.HelloRequest) (*pb.He
 }
 
 func TestMain(m *testing.M) {
-	log.SetFlags(log.LstdFlags | log.Lmicroseconds | log.Llongfile)
-
 	lis, err := net.Listen("tcp", port)
 	if err != nil {
 		panic(err)
