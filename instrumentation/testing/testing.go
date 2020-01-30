@@ -2,7 +2,6 @@ package testing
 
 import (
 	"context"
-	stdErrors "errors"
 	"fmt"
 	"reflect"
 	"regexp"
@@ -19,6 +18,7 @@ import (
 	"go.undefinedlabs.com/scopeagent/errors"
 	"go.undefinedlabs.com/scopeagent/instrumentation"
 	"go.undefinedlabs.com/scopeagent/instrumentation/logging"
+	"go.undefinedlabs.com/scopeagent/reflection"
 	"go.undefinedlabs.com/scopeagent/runner"
 	"go.undefinedlabs.com/scopeagent/tags"
 )
@@ -171,7 +171,7 @@ func (test *Test) end() {
 	}
 
 	// Checks if the current test is running parallel to extract the coverage or not
-	if pointer, err := getFieldPointerOfT(test.t, "isParallel"); err == nil {
+	if pointer, err := reflection.GetFieldPointerOfT(test.t, "isParallel"); err == nil {
 		isParallel := *(*bool)(pointer)
 		if isParallel {
 			instrumentation.Logger().Printf("CodePath in parallel test is not supported: %v\n", test.t.Name())
@@ -273,15 +273,4 @@ func SetDefaultPanicHandler(handler func(*Test)) {
 	if handler != nil {
 		defaultPanicHandler = handler
 	}
-}
-
-// Gets a private field from the testing.T struct using reflection
-func getFieldPointerOfT(t *testing.T, fieldName string) (unsafe.Pointer, error) {
-	val := reflect.Indirect(reflect.ValueOf(t))
-	member := val.FieldByName(fieldName)
-	if member.IsValid() {
-		ptrToY := unsafe.Pointer(member.UnsafeAddr())
-		return ptrToY, nil
-	}
-	return nil, stdErrors.New("field can't be retrieved")
 }
