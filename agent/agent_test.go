@@ -65,10 +65,11 @@ func TestGetDependencies(t *testing.T) {
 func TestWithConfigurationKeys(t *testing.T) {
 	myKeys := []string{"ConfigKey01", "ConfigKey02", "ConfigKey03"}
 
-	agent, err := NewAgent(WithConfigurationKeys(myKeys))
+	agent, err := NewAgent(WithApiKey("123"), WithConfigurationKeys(myKeys))
 	if err != nil {
 		t.Fatal(err)
 	}
+	agent.Stop()
 
 	if agentKeys, ok := agent.metadata[tags.ConfigurationKeys]; ok {
 		if !reflect.DeepEqual(myKeys, agentKeys) {
@@ -87,14 +88,15 @@ func TestWithConfiguration(t *testing.T) {
 		myKeys[2]: true,
 	}
 
-	agent, err := NewAgent(WithConfiguration(myConfiguration))
+	agent, err := NewAgent(WithApiKey("123"), WithConfiguration(myConfiguration))
 	if err != nil {
 		t.Fatal(err)
 	}
+	agent.Stop()
 
 	if agentKeys, ok := agent.metadata[tags.ConfigurationKeys]; ok {
 		if !reflect.DeepEqual(myKeys, agentKeys) {
-			t.Fatal("the configuration keys array are different")
+			t.Fatal("the configuration keys array are different", agentKeys, myKeys)
 		}
 	} else {
 		t.Fatal("agent configuration keys can't be found")
