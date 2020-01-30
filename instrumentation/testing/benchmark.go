@@ -2,22 +2,21 @@ package testing
 
 import (
 	"context"
-	stdErrors "errors"
 	"fmt"
 	"math"
-	"reflect"
 	"regexp"
 	"runtime"
 	"strings"
 	"sync"
 	"testing"
 	"time"
-	"unsafe"
 
 	"github.com/opentracing/opentracing-go"
 
 	"go.undefinedlabs.com/scopeagent/ast"
 	"go.undefinedlabs.com/scopeagent/instrumentation"
+	"go.undefinedlabs.com/scopeagent/reflection"
+	"go.undefinedlabs.com/scopeagent/runner"
 )
 
 type (
@@ -100,7 +99,7 @@ func startBenchmark(b *testing.B, pc uintptr, benchFunc func(b *testing.B)) {
 
 	// Extracting the benchmark func name (by removing any possible sub-benchmark suffix `{bench_func}/{sub_benchmark}`)
 	// to search the func source code bounds and to calculate the package name.
-	fullTestName := b.Name()
+	fullTestName := runner.GetOriginalTestName(b.Name())
 
 	// We detect if the parent benchmark is instrumented, and if so we remove the "*" SubBenchmark from the previous instrumentation
 	parentBenchmark := getParentBenchmark(b)
@@ -156,42 +155,31 @@ func startBenchmark(b *testing.B, pc uintptr, benchFunc func(b *testing.B)) {
 }
 
 func getParentBenchmark(b *testing.B) *testing.B {
-	val := reflect.Indirect(reflect.ValueOf(b))
-	member := val.FieldByName("parent")
-	if member.IsValid() {
-		ptrToY := unsafe.Pointer(member.UnsafeAddr())
-		return *(**testing.B)(ptrToY)
+	if ptr, err := reflection.GetFieldPointerOfB(b, "parent"); err == nil {
+		return *(**testing.B)(ptr)
 	}
 	return nil
 }
 
 func getBenchmarkSuiteName(b *testing.B) string {
-	val := reflect.Indirect(reflect.ValueOf(b))
-	member := val.FieldByName("importPath")
-	if member.IsValid() {
-		ptrToY := unsafe.Pointer(member.UnsafeAddr())
-		return *(*string)(ptrToY)
+	if ptr, err := reflection.GetFieldPointerOfB(b, "importPath"); err == nil {
+		return *(*string)(ptr)
 	}
 	return ""
 }
 
 func getBenchmarkHasSub(b *testing.B) int32 {
-	val := reflect.Indirect(reflect.ValueOf(b))
-	member := val.FieldByName("hasSub")
-	if member.IsValid() {
-		ptrToY := unsafe.Pointer(member.UnsafeAddr())
-		return *(*int32)(ptrToY)
+	if ptr, err := reflection.GetFieldPointerOfB(b, "hasSub"); err == nil {
+		return *(*int32)(ptr)
 	}
 	return 0
 }
 
 //Extract benchmark result from the private result field in testing.B
 func extractBenchmarkResult(b *testing.B) (*testing.BenchmarkResult, error) {
-	val := reflect.Indirect(reflect.ValueOf(b))
-	member := val.FieldByName("result")
-	if member.IsValid() {
-		ptrToY := unsafe.Pointer(member.UnsafeAddr())
-		return (*testing.BenchmarkResult)(ptrToY), nil
+	if ptr, err := reflection.GetFieldPointerOfB(b, "result"); err == nil {
+		return (*testing.BenchmarkResult)(ptr), nil
+	} else {
+		return nil, err
 	}
-	return nil, stdErrors.New("result can't be retrieved")
 }

@@ -2,11 +2,12 @@ package scopeagent // import "go.undefinedlabs.com/scopeagent"
 
 import (
 	"context"
+	"runtime"
+	"testing"
+
 	"go.undefinedlabs.com/scopeagent/agent"
 	"go.undefinedlabs.com/scopeagent/instrumentation/logging"
 	scopetesting "go.undefinedlabs.com/scopeagent/instrumentation/testing"
-	"runtime"
-	"testing"
 )
 
 var defaultAgent *agent.Agent
@@ -31,7 +32,7 @@ func Run(m *testing.M, opts ...agent.Option) int {
 
 	defer newAgent.Stop()
 	defaultAgent = newAgent
-	return m.Run()
+	return newAgent.Run(m)
 }
 
 // Instruments the given test, returning a `Test` object that can be used to extend the test trace

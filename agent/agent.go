@@ -12,6 +12,7 @@ import (
 	"runtime"
 	"strings"
 	"sync"
+	"testing"
 	"time"
 
 	"github.com/google/uuid"
@@ -19,6 +20,7 @@ import (
 
 	scopeError "go.undefinedlabs.com/scopeagent/errors"
 	"go.undefinedlabs.com/scopeagent/instrumentation"
+	"go.undefinedlabs.com/scopeagent/runner"
 	"go.undefinedlabs.com/scopeagent/tags"
 	"go.undefinedlabs.com/scopeagent/tracer"
 )
@@ -30,12 +32,14 @@ type (
 		apiEndpoint string
 		apiKey      string
 
-		agentId         string
-		version         string
-		metadata        map[string]interface{}
-		debugMode       bool
-		testingMode     bool
-		setGlobalTracer bool
+		agentId          string
+		version          string
+		metadata         map[string]interface{}
+		debugMode        bool
+		testingMode      bool
+		setGlobalTracer  bool
+		exitOnError      bool
+		failRetriesCount int
 
 		recorder         *SpanRecorder
 		recorderFilename string
@@ -151,6 +155,18 @@ func WithConfiguration(values map[string]interface{}) Option {
 	}
 }
 
+func WithRetriesOnFail(retriesCount int) Option {
+	return func(agent *Agent) {
+		agent.failRetriesCount = retriesCount
+	}
+}
+
+func WithHandlePanicAsFail() Option {
+	return func(agent *Agent) {
+		agent.exitOnError = false
+	}
+}
+
 // Creates a new Scope Agent instance
 func NewAgent(options ...Option) (*Agent, error) {
 	agent := new(Agent)
@@ -158,6 +174,8 @@ func NewAgent(options ...Option) (*Agent, error) {
 	agent.version = version
 	agent.agentId = generateAgentID()
 	agent.userAgent = fmt.Sprintf("scope-agent-go/%s", agent.version)
+	agent.exitOnError = true
+	agent.failRetriesCount = 0
 
 	for _, opt := range options {
 		opt(agent)
@@ -309,6 +327,15 @@ func (a *Agent) Tracer() opentracing.Tracer {
 
 func (a *Agent) Logger() *log.Logger {
 	return a.logger
+}
+
+// Runs the test suite
+func (a *Agent) Run(m *testing.M) int {
+	defer a.Stop()
+	if !a.exitOnError || a.failRetriesCount > 0 {
+		return runner.Run(m, a.exitOnError, a.failRetriesCount, a.logger)
+	}
+	return m.Run()
 }
 
 // Stops the agent
