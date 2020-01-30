@@ -129,6 +129,28 @@ func WithAgentType(agentType string) Option {
 	}
 }
 
+func WithConfigurationKeys(keys []string) Option {
+	return func(agent *Agent) {
+		if keys != nil && len(keys) > 0 {
+			agent.metadata[tags.ConfigurationKeys] = keys
+		}
+	}
+}
+
+func WithConfiguration(values map[string]interface{}) Option {
+	return func(agent *Agent) {
+		if values == nil {
+			return
+		}
+		var keys []string
+		for k, v := range values {
+			agent.metadata[k] = v
+			keys = append(keys, k)
+		}
+		agent.metadata[tags.ConfigurationKeys] = keys
+	}
+}
+
 // Creates a new Scope Agent instance
 func NewAgent(options ...Option) (*Agent, error) {
 	agent := new(Agent)

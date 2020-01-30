@@ -2,7 +2,9 @@ package agent
 
 import (
 	"fmt"
+	"go.undefinedlabs.com/scopeagent/tags"
 	"os/exec"
+	"reflect"
 	"strings"
 	"testing"
 )
@@ -57,5 +59,56 @@ func TestGetDependencies(t *testing.T) {
 		}
 	} else {
 		t.FailNow()
+	}
+}
+
+func TestWithConfigurationKeys(t *testing.T) {
+	myKeys := []string{"ConfigKey01", "ConfigKey02", "ConfigKey03"}
+
+	agent, err := NewAgent(WithApiKey("123"), WithConfigurationKeys(myKeys))
+	if err != nil {
+		t.Fatal(err)
+	}
+	agent.Stop()
+
+	if agentKeys, ok := agent.metadata[tags.ConfigurationKeys]; ok {
+		if !reflect.DeepEqual(myKeys, agentKeys) {
+			t.Fatal("the configuration keys array are different")
+		}
+	} else {
+		t.Fatal("agent configuration keys can't be found")
+	}
+}
+
+func TestWithConfiguration(t *testing.T) {
+	myKeys := []string{"ConfigKey01", "ConfigKey02", "ConfigKey03"}
+	myConfiguration := map[string]interface{}{
+		myKeys[0]: 101,
+		myKeys[1]: "Value 2",
+		myKeys[2]: true,
+	}
+
+	agent, err := NewAgent(WithApiKey("123"), WithConfiguration(myConfiguration))
+	if err != nil {
+		t.Fatal(err)
+	}
+	agent.Stop()
+
+	if agentKeys, ok := agent.metadata[tags.ConfigurationKeys]; ok {
+		if !reflect.DeepEqual(myKeys, agentKeys) {
+			t.Fatal("the configuration keys array are different", agentKeys, myKeys)
+		}
+	} else {
+		t.Fatal("agent configuration keys can't be found")
+	}
+
+	for k, v := range myConfiguration {
+		if mV, ok := agent.metadata[k]; ok {
+			if !reflect.DeepEqual(v, mV) {
+				t.Fatal("the configuration values are different")
+			}
+		} else {
+			t.Fatal("the configuration maps are different")
+		}
 	}
 }
