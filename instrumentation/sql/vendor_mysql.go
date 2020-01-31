@@ -25,7 +25,7 @@ func (ext *mysqlExtension) ProcessConnectionString(connectionString string, conf
 	configuration.port = dsn["Port"]
 	configuration.instance = dsn["DBName"]
 	configuration.host = dsn["Host"]
-	configuration.connString = strings.Replace(connectionString, dsn["Passwd"], "******", -1) // ReplaceAll is not supported on go1.11
+	configuration.connString = strings.Replace(connectionString, dsn["Passwd"], "******", -1)
 }
 
 // ParseDSN parses the DSN string to a Config
