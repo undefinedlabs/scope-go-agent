@@ -91,6 +91,20 @@ func TestHttpServer(t *testing.T) {
 	if len(spans) != 2 {
 		t.Fatalf("there aren't the right number of spans: %d", len(spans))
 	}
+	checkTags(t, spans[0].Tags, map[string]string{
+		"component":        "net/http",
+		"http.method":      "GET",
+		"http.url":         "/hello",
+		"span.kind":        "server",
+		"http.status_code": "200",
+	})
+	checkTags(t, spans[1].Tags, map[string]string{
+		"component":   "net/http",
+		"http.method": "GET",
+		"http.url":    url,
+		"peer.ipv4":   "127.0.0.1",
+		"span.kind":   "client",
+	})
 }
 
 func checkTags(t *testing.T, tags map[string]interface{}, expected map[string]string) {
