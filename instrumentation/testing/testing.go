@@ -192,7 +192,7 @@ func (test *Test) end() {
 func findMatchesLogRegex(output string) [][]string {
 	allMatches := TESTING_LOG_REGEX.FindAllStringSubmatch(output, -1)
 	for _, matches := range allMatches {
-		matches[3] = strings.ReplaceAll(matches[3], "\n        ", "\n")
+		matches[3] = strings.Replace(matches[3], "\n        ", "\n", -1)
 	}
 	return allMatches
 }

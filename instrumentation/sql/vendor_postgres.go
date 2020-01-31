@@ -54,7 +54,7 @@ func (ext *postgresExtension) ProcessConnectionString(connectionString string, c
 		configuration.host = host
 	}
 
-	configuration.connString = strings.ReplaceAll(connectionString, o["password"], "******")
+	configuration.connString = strings.Replace(connectionString, o["password"], "******", -1)
 }
 
 // postgress ParseURL no longer needs to be used by clients of this library since supplying a URL as a

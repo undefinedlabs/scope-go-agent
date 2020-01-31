@@ -63,7 +63,7 @@ func PatchLogger(logger *stdlog.Logger) {
 	if _, ok := patchedLoggers[logger]; ok {
 		return
 	}
-	currentWriter := logger.Writer()
+	currentWriter := getLoggerWriter(logger)
 	otWriter := newInstrumentedWriter(logger.Prefix(), logger.Flags())
 	logger.SetOutput(io.MultiWriter(currentWriter, otWriter))
 	recorders = append(recorders, otWriter)
