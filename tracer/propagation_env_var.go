@@ -147,13 +147,13 @@ func (carrier *envVarCarrier) ForeachKey(handler func(key, val string) error) er
 // consist solely of uppercase letters, digits, and the '_' (underscore)
 func escape(value string) string {
 	for key, val := range escapeMap {
-		value = strings.ReplaceAll(value, key, val)
+		value = strings.Replace(value, key, val, -1) // ReplaceAll is not supported on go1.11
 	}
 	return value
 }
 func unescape(value string) string {
 	for key, val := range escapeMap {
-		value = strings.ReplaceAll(value, val, key)
+		value = strings.Replace(value, val, key, -1) // ReplaceAll is not supported on go1.11
 	}
 	return value
 }

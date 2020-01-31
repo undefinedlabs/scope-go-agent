@@ -11,3 +11,8 @@ import (
 func getStdLoggerWriter() io.Writer {
 	return stdlog.Writer() // This func exist from go1.13
 }
+
+// Gets the writer of a custom logger
+func getLoggerWriter(logger *stdlog.Logger) io.Writer {
+	return logger.Writer()
+}
