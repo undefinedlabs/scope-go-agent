@@ -43,7 +43,7 @@ type (
 
 var (
 	patchedLoggersMutex sync.Mutex
-	patchedLoggers      = map[*stdlog.Logger]loggerPatchInfo{}
+	patchedLoggers      = map[io.Writer]loggerPatchInfo{}
 	stdLoggerWriter     io.Writer
 	loggerContextMutex  sync.RWMutex
 	loggerContext       = map[*stdlog.Logger]context.Context{}
@@ -66,14 +66,15 @@ func UnpatchStandardLogger() {
 func PatchLogger(logger *stdlog.Logger) {
 	patchedLoggersMutex.Lock()
 	defer patchedLoggersMutex.Unlock()
-	if _, ok := patchedLoggers[logger]; ok {
-		return
-	}
 	currentWriter := getLoggerWriter(logger)
+	if patchInfo, ok := patchedLoggers[currentWriter]; ok {
+		currentWriter = patchInfo.previous
+	}
 	otWriter := newInstrumentedWriter(logger, logger.Prefix(), logger.Flags())
-	logger.SetOutput(io.MultiWriter(currentWriter, otWriter))
+	mWriter := io.MultiWriter(currentWriter, otWriter)
+	logger.SetOutput(mWriter)
 	recorders = append(recorders, otWriter)
-	patchedLoggers[logger] = loggerPatchInfo{
+	patchedLoggers[mWriter] = loggerPatchInfo{
 		current:  otWriter,
 		previous: currentWriter,
 	}
@@ -83,9 +84,10 @@ func PatchLogger(logger *stdlog.Logger) {
 func UnpatchLogger(logger *stdlog.Logger) {
 	patchedLoggersMutex.Lock()
 	defer patchedLoggersMutex.Unlock()
-	if logInfo, ok := patchedLoggers[logger]; ok {
+	currentWriter := getLoggerWriter(logger)
+	if logInfo, ok := patchedLoggers[currentWriter]; ok {
 		logger.SetOutput(logInfo.previous)
-		delete(patchedLoggers, logger)
+		delete(patchedLoggers, currentWriter)
 	}
 }
 
