@@ -370,19 +370,23 @@ func getLogPath() (string, error) {
 	if logPath, set := os.LookupEnv("SCOPE_LOG_ROOT_PATH"); set {
 		return logPath, nil
 	}
-	homeDir := ""
-	if currentUser, err := user.Current(); err == nil && currentUser != nil {
-		homeDir = currentUser.HomeDir
-	}
-	logFolder := ""
 
-	if runtime.GOOS == "windows" {
-		logFolder = fmt.Sprintf("%s/AppData/Roaming/scope/logs", homeDir)
-	} else if runtime.GOOS == "darwin" {
-		logFolder = fmt.Sprintf("%s/Library/Logs/Scope", homeDir)
-	} else if runtime.GOOS == "linux" {
+	logFolder := ""
+	if runtime.GOOS == "linux" {
 		logFolder = "/var/log/scope"
+	} else {
+		currentUser, err := user.Current()
+		if err != nil {
+			return "", err
+		}
+		homeDir := currentUser.HomeDir
+		if runtime.GOOS == "windows" {
+			logFolder = fmt.Sprintf("%s/AppData/Roaming/scope/logs", homeDir)
+		} else if runtime.GOOS == "darwin" {
+			logFolder = fmt.Sprintf("%s/Library/Logs/Scope", homeDir)
+		}
 	}
+
 	if logFolder != "" {
 		isOk := true
 		// If folder doesn't exist we try to create it
