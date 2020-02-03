@@ -116,6 +116,15 @@ func getCIMetadata() map[string]interface{} {
 			os.Getenv("SERVER_URL"),
 			buildId,
 		)
+	} else if _, set := os.LookupEnv("BUILDKITE"); set {
+		ciMetadata[tags.CI] = true
+		ciMetadata[tags.CIProvider] = "Buildkite"
+		ciMetadata[tags.CIBuildId] = os.Getenv("BUILDKITE_BUILD_ID")
+		ciMetadata[tags.CIBuildNumber] = os.Getenv("BUILDKITE_BUILD_NUMBER")
+		ciMetadata[tags.CIBuildUrl] = os.Getenv("BUILDKITE_BUILD_URL")
+		ciMetadata[tags.Repository] = os.Getenv("BUILDKITE_REPO")
+		ciMetadata[tags.Commit] = os.Getenv("BUILDKITE_COMMIT")
+		ciMetadata[tags.SourceRoot] = os.Getenv("BUILDKITE_BUILD_CHECKOUT_PATH")
 	}
 
 	return ciMetadata
