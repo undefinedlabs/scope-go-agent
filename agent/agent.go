@@ -370,8 +370,10 @@ func getLogPath() (string, error) {
 	if logPath, set := os.LookupEnv("SCOPE_LOG_ROOT_PATH"); set {
 		return logPath, nil
 	}
-	currentUser, _ := user.Current()
-	homeDir := currentUser.HomeDir
+	homeDir := ""
+	if currentUser, err := user.Current(); err == nil && currentUser != nil {
+		homeDir = currentUser.HomeDir
+	}
 	logFolder := ""
 
 	if runtime.GOOS == "windows" {
