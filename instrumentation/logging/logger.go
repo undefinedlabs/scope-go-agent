@@ -9,7 +9,6 @@ import (
 	"regexp"
 	"sync"
 	"time"
-	"unsafe"
 
 	"github.com/opentracing/opentracing-go"
 	"github.com/opentracing/opentracing-go/log"
@@ -93,14 +92,7 @@ func UnpatchLogger(logger *stdlog.Logger) {
 
 // Create a new logger with a context
 func WithContext(logger *stdlog.Logger, ctx context.Context) *stdlog.Logger {
-	oLogger := (*struct {
-		_      sync.Mutex
-		prefix string
-		flag   int
-		out    io.Writer
-		_      []byte
-	})(unsafe.Pointer(logger))
-	rLogger := stdlog.New(oLogger.out, oLogger.prefix, oLogger.flag)
+	rLogger := stdlog.New(getLoggerWriter(logger), logger.Prefix(), logger.Flags())
 	loggerContextMutex.Lock()
 	defer loggerContextMutex.Unlock()
 	loggerContext[rLogger] = ctx
