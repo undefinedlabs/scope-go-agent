@@ -21,7 +21,10 @@ type Profile struct {
 }
 
 func GetConfig() *Config {
-	currentUser, _ := user.Current()
+	currentUser, err := user.Current()
+	if err != nil {
+		return nil
+	}
 	homeDir := currentUser.HomeDir
 	var filePath string
 	if runtime.GOOS == "windows" {
