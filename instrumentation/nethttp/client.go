@@ -322,52 +322,30 @@ func (h *Tracer) clientTrace() *httptrace.ClientTrace {
 }
 
 func (h *Tracer) getConn(hostPort string) {
-	h.sp.LogFields(log.String("event", "GetConn"))
 }
 
 func (h *Tracer) gotConn(info httptrace.GotConnInfo) {
 	h.sp.SetTag("net/http.reused", info.Reused)
 	h.sp.SetTag("net/http.was_idle", info.WasIdle)
-	h.sp.LogFields(log.String("event", "GotConn"))
 }
 
 func (h *Tracer) putIdleConn(error) {
-	h.sp.LogFields(log.String("event", "PutIdleConn"))
 }
 
 func (h *Tracer) gotFirstResponseByte() {
-	h.sp.LogFields(log.String("event", "GotFirstResponseByte"))
 }
 
 func (h *Tracer) got100Continue() {
-	h.sp.LogFields(log.String("event", "Got100Continue"))
 }
 
 func (h *Tracer) dnsStart(info httptrace.DNSStartInfo) {
-	h.sp.LogFields(
-		log.String("event", "DNSStart"),
-		log.String("host", info.Host),
-	)
 	ext.PeerHostname.Set(h.sp, info.Host)
 }
 
 func (h *Tracer) dnsDone(info httptrace.DNSDoneInfo) {
-	fields := []log.Field{log.String("event", "DNSDone")}
-	for _, addr := range info.Addrs {
-		fields = append(fields, log.String("addr", addr.String()))
-	}
-	if info.Err != nil {
-		fields = append(fields, log.Error(info.Err))
-	}
-	h.sp.LogFields(fields...)
 }
 
 func (h *Tracer) connectStart(network, addr string) {
-	h.sp.LogFields(
-		log.String("event", "ConnectStart"),
-		log.String("network", network),
-		log.String("addr", addr),
-	)
 	ext.PeerAddress.Set(h.sp, addr)
 	if idx := strings.IndexByte(addr, ':'); idx > -1 {
 		ip := net.ParseIP(addr[:idx])
@@ -391,21 +369,13 @@ func (h *Tracer) connectDone(network, addr string, err error) {
 			log.String("event", "error"),
 			log.Error(err),
 		)
-	} else {
-		h.sp.LogFields(
-			log.String("event", "ConnectDone"),
-			log.String("network", network),
-			log.String("addr", addr),
-		)
 	}
 }
 
 func (h *Tracer) wroteHeaders() {
-	h.sp.LogFields(log.String("event", "WroteHeaders"))
 }
 
 func (h *Tracer) wait100Continue() {
-	h.sp.LogFields(log.String("event", "Wait100Continue"))
 }
 
 func (h *Tracer) wroteRequest(info httptrace.WroteRequestInfo) {
@@ -416,7 +386,5 @@ func (h *Tracer) wroteRequest(info httptrace.WroteRequestInfo) {
 			log.Error(info.Err),
 		)
 		ext.Error.Set(h.sp, true)
-	} else {
-		h.sp.LogFields(log.String("event", "WroteRequest"))
 	}
 }
