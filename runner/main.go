@@ -5,6 +5,7 @@ import (
 	"log"
 	"regexp"
 	"strconv"
+	"strings"
 	"sync"
 	"testing"
 
@@ -17,7 +18,7 @@ type (
 	testRunner struct {
 		m                *testing.M
 		failRetriesCount int
-		exitOnError      bool
+		panicAsFail      bool
 		logger           *log.Logger
 		failed           bool
 		failedlock       *sync.Mutex
@@ -34,7 +35,7 @@ type (
 )
 
 var runner *testRunner
-var runnerRegexName = regexp.MustCompile(`(?m)([\w -:_]*)\/\[runner.[\w:]*]\/\[group](\/[\w -:_]*)?`)
+var runnerRegexName = regexp.MustCompile(`(?m)([\w -:_]*)\/\[runner.[\w:]*](\/[\w -:_]*)?`)
 
 // Gets the test name
 func GetOriginalTestName(name string) string {
@@ -46,13 +47,13 @@ func GetOriginalTestName(name string) string {
 }
 
 // Runs a test suite
-func Run(m *testing.M, exitOnError bool, failRetriesCount int, logger *log.Logger) int {
+func Run(m *testing.M, panicAsFail bool, failRetriesCount int, logger *log.Logger) int {
 	if logger == nil {
 		logger = log.New(ioutil.Discard, "", 0)
 	}
 	runner := &testRunner{
 		m:                m,
-		exitOnError:      exitOnError,
+		panicAsFail:      panicAsFail,
 		failRetriesCount: failRetriesCount,
 		logger:           logger,
 		failed:           false,
@@ -88,7 +89,7 @@ func (r *testRunner) init() {
 func (td *testDescriptor) run(t *testing.T) {
 	run := 1
 	maxRetries := td.runner.failRetriesCount
-	exitOnError := td.runner.exitOnError
+	panicAsFail := td.runner.panicAsFail
 	var innerError *goerrors.Error
 
 	for {
@@ -101,7 +102,8 @@ func (td *testDescriptor) run(t *testing.T) {
 		t.Run(title, func(it *testing.T) {
 			// We need to run another subtest in order to support t.Parallel()
 			// https://stackoverflow.com/a/53950628
-			it.Run("[group]", func(gt *testing.T) {
+			setChattyFlag(it, false) // avoid the [exec] subtest in stdout
+			it.Run("[exec]", func(gt *testing.T) {
 				defer func() {
 					rc := recover()
 					if rc != nil {
@@ -110,12 +112,14 @@ func (td *testDescriptor) run(t *testing.T) {
 						gt.FailNow()
 					}
 				}()
+				setChattyFlag(gt, true)                                       // enable inner test in stdout
+				setTestName(gt, strings.Replace(it.Name(), "[exec]", "", -1)) // removes [exec] from name
 				innerTest = gt
 				td.test.F(gt)
 			})
 		})
 		if innerError != nil {
-			if exitOnError {
+			if !panicAsFail {
 				panic(innerError.ErrorStack())
 			}
 			td.runner.logger.Println("PANIC RECOVER:", innerError)
@@ -154,7 +158,7 @@ func (td *testDescriptor) run(t *testing.T) {
 	setTestFailureFlag(getTestParent(t), td.runner.failed)
 	td.runner.failedlock.Unlock()
 
-	if td.error && exitOnError {
+	if td.error && !panicAsFail {
 		// If after all recovers and retries the test finish with error and we have the exitOnError flag,
 		// we panic with the latest recovered data
 		panic(innerError)
@@ -181,4 +185,18 @@ func getTestParent(t *testing.T) *testing.T {
 		}
 	}
 	return nil
+}
+
+// Sets the chatty flag
+func setChattyFlag(t *testing.T, value bool) {
+	if ptr, err := reflection.GetFieldPointerOfT(t, "chatty"); err == nil {
+		*(*bool)(ptr) = value
+	}
+}
+
+// Sets the test name
+func setTestName(t *testing.T, value string) {
+	if ptr, err := reflection.GetFieldPointerOfT(t, "name"); err == nil {
+		*(*string)(ptr) = value
+	}
 }

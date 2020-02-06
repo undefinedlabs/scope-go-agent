@@ -38,7 +38,7 @@ type (
 		debugMode        bool
 		testingMode      bool
 		setGlobalTracer  bool
-		exitOnError      bool
+		panicAsFail      bool
 		failRetriesCount int
 
 		recorder         *SpanRecorder
@@ -163,7 +163,7 @@ func WithRetriesOnFail(retriesCount int) Option {
 
 func WithHandlePanicAsFail() Option {
 	return func(agent *Agent) {
-		agent.exitOnError = false
+		agent.panicAsFail = true
 	}
 }
 
@@ -174,7 +174,7 @@ func NewAgent(options ...Option) (*Agent, error) {
 	agent.version = version
 	agent.agentId = generateAgentID()
 	agent.userAgent = fmt.Sprintf("scope-agent-go/%s", agent.version)
-	agent.exitOnError = true
+	agent.panicAsFail = false
 	agent.failRetriesCount = 0
 
 	for _, opt := range options {
@@ -291,6 +291,10 @@ func NewAgent(options ...Option) (*Agent, error) {
 	if agent.setGlobalTracer || getBoolEnv("SCOPE_SET_GLOBAL_TRACER", false) {
 		opentracing.SetGlobalTracer(agent.Tracer())
 	}
+	if agent.failRetriesCount == 0 {
+		agent.failRetriesCount = getIntEnv("SCOPE_TESTING_FAIL_RETRIES", agent.failRetriesCount)
+	}
+	agent.panicAsFail = agent.panicAsFail || getBoolEnv("SCOPE_TESTING_PANIC_AS_FAIL", false)
 
 	return agent, nil
 }
@@ -332,8 +336,8 @@ func (a *Agent) Logger() *log.Logger {
 // Runs the test suite
 func (a *Agent) Run(m *testing.M) int {
 	defer a.Stop()
-	if !a.exitOnError || a.failRetriesCount > 0 {
-		return runner.Run(m, a.exitOnError, a.failRetriesCount, a.logger)
+	if a.panicAsFail || a.failRetriesCount > 0 {
+		return runner.Run(m, a.panicAsFail, a.failRetriesCount, a.logger)
 	}
 	return m.Run()
 }
