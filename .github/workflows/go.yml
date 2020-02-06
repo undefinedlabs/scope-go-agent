@@ -23,6 +23,8 @@ jobs:
 
       - name: Test
         run: go test -v ./...
+        env:
+          SCOPE_DSN: ${{ secrets.SCOPE_DSN }}
 
   fossa:
     name: FOSSA
