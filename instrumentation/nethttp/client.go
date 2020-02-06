@@ -137,7 +137,6 @@ type closeTracker struct {
 
 func (c closeTracker) Close() error {
 	err := c.ReadCloser.Close()
-	c.sp.LogFields(log.String("event", "ClosedBody"))
 	c.sp.Finish()
 	return err
 }
