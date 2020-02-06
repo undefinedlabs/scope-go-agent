@@ -2,6 +2,7 @@ package scopeagent // import "go.undefinedlabs.com/scopeagent"
 
 import (
 	"context"
+	"os"
 	"runtime"
 	"testing"
 
@@ -29,6 +30,11 @@ func Run(m *testing.M, opts ...agent.Option) int {
 			defaultAgent.PrintReport()
 		}
 	})
+
+	if envDMPatch, set := os.LookupEnv("SCOPE_DISABLE_MONKEY_PATCHING"); !set || envDMPatch == "" {
+		scopetesting.PatchTestingLogger()
+		defer scopetesting.UnpatchTestingLogger()
+	}
 
 	defer newAgent.Stop()
 	defaultAgent = newAgent
