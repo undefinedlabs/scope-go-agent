@@ -1,6 +1,15 @@
 package sql
 
-import "testing"
+import (
+	"os"
+	"testing"
+
+	"go.undefinedlabs.com/scopeagent"
+)
+
+func TestMain(m *testing.M) {
+	os.Exit(scopeagent.Run(m))
+}
 
 func TestMySqlDSNParser(t *testing.T) {
 	ext := &mysqlExtension{}
