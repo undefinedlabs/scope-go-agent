@@ -1,11 +1,8 @@
 package testing
 
 import (
-	"os"
 	"reflect"
 	"testing"
-
-	"github.com/undefinedlabs/go-mpatch"
 
 	"go.undefinedlabs.com/scopeagent/reflection"
 )
@@ -45,24 +42,5 @@ func Init(m *testing.M) {
 			})
 		}
 		*intBenchmarks = benchmarks
-	}
-
-	if envDMPatch, set := os.LookupEnv("SCOPE_DISABLE_MONKEY_PATCHING"); !set || envDMPatch == "" {
-		// We monkey patch the `testing.M.Run()` func to patch and unpatch the testing logger methods
-		mType := reflect.ValueOf(m).Type()
-		if mRunMethod, ok := mType.MethodByName("Run"); ok {
-			var runPatch *mpatch.Patch
-			var err error
-			runPatch, err = mpatch.PatchMethodByReflect(mRunMethod, func(m *testing.M) int {
-				logOnError(runPatch.Unpatch())
-				defer func() {
-					logOnError(runPatch.Patch())
-				}()
-				PatchTestingLogger()
-				defer UnpatchTestingLogger()
-				return m.Run()
-			})
-			logOnError(err)
-		}
 	}
 }
