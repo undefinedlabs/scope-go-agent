@@ -86,7 +86,9 @@ func (r *SpanRecorder) loop() error {
 	for {
 		select {
 		case <-ticker.C:
+			r.Lock()
 			hasSpans := len(r.spans) > 0
+			r.Unlock()
 			if hasSpans || time.Now().Sub(cTime) >= r.flushFrequency {
 				if r.debugMode {
 					if hasSpans {
