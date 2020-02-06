@@ -25,7 +25,7 @@ func getIntEnv(key string, fallback int) int {
 	}
 	value, err := strconv.ParseInt(stringValue, 0, 0)
 	if err != nil {
-		panic(fmt.Sprintf("unable to parse %s - should be 'true' or 'false'", key))
+		panic(fmt.Sprintf("unable to parse %s - does not seem to be an int", key))
 	}
 	return int(value)
 }
