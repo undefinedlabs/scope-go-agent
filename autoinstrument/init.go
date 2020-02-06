@@ -18,22 +18,27 @@ var (
 
 func init() {
 	once.Do(func() {
-		if envDMPatch, set := os.LookupEnv("SCOPE_DISABLE_MONKEY_PATCHING"); !set || envDMPatch == "" {
-			var m *testing.M
-			mType := reflect.TypeOf(m)
-			if mRunMethod, ok := mType.MethodByName("Run"); ok {
-				var runPatch *mpatch.Patch
-				var err error
-				runPatch, err = mpatch.PatchMethodByReflect(mRunMethod, func(m *testing.M) int {
-					logOnError(runPatch.Unpatch())
-					defer func() {
-						logOnError(runPatch.Patch())
-					}()
-					return scopeagent.Run(m)
-				})
-				logOnError(err)
-			}
+		if envDMPatch, set := os.LookupEnv("SCOPE_DISABLE_MONKEY_PATCHING"); set && envDMPatch != "" {
+			return
 		}
+		var m *testing.M
+		var mRunMethod reflect.Method
+		var ok bool
+		mType := reflect.TypeOf(m)
+		if mRunMethod, ok = mType.MethodByName("Run"); !ok {
+			return
+		}
+
+		var runPatch *mpatch.Patch
+		var err error
+		runPatch, err = mpatch.PatchMethodByReflect(mRunMethod, func(m *testing.M) int {
+			logOnError(runPatch.Unpatch())
+			defer func() {
+				logOnError(runPatch.Patch())
+			}()
+			return scopeagent.Run(m)
+		})
+		logOnError(err)
 	})
 }
 
