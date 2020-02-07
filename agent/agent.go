@@ -210,7 +210,7 @@ func NewAgent(options ...Option) (*Agent, error) {
 			agent.logger.Println("API key found in the native app configuration")
 			agent.apiKey = configProfile.ApiKey
 		} else {
-			agent.logger.Println("Api key not found, agent can't be started.")
+			agent.logger.Println("API key not found, agent can't be started")
 			return nil, errors.New("scope API key could not be autodetected")
 		}
 	}
