@@ -54,7 +54,7 @@ type (
 )
 
 var (
-	version            = "0.1.8"
+	version            = "0.1.9"
 	defaultApiEndpoint = "https://app.scope.dev"
 
 	printReportOnce sync.Once
