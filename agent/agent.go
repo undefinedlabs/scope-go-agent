@@ -222,7 +222,7 @@ func NewAgent(options ...Option) (*Agent, error) {
 			agent.logger.Println("API endpoint found in the native app configuration")
 			agent.apiEndpoint = configProfile.ApiEndpoint
 		} else {
-			agent.logger.Printf("Using default endpoint: %v.\n", defaultApiEndpoint)
+			agent.logger.Printf("using default endpoint: %v\n", defaultApiEndpoint)
 			agent.apiEndpoint = defaultApiEndpoint
 		}
 	}
