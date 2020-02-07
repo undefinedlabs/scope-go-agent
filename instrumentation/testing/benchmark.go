@@ -72,7 +72,7 @@ func GetBenchmark(b *testing.B) *Benchmark {
 	if bench, ok := benchmarkMap[b]; ok {
 		return bench
 	}
-	return nil
+	return &Benchmark{b: b}
 }
 
 func startBenchmark(b *testing.B, pc uintptr, benchFunc func(b *testing.B)) {

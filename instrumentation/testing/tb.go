@@ -20,14 +20,16 @@ func (test *Test) Error(args ...interface{}) {
 		defer methodPatch.Patch()
 	}
 	test.t.Helper()
-	test.span.LogFields(
-		log.String(tags.EventType, tags.LogEvent),
-		log.String(tags.EventMessage, fmt.Sprint(args...)),
-		log.String(tags.EventSource, getSourceFileAndNumber()),
-		log.String(tags.LogEventLevel, tags.LogLevel_ERROR),
-		log.String("log.internal_level", "Error"),
-		log.String("log.logger", "testing"),
-	)
+	if test.span != nil {
+		test.span.LogFields(
+			log.String(tags.EventType, tags.LogEvent),
+			log.String(tags.EventMessage, fmt.Sprint(args...)),
+			log.String(tags.EventSource, getSourceFileAndNumber()),
+			log.String(tags.LogEventLevel, tags.LogLevel_ERROR),
+			log.String("log.internal_level", "Error"),
+			log.String("log.logger", "testing"),
+		)
+	}
 	test.t.Error(args...)
 }
 
@@ -40,14 +42,16 @@ func (test *Test) Errorf(format string, args ...interface{}) {
 		defer methodPatch.Patch()
 	}
 	test.t.Helper()
-	test.span.LogFields(
-		log.String(tags.EventType, tags.LogEvent),
-		log.String(tags.EventMessage, fmt.Sprintf(format, args...)),
-		log.String(tags.EventSource, getSourceFileAndNumber()),
-		log.String(tags.LogEventLevel, tags.LogLevel_ERROR),
-		log.String("log.internal_level", "Error"),
-		log.String("log.logger", "testing"),
-	)
+	if test.span != nil {
+		test.span.LogFields(
+			log.String(tags.EventType, tags.LogEvent),
+			log.String(tags.EventMessage, fmt.Sprintf(format, args...)),
+			log.String(tags.EventSource, getSourceFileAndNumber()),
+			log.String(tags.LogEventLevel, tags.LogLevel_ERROR),
+			log.String("log.internal_level", "Error"),
+			log.String("log.logger", "testing"),
+		)
+	}
 	test.t.Errorf(format, args...)
 }
 
@@ -75,13 +79,15 @@ func (test *Test) Fatal(args ...interface{}) {
 		defer methodPatch.Patch()
 	}
 	test.t.Helper()
-	test.span.LogFields(
-		log.String(tags.EventType, tags.EventTestFailure),
-		log.String(tags.EventMessage, fmt.Sprint(args...)),
-		log.String(tags.EventSource, getSourceFileAndNumber()),
-		log.String("log.internal_level", "Fatal"),
-		log.String("log.logger", "testing"),
-	)
+	if test.span != nil {
+		test.span.LogFields(
+			log.String(tags.EventType, tags.EventTestFailure),
+			log.String(tags.EventMessage, fmt.Sprint(args...)),
+			log.String(tags.EventSource, getSourceFileAndNumber()),
+			log.String("log.internal_level", "Fatal"),
+			log.String("log.logger", "testing"),
+		)
+	}
 	test.t.Fatal(args...)
 }
 
@@ -94,13 +100,15 @@ func (test *Test) Fatalf(format string, args ...interface{}) {
 		defer methodPatch.Patch()
 	}
 	test.t.Helper()
-	test.span.LogFields(
-		log.String(tags.EventType, tags.EventTestFailure),
-		log.String(tags.EventMessage, fmt.Sprintf(format, args...)),
-		log.String(tags.EventSource, getSourceFileAndNumber()),
-		log.String("log.internal_level", "Fatal"),
-		log.String("log.logger", "testing"),
-	)
+	if test.span != nil {
+		test.span.LogFields(
+			log.String(tags.EventType, tags.EventTestFailure),
+			log.String(tags.EventMessage, fmt.Sprintf(format, args...)),
+			log.String(tags.EventSource, getSourceFileAndNumber()),
+			log.String("log.internal_level", "Fatal"),
+			log.String("log.logger", "testing"),
+		)
+	}
 	test.t.Fatalf(format, args...)
 }
 
@@ -113,14 +121,16 @@ func (test *Test) Log(args ...interface{}) {
 		defer methodPatch.Patch()
 	}
 	test.t.Helper()
-	test.span.LogFields(
-		log.String(tags.EventType, tags.LogEvent),
-		log.String(tags.EventMessage, fmt.Sprint(args...)),
-		log.String(tags.EventSource, getSourceFileAndNumber()),
-		log.String(tags.LogEventLevel, tags.LogLevel_INFO),
-		log.String("log.internal_level", "Log"),
-		log.String("log.logger", "testing"),
-	)
+	if test.span != nil {
+		test.span.LogFields(
+			log.String(tags.EventType, tags.LogEvent),
+			log.String(tags.EventMessage, fmt.Sprint(args...)),
+			log.String(tags.EventSource, getSourceFileAndNumber()),
+			log.String(tags.LogEventLevel, tags.LogLevel_INFO),
+			log.String("log.internal_level", "Log"),
+			log.String("log.logger", "testing"),
+		)
+	}
 	test.t.Log(args...)
 }
 
@@ -133,14 +143,16 @@ func (test *Test) Logf(format string, args ...interface{}) {
 		defer methodPatch.Patch()
 	}
 	test.t.Helper()
-	test.span.LogFields(
-		log.String(tags.EventType, tags.LogEvent),
-		log.String(tags.EventMessage, fmt.Sprintf(format, args...)),
-		log.String(tags.EventSource, getSourceFileAndNumber()),
-		log.String(tags.LogEventLevel, tags.LogLevel_INFO),
-		log.String("log.internal_level", "Log"),
-		log.String("log.logger", "testing"),
-	)
+	if test.span != nil {
+		test.span.LogFields(
+			log.String(tags.EventType, tags.LogEvent),
+			log.String(tags.EventMessage, fmt.Sprintf(format, args...)),
+			log.String(tags.EventSource, getSourceFileAndNumber()),
+			log.String(tags.LogEventLevel, tags.LogLevel_INFO),
+			log.String("log.internal_level", "Log"),
+			log.String("log.logger", "testing"),
+		)
+	}
 	test.t.Logf(format, args...)
 }
 
@@ -157,13 +169,15 @@ func (test *Test) Skip(args ...interface{}) {
 		defer methodPatch.Patch()
 	}
 	test.t.Helper()
-	test.span.LogFields(
-		log.String(tags.EventType, tags.EventTestSkip),
-		log.String(tags.EventMessage, fmt.Sprint(args...)),
-		log.String(tags.EventSource, getSourceFileAndNumber()),
-		log.String("log.internal_level", "Skip"),
-		log.String("log.logger", "testing"),
-	)
+	if test.span != nil {
+		test.span.LogFields(
+			log.String(tags.EventType, tags.EventTestSkip),
+			log.String(tags.EventMessage, fmt.Sprint(args...)),
+			log.String(tags.EventSource, getSourceFileAndNumber()),
+			log.String("log.internal_level", "Skip"),
+			log.String("log.logger", "testing"),
+		)
+	}
 	test.t.Skip(args...)
 }
 
@@ -181,13 +195,15 @@ func (test *Test) Skipf(format string, args ...interface{}) {
 		defer methodPatch.Patch()
 	}
 	test.t.Helper()
-	test.span.LogFields(
-		log.String(tags.EventType, tags.EventTestSkip),
-		log.String(tags.EventMessage, fmt.Sprintf(format, args...)),
-		log.String(tags.EventSource, getSourceFileAndNumber()),
-		log.String("log.internal_level", "Skip"),
-		log.String("log.logger", "testing"),
-	)
+	if test.span != nil {
+		test.span.LogFields(
+			log.String(tags.EventType, tags.EventTestSkip),
+			log.String(tags.EventMessage, fmt.Sprintf(format, args...)),
+			log.String(tags.EventSource, getSourceFileAndNumber()),
+			log.String("log.internal_level", "Skip"),
+			log.String("log.logger", "testing"),
+		)
+	}
 	test.t.Skipf(format, args...)
 }
 
