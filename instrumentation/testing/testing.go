@@ -141,9 +141,12 @@ func (test *Test) Context() context.Context {
 }
 
 // Runs an auto instrumented sub test
-func (test *Test) Run(name string, f func(t *testing.T)) {
+func (test *Test) Run(name string, f func(t *testing.T)) bool {
+	if test.span == nil { // No span = not instrumented
+		return test.t.Run(name, f)
+	}
 	pc, _, _, _ := runtime.Caller(1)
-	test.t.Run(name, func(childT *testing.T) {
+	return test.t.Run(name, func(childT *testing.T) {
 		addAutoInstrumentedTest(childT)
 		childTest := StartTestFromCaller(childT, pc)
 		defer childTest.end()
@@ -236,7 +239,12 @@ func GetTest(t *testing.T) *Test {
 	if test, ok := testMap[t]; ok {
 		return test
 	}
-	return nil
+	return &Test{
+		ctx:            context.TODO(),
+		span:           nil,
+		t:              t,
+		onPanicHandler: nil,
+	}
 }
 
 // Adds an auto instrumented test to the map

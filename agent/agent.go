@@ -193,11 +193,13 @@ func NewAgent(options ...Option) (*Agent, error) {
 		if dsn, set := os.LookupEnv("SCOPE_DSN"); set && dsn != "" {
 			dsnApiKey, dsnApiEndpoint, dsnErr := parseDSN(dsn)
 			if dsnErr != nil {
-				agent.logger.Printf("Error parsing dsn value: %v", dsnErr)
+				agent.logger.Printf("Error parsing dsn value: %v\n", dsnErr)
 			} else {
 				agent.apiKey = dsnApiKey
 				agent.apiEndpoint = dsnApiEndpoint
 			}
+		} else {
+			agent.logger.Println("SCOPE_DSN can't be found in the env vars.")
 		}
 	}
 
@@ -205,9 +207,11 @@ func NewAgent(options ...Option) (*Agent, error) {
 		if apikey, set := os.LookupEnv("SCOPE_APIKEY"); set && apikey != "" {
 			agent.apiKey = apikey
 		} else if configProfile != nil {
+			agent.logger.Println("Api key found in the native app configuration.")
 			agent.apiKey = configProfile.ApiKey
 		} else {
-			return nil, errors.New("Scope API key could not be autodetected")
+			agent.logger.Println("Api key not found, agent can't be started.")
+			return nil, errors.New("scope API key could not be autodetected")
 		}
 	}
 
@@ -215,8 +219,10 @@ func NewAgent(options ...Option) (*Agent, error) {
 		if endpoint, set := os.LookupEnv("SCOPE_API_ENDPOINT"); set && endpoint != "" {
 			agent.apiEndpoint = endpoint
 		} else if configProfile != nil {
+			agent.logger.Println("Api endpoint found in the native app configuration.")
 			agent.apiEndpoint = configProfile.ApiEndpoint
 		} else {
+			agent.logger.Printf("Using default endpoint: %v.\n", defaultApiEndpoint)
 			agent.apiEndpoint = defaultApiEndpoint
 		}
 	}

@@ -58,7 +58,7 @@ func GetContextFromTest(t *testing.T) context.Context {
 	if test != nil {
 		return test.Context()
 	}
-	return nil
+	return context.TODO()
 }
 
 // Gets the *Benchmark from a *testing.B
