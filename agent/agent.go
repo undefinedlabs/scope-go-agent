@@ -211,7 +211,8 @@ func NewAgent(options ...Option) (*Agent, error) {
 			agent.apiKey = configProfile.ApiKey
 		} else {
 			agent.logger.Println("API key not found, agent can't be started")
-			return nil, errors.New("scope API key could not be autodetected")
+			return nil, errors.New(fmt.Sprintf("There was a problem initializing Scope.\n"+
+				"Check the agent logs at %s for more information.\n", agent.recorderFilename))
 		}
 	}
 

@@ -2,6 +2,7 @@ package scopeagent // import "go.undefinedlabs.com/scopeagent"
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"runtime"
 	"testing"
@@ -18,7 +19,9 @@ func Run(m *testing.M, opts ...agent.Option) int {
 	opts = append(opts, agent.WithTestingModeEnabled())
 	newAgent, err := agent.NewAgent(opts...)
 	if err != nil {
-		return m.Run()
+		res := m.Run()
+		fmt.Printf("\n%v\n", err)
+		return res
 	}
 
 	logging.PatchStandardLogger()
