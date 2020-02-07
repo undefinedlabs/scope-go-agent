@@ -62,13 +62,11 @@ func NewSpanRecorder(agent *Agent) *SpanRecorder {
 
 // Appends a span to the in-memory buffer for async processing
 func (r *SpanRecorder) RecordSpan(span tracer.RawSpan) {
-	r.Lock()
-	defer r.Unlock()
 	if !r.t.Alive() {
-		r.logger.Printf("an span is received but the recorder is already disposed.\n")
+		r.logger.Printf("an span is received but the recorder is already disposed\n")
 		return
 	}
-	r.spans = append(r.spans, span)
+	r.addSpan(&span)
 	if r.debugMode {
 		r.logger.Printf("record span: %+v\n", span)
 	}
@@ -86,12 +84,9 @@ func (r *SpanRecorder) loop() error {
 	for {
 		select {
 		case <-ticker.C:
-			r.Lock()
-			hasSpans := len(r.spans) > 0
-			r.Unlock()
-			if hasSpans || time.Now().Sub(cTime) >= r.flushFrequency {
+			if r.hasSpans() || time.Now().Sub(cTime) >= r.flushFrequency {
 				if r.debugMode {
-					if hasSpans {
+					if r.hasSpans() {
 						r.logger.Println("Ticker: Sending by buffer")
 					} else {
 						r.logger.Println("Ticker: Sending by time")
@@ -121,14 +116,9 @@ func (r *SpanRecorder) loop() error {
 
 // Sends the spans in the buffer to Scope
 func (r *SpanRecorder) SendSpans() (error, bool) {
-	r.Lock()
-	spans := r.spans
-	r.spans = nil
-	r.Unlock()
-
 	r.totalSend = r.totalSend + 1
 
-	payload := r.getPayload(spans, r.metadata)
+	payload := r.getPayload(r.getSpans(), r.metadata)
 
 	if r.debugMode {
 		r.logger.Printf("payload: %+v\n\n", payload)
@@ -272,4 +262,27 @@ func encodePayload(payload map[string]interface{}) (*bytes.Buffer, error) {
 	}
 
 	return &buf, nil
+}
+
+// Gets if there any span available to be send
+func (r *SpanRecorder) hasSpans() bool {
+	r.RLock()
+	defer r.RUnlock()
+	return len(r.spans) > 0
+}
+
+// Gets the spans to be send and clears the buffer
+func (r *SpanRecorder) getSpans() []tracer.RawSpan {
+	r.Lock()
+	defer r.Unlock()
+	spans := r.spans
+	r.spans = nil
+	return spans
+}
+
+// Adds a span to the buffer
+func (r *SpanRecorder) addSpan(span *tracer.RawSpan) {
+	r.Lock()
+	defer r.Unlock()
+	r.spans = append(r.spans, *span)
 }
