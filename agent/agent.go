@@ -219,7 +219,7 @@ func NewAgent(options ...Option) (*Agent, error) {
 		if endpoint, set := os.LookupEnv("SCOPE_API_ENDPOINT"); set && endpoint != "" {
 			agent.apiEndpoint = endpoint
 		} else if configProfile != nil {
-			agent.logger.Println("Api endpoint found in the native app configuration.")
+			agent.logger.Println("API endpoint found in the native app configuration")
 			agent.apiEndpoint = configProfile.ApiEndpoint
 		} else {
 			agent.logger.Printf("Using default endpoint: %v.\n", defaultApiEndpoint)
