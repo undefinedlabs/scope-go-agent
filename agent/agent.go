@@ -199,7 +199,7 @@ func NewAgent(options ...Option) (*Agent, error) {
 				agent.apiEndpoint = dsnApiEndpoint
 			}
 		} else {
-			agent.logger.Println("SCOPE_DSN can't be found in the env vars.")
+			agent.logger.Println("environment variable $SCOPE_DSN not found")
 		}
 	}
 
