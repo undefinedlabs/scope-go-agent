@@ -66,7 +66,7 @@ func (r *SpanRecorder) RecordSpan(span tracer.RawSpan) {
 		r.logger.Printf("an span is received but the recorder is already disposed\n")
 		return
 	}
-	r.addSpan(&span)
+	r.addSpan(span)
 	if r.debugMode {
 		r.logger.Printf("record span: %+v\n", span)
 	}
@@ -281,8 +281,8 @@ func (r *SpanRecorder) getSpans() []tracer.RawSpan {
 }
 
 // Adds a span to the buffer
-func (r *SpanRecorder) addSpan(span *tracer.RawSpan) {
+func (r *SpanRecorder) addSpan(span tracer.RawSpan) {
 	r.Lock()
 	defer r.Unlock()
-	r.spans = append(r.spans, *span)
+	r.spans = append(r.spans, span)
 }
