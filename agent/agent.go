@@ -207,7 +207,7 @@ func NewAgent(options ...Option) (*Agent, error) {
 		if apikey, set := os.LookupEnv("SCOPE_APIKEY"); set && apikey != "" {
 			agent.apiKey = apikey
 		} else if configProfile != nil {
-			agent.logger.Println("Api key found in the native app configuration.")
+			agent.logger.Println("API key found in the native app configuration")
 			agent.apiKey = configProfile.ApiKey
 		} else {
 			agent.logger.Println("Api key not found, agent can't be started.")
