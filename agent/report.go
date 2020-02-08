@@ -8,7 +8,7 @@ func (a *Agent) PrintReport() {
 	printReportOnce.Do(func() {
 		if a.testingMode && a.recorder.stats.totalSpans > 0 {
 			fmt.Printf("\n** Scope Test Report **\n")
-			if a.recorder.stats.spansSent == a.recorder.stats.totalSpans {
+			if a.recorder.stats.spansSent == a.recorder.stats.totalSpans && a.recorder.stats.spansRejected == 0 {
 				fmt.Println("Access the detailed test report for this build at:")
 				fmt.Printf("   %s\n\n", a.getUrl(fmt.Sprintf("external/v1/results/%s", a.agentId)))
 			} else {
