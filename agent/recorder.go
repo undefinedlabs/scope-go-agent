@@ -39,9 +39,6 @@ type (
 		spans      []tracer.RawSpan
 
 		flushFrequency time.Duration
-		totalSend      int
-		okSend         int
-		koSend         int
 		url            string
 		client         *http.Client
 
@@ -147,14 +144,14 @@ func (r *SpanRecorder) loop() error {
 // Sends the spans in the buffer to Scope
 func (r *SpanRecorder) SendSpans() (error, bool) {
 	atomic.AddInt64(&r.stats.sendSpansCalls, 1)
-	r.totalSend = r.totalSend + 1
 
 	spans := r.getSpans()
 	payload := r.getPayload(spans, r.metadata)
 
 	buf, err := encodePayload(payload)
 	if err != nil {
-		r.koSend++
+		atomic.AddInt64(&r.stats.sendSpansKo, 1)
+		atomic.AddInt64(&r.stats.spansNotSent, int64(len(spans)))
 		return err, false
 	}
 
@@ -211,23 +208,27 @@ func (r *SpanRecorder) Stop() {
 		}
 	}
 	if r.debugMode {
-		r.logger.Printf("** Recorder statistics **\n")
-		r.logger.Printf("  Total spans: %d\n", r.stats.totalSpans)
-		r.logger.Printf("  Test spans: %d\n", r.stats.testSpans)
-		r.logger.Printf("  Spans sent: %d\n", r.stats.spansSent)
-		r.logger.Printf("  Spans not sent: %d\n", r.stats.spansNotSent)
-		r.logger.Printf("  Spans rejected: %d\n", r.stats.spansRejected)
-		r.logger.Printf("  SendSpans calls: %d\n", r.stats.sendSpansCalls)
-		r.logger.Printf("  SendSpans OK: %d\n", r.stats.sendSpansOk)
-		r.logger.Printf("  SendSpans KO: %d\n", r.stats.sendSpansKo)
+		r.writeStats()
 	}
+}
+
+// Write statistics
+func (r *SpanRecorder) writeStats() {
+	r.logger.Printf("** Recorder statistics **\n")
+	r.logger.Printf("  Total spans: %d\n", r.stats.totalSpans)
+	r.logger.Printf("  Test spans: %d\n", r.stats.testSpans)
+	r.logger.Printf("  Spans sent: %d\n", r.stats.spansSent)
+	r.logger.Printf("  Spans not sent: %d\n", r.stats.spansNotSent)
+	r.logger.Printf("  Spans rejected: %d\n", r.stats.spansRejected)
+	r.logger.Printf("  SendSpans calls: %d\n", r.stats.sendSpansCalls)
+	r.logger.Printf("  SendSpans OK: %d\n", r.stats.sendSpansOk)
+	r.logger.Printf("  SendSpans KO: %d\n", r.stats.sendSpansKo)
 }
 
 // Sends the encoded `payload` to the Scope ingest endpoint
 func (r *SpanRecorder) callIngest(payload io.Reader) (statusCode int, err error) {
 	req, err := http.NewRequest("POST", r.url, payload)
 	if err != nil {
-		r.koSend++
 		return 0, err
 	}
 	req.Header.Set("User-Agent", r.userAgent)
@@ -237,7 +238,6 @@ func (r *SpanRecorder) callIngest(payload io.Reader) (statusCode int, err error)
 
 	resp, err := r.client.Do(req)
 	if err != nil {
-		r.koSend++
 		return 0, err
 	}
 	defer resp.Body.Close()

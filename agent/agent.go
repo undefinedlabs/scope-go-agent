@@ -356,15 +356,6 @@ func (a *Agent) Stop() {
 	a.PrintReport()
 }
 
-// Flushes the pending payloads to the scope backend
-func (a *Agent) Flush() error {
-	if a.debugMode {
-		a.logger.Println("Scope agent is flushing all pending spans manually")
-	}
-	err, _ := a.recorder.SendSpans()
-	return err
-}
-
 func generateAgentID() string {
 	agentId, err := uuid.NewRandom()
 	if err != nil {

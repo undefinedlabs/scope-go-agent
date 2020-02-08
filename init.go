@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"go.undefinedlabs.com/scopeagent/agent"
+	"go.undefinedlabs.com/scopeagent/instrumentation"
 	"go.undefinedlabs.com/scopeagent/instrumentation/logging"
 	scopetesting "go.undefinedlabs.com/scopeagent/instrumentation/testing"
 )
@@ -28,9 +29,9 @@ func Run(m *testing.M, opts ...agent.Option) int {
 
 	scopetesting.Init(m)
 	scopetesting.SetDefaultPanicHandler(func(test *scopetesting.Test) {
+		instrumentation.Logger().Printf("the test '%s' has been panicked, stopping agent and exit.\n", test.Name())
 		if defaultAgent != nil {
-			_ = defaultAgent.Flush()
-			defaultAgent.PrintReport()
+			defaultAgent.Stop()
 		}
 	})
 
