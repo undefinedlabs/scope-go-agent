@@ -85,10 +85,8 @@ func (r *SpanRecorder) RecordSpan(span tracer.RawSpan) {
 		return
 	}
 	r.addSpan(span)
-	if r.debugMode {
-		if span.Tags["span.kind"] == "test" {
-			atomic.AddInt64(&r.stats.testSpans, 1)
-		}
+	if span.Tags["span.kind"] == "test" {
+		atomic.AddInt64(&r.stats.testSpans, 1)
 	}
 }
 
