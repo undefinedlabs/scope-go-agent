@@ -10,6 +10,7 @@ import (
 	"log"
 	"net/http"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/google/uuid"
@@ -22,27 +23,42 @@ import (
 
 const retryBackoff = 1 * time.Second
 
-type SpanRecorder struct {
-	sync.RWMutex
-	t tomb.Tomb
+type (
+	SpanRecorder struct {
+		sync.RWMutex
+		t tomb.Tomb
 
-	apiKey      string
-	apiEndpoint string
-	version     string
-	userAgent   string
-	debugMode   bool
-	metadata    map[string]interface{}
+		apiKey      string
+		apiEndpoint string
+		version     string
+		userAgent   string
+		debugMode   bool
+		metadata    map[string]interface{}
 
-	spans          []tracer.RawSpan
-	flushFrequency time.Duration
-	totalSend      int
-	okSend         int
-	koSend         int
-	url            string
-	client         *http.Client
+		spansMutex sync.RWMutex
+		spans      []tracer.RawSpan
 
-	logger *log.Logger
-}
+		flushFrequency time.Duration
+		totalSend      int
+		okSend         int
+		koSend         int
+		url            string
+		client         *http.Client
+
+		logger *log.Logger
+		stats  *RecorderStats
+	}
+	RecorderStats struct {
+		totalSpans     int64
+		sendSpansCalls int64
+		sendSpansOk    int64
+		sendSpansKo    int64
+		spansSent      int64
+		spansNotSent   int64
+		spansRejected  int64
+		testSpans      int64
+	}
+)
 
 func NewSpanRecorder(agent *Agent) *SpanRecorder {
 	r := new(SpanRecorder)
@@ -56,26 +72,40 @@ func NewSpanRecorder(agent *Agent) *SpanRecorder {
 	r.flushFrequency = time.Minute
 	r.url = agent.getUrl("api/agent/ingest")
 	r.client = &http.Client{}
+	r.stats = &RecorderStats{}
 	r.t.Go(r.loop)
 	return r
 }
 
 // Appends a span to the in-memory buffer for async processing
 func (r *SpanRecorder) RecordSpan(span tracer.RawSpan) {
+	r.Lock()
+	defer r.Unlock()
+	atomic.AddInt64(&r.stats.totalSpans, 1)
 	if !r.t.Alive() {
+		atomic.AddInt64(&r.stats.spansRejected, 1)
 		r.logger.Printf("an span is received but the recorder is already disposed\n")
 		return
 	}
 	r.addSpan(span)
 	if r.debugMode {
-		r.logger.Printf("record span: %+v\n", span)
+		if span.Tags["span.kind"] == "test" {
+			atomic.AddInt64(&r.stats.testSpans, 1)
+		}
 	}
 }
 
+// Change flush frequency
 func (r *SpanRecorder) ChangeFlushFrequency(frequency time.Duration) {
 	r.Lock()
 	defer r.Unlock()
 	r.flushFrequency = frequency
+}
+
+func (r *SpanRecorder) getFlushFrequency() time.Duration {
+	r.RLock()
+	defer r.RUnlock()
+	return r.flushFrequency
 }
 
 func (r *SpanRecorder) loop() error {
@@ -84,7 +114,7 @@ func (r *SpanRecorder) loop() error {
 	for {
 		select {
 		case <-ticker.C:
-			if r.hasSpans() || time.Now().Sub(cTime) >= r.flushFrequency {
+			if r.hasSpans() || time.Now().Sub(cTime) >= r.getFlushFrequency() {
 				if r.debugMode {
 					if r.hasSpans() {
 						r.logger.Println("Ticker: Sending by buffer")
@@ -100,7 +130,7 @@ func (r *SpanRecorder) loop() error {
 				if shouldExit {
 					ticker.Stop()
 					r.t.Kill(err)
-					return nil
+					return err
 				}
 			}
 		case <-r.t.Dying():
@@ -109,20 +139,18 @@ func (r *SpanRecorder) loop() error {
 				r.logger.Printf("error sending spans: %v\n", err)
 			}
 			ticker.Stop()
-			return nil
+			return err
 		}
 	}
 }
 
 // Sends the spans in the buffer to Scope
 func (r *SpanRecorder) SendSpans() (error, bool) {
+	atomic.AddInt64(&r.stats.sendSpansCalls, 1)
 	r.totalSend = r.totalSend + 1
 
-	payload := r.getPayload(r.getSpans(), r.metadata)
-
-	if r.debugMode {
-		r.logger.Printf("payload: %+v\n\n", payload)
-	}
+	spans := r.getSpans()
+	payload := r.getPayload(spans, r.metadata)
 
 	buf, err := encodePayload(payload)
 	if err != nil {
@@ -157,12 +185,42 @@ func (r *SpanRecorder) SendSpans() (error, bool) {
 	}
 
 	if payloadSent {
-		r.okSend++
+		atomic.AddInt64(&r.stats.sendSpansOk, 1)
+		atomic.AddInt64(&r.stats.spansSent, int64(len(spans)))
 	} else {
-		r.koSend++
+		atomic.AddInt64(&r.stats.sendSpansKo, 1)
+		atomic.AddInt64(&r.stats.spansNotSent, int64(len(spans)))
 	}
 
 	return lastError, shouldExit
+}
+
+// Stop recorder
+func (r *SpanRecorder) Stop() {
+	r.Lock()
+	defer r.Unlock()
+	if r.debugMode {
+		r.logger.Println("Scope recorder is stopping gracefully...")
+	}
+	r.t.Kill(nil)
+	_ = r.t.Wait()
+	if r.hasSpans() {
+		err, _ := r.SendSpans()
+		if err != nil {
+			r.logger.Printf("error sending spans: %v\n", err)
+		}
+	}
+	if r.debugMode {
+		r.logger.Printf("** Recorder statistics **\n")
+		r.logger.Printf("  Total spans: %d\n", r.stats.totalSpans)
+		r.logger.Printf("  Test spans: %d\n", r.stats.testSpans)
+		r.logger.Printf("  Spans sent: %d\n", r.stats.spansSent)
+		r.logger.Printf("  Spans not sent: %d\n", r.stats.spansNotSent)
+		r.logger.Printf("  Spans rejected: %d\n", r.stats.spansRejected)
+		r.logger.Printf("  SendSpans calls: %d\n", r.stats.sendSpansCalls)
+		r.logger.Printf("  SendSpans OK: %d\n", r.stats.sendSpansOk)
+		r.logger.Printf("  SendSpans KO: %d\n", r.stats.sendSpansKo)
+	}
 }
 
 // Sends the encoded `payload` to the Scope ingest endpoint
@@ -266,15 +324,15 @@ func encodePayload(payload map[string]interface{}) (*bytes.Buffer, error) {
 
 // Gets if there any span available to be send
 func (r *SpanRecorder) hasSpans() bool {
-	r.RLock()
-	defer r.RUnlock()
+	r.spansMutex.RLock()
+	defer r.spansMutex.RUnlock()
 	return len(r.spans) > 0
 }
 
 // Gets the spans to be send and clears the buffer
 func (r *SpanRecorder) getSpans() []tracer.RawSpan {
-	r.Lock()
-	defer r.Unlock()
+	r.spansMutex.Lock()
+	defer r.spansMutex.Unlock()
 	spans := r.spans
 	r.spans = nil
 	return spans
@@ -282,7 +340,7 @@ func (r *SpanRecorder) getSpans() []tracer.RawSpan {
 
 // Adds a span to the buffer
 func (r *SpanRecorder) addSpan(span tracer.RawSpan) {
-	r.Lock()
-	defer r.Unlock()
+	r.spansMutex.Lock()
+	defer r.spansMutex.Unlock()
 	r.spans = append(r.spans, span)
 }

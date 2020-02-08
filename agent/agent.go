@@ -351,12 +351,8 @@ func (a *Agent) Run(m *testing.M) int {
 
 // Stops the agent
 func (a *Agent) Stop() {
-	if a.debugMode {
-		a.logger.Println("Scope agent is stopping gracefully...")
-	}
-	a.recorder.t.Kill(nil)
-	_ = a.recorder.t.Wait()
-
+	a.logger.Println("Scope agent is stopping gracefully...")
+	a.recorder.Stop()
 	a.PrintReport()
 }
 

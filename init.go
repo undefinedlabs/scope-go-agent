@@ -39,7 +39,6 @@ func Run(m *testing.M, opts ...agent.Option) int {
 		defer scopetesting.UnpatchTestingLogger()
 	}
 
-	defer newAgent.Stop()
 	defaultAgent = newAgent
 	return newAgent.Run(m)
 }
