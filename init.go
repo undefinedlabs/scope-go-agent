@@ -4,7 +4,9 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"os/signal"
 	"runtime"
+	"syscall"
 	"testing"
 
 	"go.undefinedlabs.com/scopeagent/agent"
@@ -39,6 +41,16 @@ func Run(m *testing.M, opts ...agent.Option) int {
 		scopetesting.PatchTestingLogger()
 		defer scopetesting.UnpatchTestingLogger()
 	}
+
+	// Handle SIGINT and SIGTERM
+	sigs := make(chan os.Signal, 1)
+	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
+	go func() {
+		<-sigs
+		fmt.Println("Terminating agent, sending partial results...")
+		newAgent.Stop()
+		os.Exit(1)
+	}()
 
 	defaultAgent = newAgent
 	return newAgent.Run(m)
