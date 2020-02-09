@@ -14,10 +14,13 @@ require (
 	github.com/stretchr/testify v1.4.0
 	github.com/undefinedlabs/go-mpatch v0.0.0-20200122175732-0044123dbb98
 	github.com/vmihailenco/msgpack v4.0.4+incompatible
+	golang.org/x/lint v0.0.0-20190313153728-d0100b6bd8b3 // indirect
 	golang.org/x/net v0.0.0-20200114155413-6afb5195e5aa
 	golang.org/x/sys v0.0.0-20200122134326-e047566fdf82 // indirect
+	golang.org/x/tools v0.0.0-20190524140312-2c0ae7006135 // indirect
 	google.golang.org/appengine v1.6.5 // indirect
 	google.golang.org/grpc v1.27.1
 	gopkg.in/check.v1 v1.0.0-20190902080502-41f04d3bba15 // indirect
 	gopkg.in/tomb.v2 v2.0.0-20161208151619-d5d1b5820637
+	honnef.co/go/tools v0.0.0-20190523083050-ea95bdfd59fc // indirect
 )

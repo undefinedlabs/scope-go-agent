@@ -8,7 +8,6 @@ import (
 	"io"
 	"io/ioutil"
 	"log"
-	"net"
 	"net/http"
 	"sync"
 	"sync/atomic"
@@ -70,20 +69,7 @@ func NewSpanRecorder(agent *Agent) *SpanRecorder {
 	r.logger = agent.logger
 	r.flushFrequency = time.Minute
 	r.url = agent.getUrl("api/agent/ingest")
-	tr := &http.Transport{
-		Proxy: http.ProxyFromEnvironment,
-		DialContext: (&net.Dialer{
-			Timeout:   30 * time.Second,
-			KeepAlive: 30 * time.Second,
-		}).DialContext,
-		ForceAttemptHTTP2:     true,
-		MaxIdleConns:          100,
-		IdleConnTimeout:       90 * time.Second,
-		TLSHandshakeTimeout:   15 * time.Second,
-		ExpectContinueTimeout: 1 * time.Second,
-		DisableKeepAlives:     false,
-	}
-	r.client = &http.Client{Transport: tr}
+	r.client = &http.Client{}
 	r.stats = &RecorderStats{}
 	r.t.Go(r.loop)
 	return r
