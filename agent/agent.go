@@ -413,11 +413,11 @@ func getLogPath() (string, error) {
 	}
 
 	// If the log folder can't be used we return a temporal path, so we don't miss the agent logs
-	if dir, err := ioutil.TempDir("", "scope"); err != nil {
-		return dir, nil
-	} else {
+	dir, err := ioutil.TempDir("", "scope")
+	if err != nil {
 		return "", err
 	}
+	return dir, nil
 }
 
 func parseDSN(dsnString string) (apiKey string, apiEndpoint string, err error) {
