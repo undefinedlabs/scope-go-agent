@@ -8,6 +8,7 @@ import (
 	"io"
 	"io/ioutil"
 	"log"
+	"net"
 	"net/http"
 	"sync"
 	"sync/atomic"
@@ -35,15 +36,16 @@ type (
 		debugMode   bool
 		metadata    map[string]interface{}
 
-		spansMutex sync.RWMutex
-		spans      []tracer.RawSpan
+		spans           []tracer.RawSpan
+		spanSenderMutex sync.Mutex
 
 		flushFrequency time.Duration
 		url            string
 		client         *http.Client
 
-		logger *log.Logger
-		stats  *RecorderStats
+		logger    *log.Logger
+		stats     *RecorderStats
+		statsOnce sync.Once
 	}
 	RecorderStats struct {
 		totalSpans     int64
@@ -68,7 +70,20 @@ func NewSpanRecorder(agent *Agent) *SpanRecorder {
 	r.logger = agent.logger
 	r.flushFrequency = time.Minute
 	r.url = agent.getUrl("api/agent/ingest")
-	r.client = &http.Client{}
+	tr := &http.Transport{
+		Proxy: http.ProxyFromEnvironment,
+		DialContext: (&net.Dialer{
+			Timeout:   30 * time.Second,
+			KeepAlive: 30 * time.Second,
+		}).DialContext,
+		ForceAttemptHTTP2:     true,
+		MaxIdleConns:          100,
+		IdleConnTimeout:       90 * time.Second,
+		TLSHandshakeTimeout:   15 * time.Second,
+		ExpectContinueTimeout: 1 * time.Second,
+		DisableKeepAlives:     false,
+	}
+	r.client = &http.Client{Transport: tr}
 	r.stats = &RecorderStats{}
 	r.t.Go(r.loop)
 	return r
@@ -76,8 +91,6 @@ func NewSpanRecorder(agent *Agent) *SpanRecorder {
 
 // Appends a span to the in-memory buffer for async processing
 func (r *SpanRecorder) RecordSpan(span tracer.RawSpan) {
-	r.Lock()
-	defer r.Unlock()
 	atomic.AddInt64(&r.stats.totalSpans, 1)
 	if !r.t.Alive() {
 		atomic.AddInt64(&r.stats.spansRejected, 1)
@@ -95,12 +108,6 @@ func (r *SpanRecorder) ChangeFlushFrequency(frequency time.Duration) {
 	r.Lock()
 	defer r.Unlock()
 	r.flushFrequency = frequency
-}
-
-func (r *SpanRecorder) getFlushFrequency() time.Duration {
-	r.RLock()
-	defer r.RUnlock()
-	return r.flushFrequency
 }
 
 func (r *SpanRecorder) loop() error {
@@ -141,6 +148,8 @@ func (r *SpanRecorder) loop() error {
 
 // Sends the spans in the buffer to Scope
 func (r *SpanRecorder) SendSpans() (error, bool) {
+	r.spanSenderMutex.Lock()
+	defer r.spanSenderMutex.Unlock()
 	atomic.AddInt64(&r.stats.sendSpansCalls, 1)
 
 	spans := r.getSpans()
@@ -162,7 +171,18 @@ func (r *SpanRecorder) SendSpans() (error, bool) {
 		}
 		statusCode, err := r.callIngest(buf)
 		if err != nil {
-			if statusCode == 401 {
+			if statusCode == 0 {
+				// To handle client timeout errors (like TLS handshake timeout)
+				switch erType := err.(type) {
+				case interface{ Timeout() bool }:
+					if erType.Timeout() {
+						lastError = err
+						r.logger.Printf("error: client timeout, retrying (%d) in %d seconds",
+							i, retryBackoff/time.Second)
+						time.Sleep(retryBackoff)
+					}
+				}
+			} else if statusCode == 401 {
 				shouldExit = true
 				lastError = err
 				break
@@ -171,6 +191,8 @@ func (r *SpanRecorder) SendSpans() (error, bool) {
 				break
 			} else {
 				lastError = err
+				r.logger.Printf("error: status code: %d, retrying (%d) in %d seconds", statusCode,
+					i, retryBackoff/time.Second)
 				time.Sleep(retryBackoff)
 			}
 		} else {
@@ -192,8 +214,6 @@ func (r *SpanRecorder) SendSpans() (error, bool) {
 
 // Stop recorder
 func (r *SpanRecorder) Stop() {
-	r.Lock()
-	defer r.Unlock()
 	if r.debugMode {
 		r.logger.Println("Scope recorder is stopping gracefully...")
 	}
@@ -212,15 +232,17 @@ func (r *SpanRecorder) Stop() {
 
 // Write statistics
 func (r *SpanRecorder) writeStats() {
-	r.logger.Printf("** Recorder statistics **\n")
-	r.logger.Printf("  Total spans: %d\n", r.stats.totalSpans)
-	r.logger.Printf("  Test spans: %d\n", r.stats.testSpans)
-	r.logger.Printf("  Spans sent: %d\n", r.stats.spansSent)
-	r.logger.Printf("  Spans not sent: %d\n", r.stats.spansNotSent)
-	r.logger.Printf("  Spans rejected: %d\n", r.stats.spansRejected)
-	r.logger.Printf("  SendSpans calls: %d\n", r.stats.sendSpansCalls)
-	r.logger.Printf("  SendSpans OK: %d\n", r.stats.sendSpansOk)
-	r.logger.Printf("  SendSpans KO: %d\n", r.stats.sendSpansKo)
+	r.statsOnce.Do(func() {
+		r.logger.Printf("** Recorder statistics **\n")
+		r.logger.Printf("  Total spans: %d\n", r.stats.totalSpans)
+		r.logger.Printf("  Test spans: %d\n", r.stats.testSpans)
+		r.logger.Printf("  Spans sent: %d\n", r.stats.spansSent)
+		r.logger.Printf("  Spans not sent: %d\n", r.stats.spansNotSent)
+		r.logger.Printf("  Spans rejected: %d\n", r.stats.spansRejected)
+		r.logger.Printf("  SendSpans calls: %d\n", r.stats.sendSpansCalls)
+		r.logger.Printf("  SendSpans OK: %d\n", r.stats.sendSpansOk)
+		r.logger.Printf("  SendSpans KO: %d\n", r.stats.sendSpansKo)
+	})
 }
 
 // Sends the encoded `payload` to the Scope ingest endpoint
@@ -238,6 +260,7 @@ func (r *SpanRecorder) callIngest(payload io.Reader) (statusCode int, err error)
 	if err != nil {
 		return 0, err
 	}
+	io.Copy(ioutil.Discard, resp.Body) // for KeepAlive we need to be sure to read all body before close
 	defer resp.Body.Close()
 
 	if resp.StatusCode >= 400 {
@@ -320,17 +343,24 @@ func encodePayload(payload map[string]interface{}) (*bytes.Buffer, error) {
 	return &buf, nil
 }
 
+// Gets the current flush frequency
+func (r *SpanRecorder) getFlushFrequency() time.Duration {
+	r.RLock()
+	defer r.RUnlock()
+	return r.flushFrequency
+}
+
 // Gets if there any span available to be send
 func (r *SpanRecorder) hasSpans() bool {
-	r.spansMutex.RLock()
-	defer r.spansMutex.RUnlock()
+	r.RLock()
+	defer r.RUnlock()
 	return len(r.spans) > 0
 }
 
 // Gets the spans to be send and clears the buffer
 func (r *SpanRecorder) getSpans() []tracer.RawSpan {
-	r.spansMutex.Lock()
-	defer r.spansMutex.Unlock()
+	r.Lock()
+	defer r.Unlock()
 	spans := r.spans
 	r.spans = nil
 	return spans
@@ -338,7 +368,7 @@ func (r *SpanRecorder) getSpans() []tracer.RawSpan {
 
 // Adds a span to the buffer
 func (r *SpanRecorder) addSpan(span tracer.RawSpan) {
-	r.spansMutex.Lock()
-	defer r.spansMutex.Unlock()
+	r.Lock()
+	defer r.Unlock()
 	r.spans = append(r.spans, span)
 }
