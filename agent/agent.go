@@ -417,7 +417,7 @@ func getLogPath() (string, error) {
 	}
 
 	// If the log folder can't be used we return a temporal path, so we don't miss the agent logs
-	dir := path.Join(os.TempDir(), "scope-logs")
+	dir := path.Join(os.TempDir(), "scope")
 	if _, err := os.Stat(dir); err != nil {
 		if os.IsNotExist(err) {
 			mkErr := os.Mkdir(dir, os.ModeDir)
