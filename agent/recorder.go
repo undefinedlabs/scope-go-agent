@@ -89,7 +89,6 @@ func (r *SpanRecorder) RecordSpan(span tracer.RawSpan) {
 	}
 }
 
-// Change flush frequency
 func (r *SpanRecorder) ChangeFlushFrequency(frequency time.Duration) {
 	r.Lock()
 	defer r.Unlock()
