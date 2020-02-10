@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"math"
+	"path"
 	"regexp"
 	"runtime"
 	"strings"
@@ -119,6 +120,17 @@ func startBenchmark(b *testing.B, pc uintptr, benchFunc func(b *testing.B)) {
 		funcName = fullTestName[:testNameSlash]
 	}
 	packageName := getBenchmarkSuiteName(b)
+	if packageName == "" {
+		funcFullName := runtime.FuncForPC(pc).Name()
+		funcNameIndex := strings.LastIndex(funcFullName, funcName)
+		if funcNameIndex < 1 {
+			funcNameIndex = len(funcFullName)
+		}
+		packageName = funcFullName[:funcNameIndex-1]
+		if len(packageName) > 0 && packageName[0] == '_' && strings.Index(packageName, sourceRoot) != -1 {
+			packageName = strings.Replace(packageName, path.Dir(sourceRoot)+"/", "", -1)[1:]
+		}
+	}
 
 	sourceBounds, _ := ast.GetFuncSourceForName(pc, funcName)
 	var testCode string
