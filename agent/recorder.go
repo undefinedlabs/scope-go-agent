@@ -340,7 +340,7 @@ func (r *SpanRecorder) hasSpans() bool {
 }
 
 // Gets the spans to be send and clears the buffer
-func (r *SpanRecorder) getSpans() []tracer.RawSpan {
+func (r *SpanRecorder) popSpans() []tracer.RawSpan {
 	r.Lock()
 	defer r.Unlock()
 	spans := r.spans
