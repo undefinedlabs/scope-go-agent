@@ -80,7 +80,7 @@ func (r *SpanRecorder) RecordSpan(span tracer.RawSpan) {
 	atomic.AddInt64(&r.stats.totalSpans, 1)
 	if !r.t.Alive() {
 		atomic.AddInt64(&r.stats.spansRejected, 1)
-		r.logger.Printf("an span is received but the recorder is already disposed\n")
+		r.logger.Printf("a span has been received but the recorder is not running")
 		return
 	}
 	r.addSpan(span)
