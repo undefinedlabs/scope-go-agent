@@ -374,6 +374,10 @@ func (a *Agent) Logger() *log.Logger {
 	return a.logger
 }
 
+func (a *Agent) SourceRoot() string {
+	return a.metadata[tags.SourceRoot].(string)
+}
+
 // Runs the test suite
 func (a *Agent) Run(m *testing.M) int {
 	defer a.Stop()

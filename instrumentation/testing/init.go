@@ -10,11 +10,12 @@ import (
 )
 
 var (
-	parallel int
+	parallel   int
+	sourceRoot string
 )
 
 // Initialize the testing instrumentation
-func Init(m *testing.M) {
+func Init(m *testing.M, root string) {
 	flag.Parse()
 	fPtr := flag.Lookup("test.parallel")
 	if fPtr != nil {
@@ -22,6 +23,7 @@ func Init(m *testing.M) {
 		instrumentation.Logger().Println("parallel flag set to:", parallel)
 	}
 
+	sourceRoot = root
 	if tPointer, err := reflection.GetFieldPointerOf(m, "tests"); err == nil {
 		intTests := (*[]testing.InternalTest)(tPointer)
 		tests := make([]testing.InternalTest, 0)
