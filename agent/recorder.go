@@ -35,8 +35,7 @@ type (
 		debugMode   bool
 		metadata    map[string]interface{}
 
-		spans           []tracer.RawSpan
-		spanSenderMutex sync.Mutex
+		spans []tracer.RawSpan
 
 		flushFrequency time.Duration
 		url            string
@@ -107,7 +106,7 @@ func (r *SpanRecorder) loop() error {
 					}
 				}
 				cTime = time.Now()
-				err, shouldExit := r.SendSpans()
+				err, shouldExit := r.sendSpans()
 				if err != nil {
 					r.logger.Printf("error sending spans: %v\n", err)
 				}
@@ -118,7 +117,7 @@ func (r *SpanRecorder) loop() error {
 				}
 			}
 		case <-r.t.Dying():
-			err, _ := r.SendSpans()
+			err, _ := r.sendSpans()
 			if err != nil {
 				r.logger.Printf("error sending spans: %v\n", err)
 			}
@@ -129,12 +128,10 @@ func (r *SpanRecorder) loop() error {
 }
 
 // Sends the spans in the buffer to Scope
-func (r *SpanRecorder) SendSpans() (error, bool) {
-	r.spanSenderMutex.Lock()
-	defer r.spanSenderMutex.Unlock()
+func (r *SpanRecorder) sendSpans() (error, bool) {
 	atomic.AddInt64(&r.stats.sendSpansCalls, 1)
 
-	spans := r.getSpans()
+	spans := r.popSpans()
 	payload := r.getPayload(spans, r.metadata)
 
 	buf, err := encodePayload(payload)
@@ -202,7 +199,7 @@ func (r *SpanRecorder) Stop() {
 	r.t.Kill(nil)
 	_ = r.t.Wait()
 	if r.hasSpans() {
-		err, _ := r.SendSpans()
+		err, _ := r.sendSpans()
 		if err != nil {
 			r.logger.Printf("error sending spans: %v\n", err)
 		}
