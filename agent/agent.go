@@ -18,6 +18,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/opentracing/opentracing-go"
 
+	"go.undefinedlabs.com/scopeagent/env"
 	scopeError "go.undefinedlabs.com/scopeagent/errors"
 	"go.undefinedlabs.com/scopeagent/instrumentation"
 	"go.undefinedlabs.com/scopeagent/runner"
@@ -185,12 +186,12 @@ func NewAgent(options ...Option) (*Agent, error) {
 		agent.logger = log.New(ioutil.Discard, "", 0)
 	}
 
-	agent.debugMode = agent.debugMode || getBoolEnv("SCOPE_DEBUG", false)
+	agent.debugMode = env.IfFalse(agent.debugMode, env.SCOPE_DEBUG, false)
 
 	configProfile := GetConfigCurrentProfile()
 
 	if agent.apiKey == "" || agent.apiEndpoint == "" {
-		if dsn, set := os.LookupEnv("SCOPE_DSN"); set && dsn != "" {
+		if dsn, set := env.SCOPE_DSN.AsTuple(); set && dsn != "" {
 			dsnApiKey, dsnApiEndpoint, dsnErr := parseDSN(dsn)
 			if dsnErr != nil {
 				agent.logger.Printf("Error parsing dsn value: %v\n", dsnErr)
@@ -204,7 +205,7 @@ func NewAgent(options ...Option) (*Agent, error) {
 	}
 
 	if agent.apiKey == "" {
-		if apikey, set := os.LookupEnv("SCOPE_APIKEY"); set && apikey != "" {
+		if apikey, set := env.SCOPE_APIKEY.AsTuple(); set && apikey != "" {
 			agent.apiKey = apikey
 		} else if configProfile != nil {
 			agent.logger.Println("API key found in the native app configuration")
@@ -217,7 +218,7 @@ func NewAgent(options ...Option) (*Agent, error) {
 	}
 
 	if agent.apiEndpoint == "" {
-		if endpoint, set := os.LookupEnv("SCOPE_API_ENDPOINT"); set && endpoint != "" {
+		if endpoint, set := env.SCOPE_API_ENDPOINT.AsTuple(); set && endpoint != "" {
 			agent.apiEndpoint = endpoint
 		} else if configProfile != nil {
 			agent.logger.Println("API endpoint found in the native app configuration")
@@ -261,6 +262,9 @@ func NewAgent(options ...Option) (*Agent, error) {
 	// Go version
 	agent.metadata[tags.GoVersion] = runtime.Version()
 
+	// Service name
+	env.AddStringToMapIfEmpty(agent.metadata, tags.Service, env.SCOPE_SERVICE, "default")
+
 	// Git data
 	addToMapIfEmpty(agent.metadata, getGitInfoFromEnv())
 	addToMapIfEmpty(agent.metadata, getCIMetadata())
@@ -275,11 +279,8 @@ func NewAgent(options ...Option) (*Agent, error) {
 
 	agent.recorder = NewSpanRecorder(agent)
 
-	if _, set := os.LookupEnv("SCOPE_TESTING_MODE"); set {
-		agent.testingMode = getBoolEnv("SCOPE_TESTING_MODE", false)
-	} else {
-		agent.testingMode = agent.testingMode || agent.metadata[tags.CI].(bool)
-	}
+	agent.testingMode = env.IfFalse(agent.testingMode, env.SCOPE_TESTING_MODE, agent.metadata[tags.CI].(bool))
+
 	agent.SetTestingMode(agent.testingMode)
 
 	agent.tracer = tracer.NewWithOptions(tracer.Options{
@@ -295,13 +296,11 @@ func NewAgent(options ...Option) (*Agent, error) {
 	instrumentation.SetTracer(agent.tracer)
 	instrumentation.SetLogger(agent.logger)
 
-	if agent.setGlobalTracer || getBoolEnv("SCOPE_SET_GLOBAL_TRACER", false) {
+	if env.IfFalse(agent.setGlobalTracer, env.SCOPE_SET_GLOBAL_TRACER, false) {
 		opentracing.SetGlobalTracer(agent.Tracer())
 	}
-	if agent.failRetriesCount == 0 {
-		agent.failRetriesCount = getIntEnv("SCOPE_TESTING_FAIL_RETRIES", agent.failRetriesCount)
-	}
-	agent.panicAsFail = agent.panicAsFail || getBoolEnv("SCOPE_TESTING_PANIC_AS_FAIL", false)
+	agent.failRetriesCount = env.IfIntZero(agent.failRetriesCount, env.SCOPE_TESTING_FAIL_RETRIES, 0)
+	agent.panicAsFail = env.IfFalse(agent.panicAsFail, env.SCOPE_TESTING_PANIC_AS_FAIL, false)
 	if agent.debugMode {
 		agent.logMetadata()
 	}
@@ -367,7 +366,7 @@ func generateAgentID() string {
 }
 
 func getLogPath() (string, error) {
-	if logPath, set := os.LookupEnv("SCOPE_LOG_ROOT_PATH"); set {
+	if logPath, set := env.SCOPE_LOG_ROOT_PATH.AsTuple(); set {
 		return logPath, nil
 	}
 
