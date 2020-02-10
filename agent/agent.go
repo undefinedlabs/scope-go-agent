@@ -399,22 +399,19 @@ func getLogPath() (string, error) {
 	}
 
 	if logFolder != "" {
-		isOk := true
-		// If folder doesn't exist we try to create it
-		if _, err := os.Stat(logFolder); os.IsNotExist(err) {
-			mkErr := os.Mkdir(logFolder, os.ModeDir)
-			if mkErr != nil {
-				isOk = false
-			}
-		}
-		if isOk {
+		if _, err := os.Stat(logFolder); err == nil {
+			return logFolder, nil
+		} else if os.IsNotExist(err) && os.Mkdir(logFolder, os.ModeDir) == nil {
 			return logFolder, nil
 		}
 	}
 
 	// If the log folder can't be used we return a temporal path, so we don't miss the agent logs
-	if dir, err := ioutil.TempDir("", "scope"); err != nil {
-		return dir, nil
+	logFolder = path.Join(os.TempDir(), "scope")
+	if _, err := os.Stat(logFolder); err == nil {
+		return logFolder, nil
+	} else if os.IsNotExist(err) && os.Mkdir(logFolder, os.ModeDir) == nil {
+		return logFolder, nil
 	} else {
 		return "", err
 	}
