@@ -17,6 +17,7 @@ require (
 	github.com/undefinedlabs/go-mpatch v0.0.0-20200122175732-0044123dbb98
 	github.com/vmihailenco/msgpack v4.0.4+incompatible
 	golang.org/x/crypto v0.0.0-20200311171314-f7b00557c8c4 // indirect
+	golang.org/x/lint v0.0.0-20190313153728-d0100b6bd8b3 // indirect
 	golang.org/x/net v0.0.0-20200301022130-244492dfa37a
 	golang.org/x/sys v0.0.0-20200302150141-5c8b2ff67527 // indirect
 	google.golang.org/appengine v1.6.5 // indirect
@@ -24,4 +25,5 @@ require (
 	gopkg.in/check.v1 v1.0.0-20190902080502-41f04d3bba15 // indirect
 	gopkg.in/src-d/go-git.v4 v4.13.1
 	gopkg.in/tomb.v2 v2.0.0-20161208151619-d5d1b5820637
+	honnef.co/go/tools v0.0.0-20190523083050-ea95bdfd59fc // indirect
 )
