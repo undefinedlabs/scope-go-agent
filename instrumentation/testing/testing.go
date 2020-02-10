@@ -88,7 +88,7 @@ func StartTestFromCaller(t *testing.T, pc uintptr, opts ...Option) *Test {
 	}
 	packageName := funcFullName[:funcNameIndex-1]
 	if len(packageName) > 0 && packageName[0] == '_' && strings.Index(packageName, sourceRoot) != -1 {
-		packageName = strings.Replace(packageName, path.Base(sourceRoot)+"/", "", -1)[1:]
+		packageName = strings.Replace(packageName, path.Dir(sourceRoot)+"/", "", -1)[1:]
 	}
 
 	testTags := opentracing.Tags{
