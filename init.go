@@ -47,7 +47,7 @@ func Run(m *testing.M, opts ...agent.Option) int {
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
 	go func() {
 		<-sigs
-		fmt.Println("Terminating agent, sending partial results...")
+		instrumentation.Logger().Println("Terminating agent, sending partial results...")
 		newAgent.Stop()
 		os.Exit(1)
 	}()

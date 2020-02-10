@@ -302,7 +302,9 @@ func NewAgent(options ...Option) (*Agent, error) {
 		agent.failRetriesCount = getIntEnv("SCOPE_TESTING_FAIL_RETRIES", agent.failRetriesCount)
 	}
 	agent.panicAsFail = agent.panicAsFail || getBoolEnv("SCOPE_TESTING_PANIC_AS_FAIL", false)
-
+	if agent.debugMode {
+		agent.logMetadata()
+	}
 	return agent, nil
 }
 

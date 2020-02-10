@@ -1,6 +1,7 @@
 package agent
 
 import (
+	"encoding/json"
 	"fmt"
 )
 
@@ -12,6 +13,9 @@ func (a *Agent) PrintReport() {
 				fmt.Println("Access the detailed test report for this build at:")
 				fmt.Printf("   %s\n\n", a.getUrl(fmt.Sprintf("external/v1/results/%s", a.agentId)))
 			} else {
+				if !a.debugMode {
+					a.logMetadata()
+				}
 				a.recorder.writeStats()
 				fmt.Println("There was a problem sending data to Scope.")
 				if a.recorder.stats.spansSent > 0 {
@@ -22,4 +26,10 @@ func (a *Agent) PrintReport() {
 			}
 		}
 	})
+}
+
+func (a *Agent) logMetadata() {
+	metaBytes, _ := json.Marshal(a.metadata)
+	strMetadata := string(metaBytes)
+	a.logger.Println("Agent Metadata:", strMetadata)
 }
