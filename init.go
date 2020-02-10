@@ -31,7 +31,7 @@ func Run(m *testing.M, opts ...agent.Option) int {
 
 	scopetesting.Init(m)
 	scopetesting.SetDefaultPanicHandler(func(test *scopetesting.Test) {
-		instrumentation.Logger().Printf("the test '%s' has been panicked, stopping agent and exit.\n", test.Name())
+		instrumentation.Logger().Printf("test '%s' has panicked, stopping agent", test.Name())
 		if defaultAgent != nil {
 			defaultAgent.Stop()
 		}
