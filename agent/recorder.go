@@ -77,16 +77,12 @@ func NewSpanRecorder(agent *Agent) *SpanRecorder {
 
 // Appends a span to the in-memory buffer for async processing
 func (r *SpanRecorder) RecordSpan(span tracer.RawSpan) {
-	atomic.AddInt64(&r.stats.totalSpans, 1)
 	if !r.t.Alive() {
 		atomic.AddInt64(&r.stats.spansRejected, 1)
 		r.logger.Printf("a span has been received but the recorder is not running")
 		return
 	}
 	r.addSpan(span)
-	if span.Tags["span.kind"] == "test" {
-		atomic.AddInt64(&r.stats.testSpans, 1)
-	}
 }
 
 func (r *SpanRecorder) ChangeFlushFrequency(frequency time.Duration) {
@@ -101,9 +97,10 @@ func (r *SpanRecorder) loop() error {
 	for {
 		select {
 		case <-ticker.C:
-			if r.hasSpans() || time.Now().Sub(cTime) >= r.getFlushFrequency() {
+			hasSpans := r.hasSpans()
+			if hasSpans || time.Now().Sub(cTime) >= r.getFlushFrequency() {
 				if r.debugMode {
-					if r.hasSpans() {
+					if hasSpans {
 						r.logger.Println("Ticker: Sending by buffer")
 					} else {
 						r.logger.Println("Ticker: Sending by time")
@@ -356,4 +353,8 @@ func (r *SpanRecorder) addSpan(span tracer.RawSpan) {
 	r.Lock()
 	defer r.Unlock()
 	r.spans = append(r.spans, span)
+	atomic.AddInt64(&r.stats.totalSpans, 1)
+	if span.Tags["span.kind"] == "test" {
+		atomic.AddInt64(&r.stats.testSpans, 1)
+	}
 }
