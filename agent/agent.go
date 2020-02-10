@@ -375,7 +375,10 @@ func (a *Agent) Logger() *log.Logger {
 }
 
 func (a *Agent) SourceRoot() string {
-	return a.metadata[tags.SourceRoot].(string)
+	if val, ok := a.metadata[tags.SourceRoot].(string); ok {
+		return val
+	}
+	return ""
 }
 
 // Runs the test suite
