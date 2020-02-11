@@ -11,7 +11,6 @@ import (
 	"log"
 	"net/http"
 	"net/url"
-	"regexp"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -63,18 +62,6 @@ type (
 		testSpansNotSent  int64
 		testSpansRejected int64
 	}
-)
-
-var (
-	// A regular expression to match the error returned by net/http when the
-	// configured number of redirects is exhausted. This error isn't typed
-	// specifically so we resort to matching on the error string.
-	redirectsErrorRe = regexp.MustCompile(`stopped after \d+ redirects\z`)
-
-	// A regular expression to match the error returned by net/http when the
-	// scheme specified in the URL is invalid. This error isn't typed
-	// specifically so we resort to matching on the error string.
-	schemeErrorRe = regexp.MustCompile(`unsupported protocol scheme`)
 )
 
 func NewSpanRecorder(agent *Agent) *SpanRecorder {
@@ -242,16 +229,6 @@ func (r *SpanRecorder) callIngest(payload io.Reader) (statusCode int, err error)
 		resp, err := r.client.Do(req)
 		if err != nil {
 			if v, ok := err.(*url.Error); ok {
-				// Don't retry if the error was due to too many redirects.
-				if redirectsErrorRe.MatchString(v.Error()) {
-					return 0, errors.New(fmt.Sprintf("error: http client returns: %v", err.Error()))
-				}
-
-				// Don't retry if the error was due to an invalid protocol scheme.
-				if schemeErrorRe.MatchString(v.Error()) {
-					return 0, errors.New(fmt.Sprintf("error: http client returns: %v", err.Error()))
-				}
-
 				// Don't retry if the error was due to TLS cert verification failure.
 				if _, ok := v.Err.(x509.UnknownAuthorityError); ok {
 					return 0, errors.New(fmt.Sprintf("error: http client returns: %v", err.Error()))
