@@ -82,9 +82,10 @@ func NewSpanRecorder(agent *Agent) *SpanRecorder {
 // Appends a span to the in-memory buffer for async processing
 func (r *SpanRecorder) RecordSpan(span tracer.RawSpan) {
 	if !r.t.Alive() {
-		atomic.AddInt64(&r.stats.spansRejected, 1)
 		atomic.AddInt64(&r.stats.totalSpans, 1)
+		atomic.AddInt64(&r.stats.spansRejected, 1)
 		if isTestSpan(span) {
+			atomic.AddInt64(&r.stats.totalTestSpans, 1)
 			atomic.AddInt64(&r.stats.testSpansRejected, 1)
 		}
 		r.logger.Printf("a span has been received but the recorder is not running")
