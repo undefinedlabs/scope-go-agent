@@ -47,14 +47,17 @@ type (
 		statsOnce sync.Once
 	}
 	RecorderStats struct {
-		totalSpans     int64
-		sendSpansCalls int64
-		sendSpansOk    int64
-		sendSpansKo    int64
-		spansSent      int64
-		spansNotSent   int64
-		spansRejected  int64
-		testSpans      int64
+		totalSpans       int64
+		sendSpansCalls   int64
+		sendSpansOk      int64
+		sendSpansKo      int64
+		sendSpansRetries int64
+		spansSent        int64
+		spansNotSent     int64
+		spansRejected    int64
+		totalTestSpans   int64
+		testSpansSent    int64
+		testSpansNotSent int64
 	}
 )
 
@@ -79,6 +82,7 @@ func NewSpanRecorder(agent *Agent) *SpanRecorder {
 func (r *SpanRecorder) RecordSpan(span tracer.RawSpan) {
 	if !r.t.Alive() {
 		atomic.AddInt64(&r.stats.spansRejected, 1)
+		atomic.AddInt64(&r.stats.totalSpans, 1)
 		r.logger.Printf("a span has been received but the recorder is not running")
 		return
 	}
@@ -140,13 +144,22 @@ func (r *SpanRecorder) sendSpans() (error, bool) {
 		return err, false
 	}
 
+	var testSpans int64
+	for _, span := range spans {
+		if span.Tags["span.kind"] == "test" {
+			testSpans++
+		}
+	}
+
 	statusCode, err := r.callIngest(buf)
 	if err != nil {
 		atomic.AddInt64(&r.stats.sendSpansKo, 1)
 		atomic.AddInt64(&r.stats.spansNotSent, int64(len(spans)))
+		atomic.AddInt64(&r.stats.testSpansNotSent, testSpans)
 	} else {
 		atomic.AddInt64(&r.stats.sendSpansOk, 1)
 		atomic.AddInt64(&r.stats.spansSent, int64(len(spans)))
+		atomic.AddInt64(&r.stats.testSpansSent, testSpans)
 	}
 	if statusCode == 401 {
 		return err, true
@@ -171,13 +184,16 @@ func (r *SpanRecorder) writeStats() {
 	r.statsOnce.Do(func() {
 		r.logger.Printf("** Recorder statistics **\n")
 		r.logger.Printf("  Total spans: %d\n", r.stats.totalSpans)
-		r.logger.Printf("  Test spans: %d\n", r.stats.testSpans)
-		r.logger.Printf("  Spans sent: %d\n", r.stats.spansSent)
-		r.logger.Printf("  Spans not sent: %d\n", r.stats.spansNotSent)
-		r.logger.Printf("  Spans rejected: %d\n", r.stats.spansRejected)
+		r.logger.Printf("     Spans sent: %d\n", r.stats.spansSent)
+		r.logger.Printf("     Spans not sent: %d\n", r.stats.spansNotSent)
+		r.logger.Printf("     Spans rejected: %d\n", r.stats.spansRejected)
+		r.logger.Printf("  Total test spans: %d\n", r.stats.totalTestSpans)
+		r.logger.Printf("     Test spans sent: %d\n", r.stats.testSpansSent)
+		r.logger.Printf("     Test spans not sent: %d\n", r.stats.testSpansNotSent)
 		r.logger.Printf("  SendSpans calls: %d\n", r.stats.sendSpansCalls)
-		r.logger.Printf("  SendSpans OK: %d\n", r.stats.sendSpansOk)
-		r.logger.Printf("  SendSpans KO: %d\n", r.stats.sendSpansKo)
+		r.logger.Printf("     SendSpans OK: %d\n", r.stats.sendSpansOk)
+		r.logger.Printf("     SendSpans KO: %d\n", r.stats.sendSpansKo)
+		r.logger.Printf("     SendSpans retries: %d\n", r.stats.sendSpansRetries)
 	})
 }
 
@@ -210,6 +226,7 @@ func (r *SpanRecorder) callIngest(payload io.Reader) (statusCode int, err error)
 					lastError = err
 					r.logger.Printf("error: client timeout, retrying in %d seconds", retryBackoff/time.Second)
 					time.Sleep(retryBackoff)
+					atomic.AddInt64(&r.stats.sendSpansRetries, 1)
 					continue
 				}
 			}
@@ -243,6 +260,7 @@ func (r *SpanRecorder) callIngest(payload io.Reader) (statusCode int, err error)
 
 		r.logger.Printf("error: status code: %d, retrying in %d seconds", statusCode, retryBackoff/time.Second)
 		time.Sleep(retryBackoff)
+		atomic.AddInt64(&r.stats.sendSpansRetries, 1)
 	}
 
 	return statusCode, lastError
@@ -347,6 +365,6 @@ func (r *SpanRecorder) addSpan(span tracer.RawSpan) {
 	r.spans = append(r.spans, span)
 	atomic.AddInt64(&r.stats.totalSpans, 1)
 	if span.Tags["span.kind"] == "test" {
-		atomic.AddInt64(&r.stats.testSpans, 1)
+		atomic.AddInt64(&r.stats.totalTestSpans, 1)
 	}
 }
