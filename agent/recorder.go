@@ -236,7 +236,7 @@ func (r *SpanRecorder) callIngest(payload io.Reader) (statusCode int, err error)
 			}
 
 			lastError = err
-			r.logger.Printf("error: client timeout, retrying in %d seconds", retryBackoff/time.Second)
+			r.logger.Printf("client error, retrying in %d seconds", retryBackoff/time.Second)
 			time.Sleep(retryBackoff)
 			atomic.AddInt64(&r.stats.sendSpansRetries, 1)
 			continue
