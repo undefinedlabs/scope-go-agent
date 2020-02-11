@@ -18,7 +18,7 @@ var (
 
 func init() {
 	once.Do(func() {
-		if env.SCOPE_DISABLE_MONKEY_PATCHING.AsBool(false) {
+		if env.ScopeDisableMonkeyPatching.AsBool(false) {
 			return
 		}
 		var m *testing.M

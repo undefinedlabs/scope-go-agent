@@ -186,12 +186,12 @@ func NewAgent(options ...Option) (*Agent, error) {
 		agent.logger = log.New(ioutil.Discard, "", 0)
 	}
 
-	agent.debugMode = env.IfFalse(agent.debugMode, env.SCOPE_DEBUG, false)
+	agent.debugMode = env.GetIfFalse(agent.debugMode, env.ScopeDebug, false)
 
 	configProfile := GetConfigCurrentProfile()
 
 	if agent.apiKey == "" || agent.apiEndpoint == "" {
-		if dsn, set := env.SCOPE_DSN.AsTuple(); set && dsn != "" {
+		if dsn, set := env.ScopeDsn.AsTuple(); set && dsn != "" {
 			dsnApiKey, dsnApiEndpoint, dsnErr := parseDSN(dsn)
 			if dsnErr != nil {
 				agent.logger.Printf("Error parsing dsn value: %v\n", dsnErr)
@@ -205,7 +205,7 @@ func NewAgent(options ...Option) (*Agent, error) {
 	}
 
 	if agent.apiKey == "" {
-		if apikey, set := env.SCOPE_APIKEY.AsTuple(); set && apikey != "" {
+		if apikey, set := env.ScopeApiKey.AsTuple(); set && apikey != "" {
 			agent.apiKey = apikey
 		} else if configProfile != nil {
 			agent.logger.Println("API key found in the native app configuration")
@@ -218,7 +218,7 @@ func NewAgent(options ...Option) (*Agent, error) {
 	}
 
 	if agent.apiEndpoint == "" {
-		if endpoint, set := env.SCOPE_API_ENDPOINT.AsTuple(); set && endpoint != "" {
+		if endpoint, set := env.ScopeApiEndpoint.AsTuple(); set && endpoint != "" {
 			agent.apiEndpoint = endpoint
 		} else if configProfile != nil {
 			agent.logger.Println("API endpoint found in the native app configuration")
@@ -263,7 +263,17 @@ func NewAgent(options ...Option) (*Agent, error) {
 	agent.metadata[tags.GoVersion] = runtime.Version()
 
 	// Service name
-	env.AddStringToMapIfEmpty(agent.metadata, tags.Service, env.SCOPE_SERVICE, "default")
+	env.AddStringToMapIfEmpty(agent.metadata, tags.Service, env.ScopeService, "default")
+
+	// Configurations
+	env.AddSliceToMapIfEmpty(agent.metadata, tags.ConfigurationKeys, env.ScopeConfiguration, []string{
+		tags.PlatformName,
+		tags.PlatformArchitecture,
+		tags.GoVersion,
+	})
+
+	// Metadata
+	env.MergeMapToMap(agent.metadata, env.ScopeMetadata, nil)
 
 	// Git data
 	addToMapIfEmpty(agent.metadata, getGitInfoFromEnv())
@@ -279,7 +289,7 @@ func NewAgent(options ...Option) (*Agent, error) {
 
 	agent.recorder = NewSpanRecorder(agent)
 
-	agent.testingMode = env.IfFalse(agent.testingMode, env.SCOPE_TESTING_MODE, agent.metadata[tags.CI].(bool))
+	agent.testingMode = env.GetIfFalse(agent.testingMode, env.ScopeTestingMode, agent.metadata[tags.CI].(bool))
 
 	agent.SetTestingMode(agent.testingMode)
 
@@ -296,11 +306,12 @@ func NewAgent(options ...Option) (*Agent, error) {
 	instrumentation.SetTracer(agent.tracer)
 	instrumentation.SetLogger(agent.logger)
 
-	if env.IfFalse(agent.setGlobalTracer, env.SCOPE_SET_GLOBAL_TRACER, false) {
+	if env.GetIfFalse(agent.setGlobalTracer, env.ScopeTracerGlobal, false) {
 		opentracing.SetGlobalTracer(agent.Tracer())
 	}
-	agent.failRetriesCount = env.IfIntZero(agent.failRetriesCount, env.SCOPE_TESTING_FAIL_RETRIES, 0)
-	agent.panicAsFail = env.IfFalse(agent.panicAsFail, env.SCOPE_TESTING_PANIC_AS_FAIL, false)
+	agent.failRetriesCount = env.GetIfIntZero(agent.failRetriesCount, env.ScopeTestingFailRetries, 0)
+	agent.panicAsFail = env.GetIfFalse(agent.panicAsFail, env.ScopeTestingPanicAsFail, false)
+
 	if agent.debugMode {
 		agent.logMetadata()
 	}
@@ -366,7 +377,7 @@ func generateAgentID() string {
 }
 
 func getLogPath() (string, error) {
-	if logPath, set := env.SCOPE_LOG_ROOT_PATH.AsTuple(); set {
+	if logPath, set := env.ScopeLoggerRoot.AsTuple(); set {
 		return logPath, nil
 	}
 

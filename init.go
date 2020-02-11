@@ -38,7 +38,7 @@ func Run(m *testing.M, opts ...agent.Option) int {
 		}
 	})
 
-	if !env.SCOPE_DISABLE_MONKEY_PATCHING.AsBool(false) {
+	if !env.ScopeDisableMonkeyPatching.AsBool(false) {
 		scopetesting.PatchTestingLogger()
 		defer scopetesting.UnpatchTestingLogger()
 	}
