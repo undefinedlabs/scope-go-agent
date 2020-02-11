@@ -3,12 +3,15 @@ package agent
 import (
 	"bytes"
 	"compress/gzip"
+	"crypto/x509"
 	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
 	"log"
 	"net/http"
+	"net/url"
+	"regexp"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -60,6 +63,18 @@ type (
 		testSpansNotSent  int64
 		testSpansRejected int64
 	}
+)
+
+var (
+	// A regular expression to match the error returned by net/http when the
+	// configured number of redirects is exhausted. This error isn't typed
+	// specifically so we resort to matching on the error string.
+	redirectsErrorRe = regexp.MustCompile(`stopped after \d+ redirects\z`)
+
+	// A regular expression to match the error returned by net/http when the
+	// scheme specified in the URL is invalid. This error isn't typed
+	// specifically so we resort to matching on the error string.
+	schemeErrorRe = regexp.MustCompile(`unsupported protocol scheme`)
 )
 
 func NewSpanRecorder(agent *Agent) *SpanRecorder {
@@ -226,17 +241,28 @@ func (r *SpanRecorder) callIngest(payload io.Reader) (statusCode int, err error)
 
 		resp, err := r.client.Do(req)
 		if err != nil {
-			switch erType := err.(type) {
-			case interface{ Timeout() bool }:
-				if erType.Timeout() {
-					lastError = err
-					r.logger.Printf("error: client timeout, retrying in %d seconds", retryBackoff/time.Second)
-					time.Sleep(retryBackoff)
-					atomic.AddInt64(&r.stats.sendSpansRetries, 1)
-					continue
+			if v, ok := err.(*url.Error); ok {
+				// Don't retry if the error was due to too many redirects.
+				if redirectsErrorRe.MatchString(v.Error()) {
+					return 0, errors.New(fmt.Sprintf("error: http client returns: %v", err.Error()))
+				}
+
+				// Don't retry if the error was due to an invalid protocol scheme.
+				if schemeErrorRe.MatchString(v.Error()) {
+					return 0, errors.New(fmt.Sprintf("error: http client returns: %v", err.Error()))
+				}
+
+				// Don't retry if the error was due to TLS cert verification failure.
+				if _, ok := v.Err.(x509.UnknownAuthorityError); ok {
+					return 0, errors.New(fmt.Sprintf("error: http client returns: %v", err.Error()))
 				}
 			}
-			return 0, errors.New(fmt.Sprintf("error: http client returns: %v", err.Error()))
+
+			lastError = err
+			r.logger.Printf("error: client timeout, retrying in %d seconds", retryBackoff/time.Second)
+			time.Sleep(retryBackoff)
+			atomic.AddInt64(&r.stats.sendSpansRetries, 1)
+			continue
 		}
 
 		var (
@@ -255,20 +281,30 @@ func (r *SpanRecorder) callIngest(payload io.Reader) (statusCode int, err error)
 			r.logger.Printf("error: closing the response body. %s", err.Error())
 		}
 
+		if statusCode == 0 || statusCode >= 400 {
+			lastError = errors.New(fmt.Sprintf("error from API [status: %s]: %s", status, string(bodyData)))
+		}
+
+		// Check the response code. We retry on 500-range responses to allow
+		// the server time to recover, as 500's are typically not permanent
+		// errors and may relate to outages on the server side. This will catch
+		// invalid response codes as well, like 0 and 999.
+		if statusCode == 0 || (statusCode >= 500 && statusCode != 501) {
+			r.logger.Printf("error: status code: %d, retrying in %d seconds", statusCode, retryBackoff/time.Second)
+			time.Sleep(retryBackoff)
+			atomic.AddInt64(&r.stats.sendSpansRetries, 1)
+			continue
+		}
+
 		if statusCode < 400 {
 			return statusCode, nil
 		}
-
-		lastError = errors.New(fmt.Sprintf("error from API (%s): %s", status, string(bodyData)))
-		if statusCode < 500 {
-			return statusCode, lastError
-		}
-
-		r.logger.Printf("error: status code: %d, retrying in %d seconds", statusCode, retryBackoff/time.Second)
-		time.Sleep(retryBackoff)
-		atomic.AddInt64(&r.stats.sendSpansRetries, 1)
+		return statusCode, lastError
 	}
 
+	if statusCode != 0 && statusCode < 400 {
+		return statusCode, nil
+	}
 	return statusCode, lastError
 }
 
