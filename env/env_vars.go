@@ -98,7 +98,11 @@ func (e *EnvironmentVar) AsMap(fallback map[string]interface{}) map[string]inter
 	for _, item := range valItems {
 		itemArr := strings.Split(item, "=")
 		if len(itemArr) == 2 {
-			val[itemArr[0]] = itemArr[1]
+			itemValue := itemArr[1]
+			if len(itemValue) > 0 && itemValue[0] == '$' {
+				itemValue = os.Getenv(itemValue[1:])
+			}
+			val[itemArr[0]] = itemValue
 		}
 	}
 	return val
