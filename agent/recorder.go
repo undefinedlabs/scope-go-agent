@@ -22,6 +22,7 @@ import (
 )
 
 const retryBackoff = 1 * time.Second
+const numOfRetries = 3
 
 type (
 	SpanRecorder struct {
@@ -107,13 +108,11 @@ func (r *SpanRecorder) loop() error {
 				}
 				cTime = time.Now()
 				err, shouldExit := r.sendSpans()
-				if err != nil {
-					r.logger.Printf("error sending spans: %v\n", err)
-				}
 				if shouldExit {
-					ticker.Stop()
-					r.t.Kill(err)
-					return err
+					r.logger.Printf("stopping recorder due to: %v", err)
+					return err // Return so we don't try again in the Dying channel
+				} else if err != nil {
+					r.logger.Printf("error sending spans: %v\n", err)
 				}
 			}
 		case <-r.t.Dying():
@@ -122,7 +121,7 @@ func (r *SpanRecorder) loop() error {
 				r.logger.Printf("error sending spans: %v\n", err)
 			}
 			ticker.Stop()
-			return err
+			return nil
 		}
 	}
 }
@@ -141,54 +140,18 @@ func (r *SpanRecorder) sendSpans() (error, bool) {
 		return err, false
 	}
 
-	payloadSent := false
-	shouldExit := false
-	var lastError error
-	for i := 0; i <= 3; i++ {
-		if r.debugMode {
-			r.logger.Printf("sending payload [%d try]\n", i)
-		}
-		statusCode, err := r.callIngest(buf)
-		if err != nil {
-			if statusCode == 0 {
-				// To handle client timeout errors (like TLS handshake timeout)
-				switch erType := err.(type) {
-				case interface{ Timeout() bool }:
-					if erType.Timeout() {
-						lastError = err
-						r.logger.Printf("error: client timeout, retrying (%d) in %d seconds",
-							i, retryBackoff/time.Second)
-						time.Sleep(retryBackoff)
-					}
-				}
-			} else if statusCode == 401 {
-				shouldExit = true
-				lastError = err
-				break
-			} else if statusCode < 500 {
-				lastError = err
-				break
-			} else {
-				lastError = err
-				r.logger.Printf("error: status code: %d, retrying (%d) in %d seconds", statusCode,
-					i, retryBackoff/time.Second)
-				time.Sleep(retryBackoff)
-			}
-		} else {
-			payloadSent = true
-			break
-		}
-	}
-
-	if payloadSent {
-		atomic.AddInt64(&r.stats.sendSpansOk, 1)
-		atomic.AddInt64(&r.stats.spansSent, int64(len(spans)))
-	} else {
+	statusCode, err := r.callIngest(buf)
+	if err != nil {
 		atomic.AddInt64(&r.stats.sendSpansKo, 1)
 		atomic.AddInt64(&r.stats.spansNotSent, int64(len(spans)))
+	} else {
+		atomic.AddInt64(&r.stats.sendSpansOk, 1)
+		atomic.AddInt64(&r.stats.spansSent, int64(len(spans)))
 	}
-
-	return lastError, shouldExit
+	if statusCode == 401 {
+		return err, true
+	}
+	return err, false
 }
 
 // Stop recorder
@@ -198,12 +161,6 @@ func (r *SpanRecorder) Stop() {
 	}
 	r.t.Kill(nil)
 	_ = r.t.Wait()
-	if r.hasSpans() {
-		err, _ := r.sendSpans()
-		if err != nil {
-			r.logger.Printf("error sending spans: %v\n", err)
-		}
-	}
 	if r.debugMode {
 		r.writeStats()
 	}
@@ -235,22 +192,60 @@ func (r *SpanRecorder) callIngest(payload io.Reader) (statusCode int, err error)
 	req.Header.Set("Content-Encoding", "gzip")
 	req.Header.Set("X-Scope-ApiKey", r.apiKey)
 
-	resp, err := r.client.Do(req)
-	if err != nil {
-		return 0, err
-	}
-	io.Copy(ioutil.Discard, resp.Body) // for KeepAlive we need to be sure to read all body before close
-	defer resp.Body.Close()
-
-	if resp.StatusCode >= 400 {
-		body, err := ioutil.ReadAll(resp.Body)
-		if err != nil {
-			return resp.StatusCode, err
+	var lastError error
+	for i := 0; i <= numOfRetries; i++ {
+		if r.debugMode {
+			if i == 0 {
+				r.logger.Println("sending payload")
+			} else {
+				r.logger.Printf("sending payload [retry %d]", i)
+			}
 		}
-		return resp.StatusCode, errors.New(fmt.Sprintf("error from API (%s): %s", resp.Status, body))
+
+		resp, err := r.client.Do(req)
+		if err != nil {
+			switch erType := err.(type) {
+			case interface{ Timeout() bool }:
+				if erType.Timeout() {
+					lastError = err
+					r.logger.Printf("error: client timeout, retrying in %d seconds", retryBackoff/time.Second)
+					time.Sleep(retryBackoff)
+					continue
+				}
+			}
+			return 0, errors.New(fmt.Sprintf("error: http client returns: %v", err.Error()))
+		}
+
+		var (
+			bodyData []byte
+			status   string
+		)
+		statusCode = resp.StatusCode
+		status = resp.Status
+		if resp.Body != nil && resp.Body != http.NoBody {
+			body, err := ioutil.ReadAll(resp.Body)
+			if err == nil {
+				bodyData = body
+			}
+		}
+		if err := resp.Body.Close(); err != nil { // We can't defer inside a for loop
+			r.logger.Printf("error: closing the response body. %s", err.Error())
+		}
+
+		if statusCode < 400 {
+			return statusCode, nil
+		}
+
+		lastError = errors.New(fmt.Sprintf("error from API (%s): %s", status, string(bodyData)))
+		if statusCode < 500 {
+			return statusCode, lastError
+		}
+
+		r.logger.Printf("error: status code: %d, retrying in %d seconds", statusCode, retryBackoff/time.Second)
+		time.Sleep(retryBackoff)
 	}
 
-	return resp.StatusCode, nil
+	return statusCode, lastError
 }
 
 // Combines `rawSpans` and `metadata` into a payload that the Scope backend can process
