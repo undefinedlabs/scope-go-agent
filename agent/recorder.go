@@ -296,10 +296,7 @@ func (r *SpanRecorder) callIngest(payload io.Reader) (statusCode int, err error)
 			continue
 		}
 
-		if statusCode < 400 {
-			return statusCode, nil
-		}
-		return statusCode, lastError
+		break
 	}
 
 	if statusCode != 0 && statusCode < 400 {
