@@ -302,7 +302,9 @@ func NewAgent(options ...Option) (*Agent, error) {
 		agent.failRetriesCount = getIntEnv("SCOPE_TESTING_FAIL_RETRIES", agent.failRetriesCount)
 	}
 	agent.panicAsFail = agent.panicAsFail || getBoolEnv("SCOPE_TESTING_PANIC_AS_FAIL", false)
-
+	if agent.debugMode {
+		agent.logMetadata()
+	}
 	return agent, nil
 }
 
@@ -351,22 +353,9 @@ func (a *Agent) Run(m *testing.M) int {
 
 // Stops the agent
 func (a *Agent) Stop() {
-	if a.debugMode {
-		a.logger.Println("Scope agent is stopping gracefully...")
-	}
-	a.recorder.t.Kill(nil)
-	_ = a.recorder.t.Wait()
-
+	a.logger.Println("Scope agent is stopping gracefully...")
+	a.recorder.Stop()
 	a.PrintReport()
-}
-
-// Flushes the pending payloads to the scope backend
-func (a *Agent) Flush() error {
-	if a.debugMode {
-		a.logger.Println("Scope agent is flushing all pending spans manually")
-	}
-	err, _ := a.recorder.SendSpans()
-	return err
 }
 
 func generateAgentID() string {

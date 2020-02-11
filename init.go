@@ -4,10 +4,13 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"os/signal"
 	"runtime"
+	"syscall"
 	"testing"
 
 	"go.undefinedlabs.com/scopeagent/agent"
+	"go.undefinedlabs.com/scopeagent/instrumentation"
 	"go.undefinedlabs.com/scopeagent/instrumentation/logging"
 	scopetesting "go.undefinedlabs.com/scopeagent/instrumentation/testing"
 )
@@ -28,9 +31,9 @@ func Run(m *testing.M, opts ...agent.Option) int {
 
 	scopetesting.Init(m)
 	scopetesting.SetDefaultPanicHandler(func(test *scopetesting.Test) {
+		instrumentation.Logger().Printf("test '%s' has panicked, stopping agent", test.Name())
 		if defaultAgent != nil {
-			_ = defaultAgent.Flush()
-			defaultAgent.PrintReport()
+			defaultAgent.Stop()
 		}
 	})
 
@@ -39,7 +42,16 @@ func Run(m *testing.M, opts ...agent.Option) int {
 		defer scopetesting.UnpatchTestingLogger()
 	}
 
-	defer newAgent.Stop()
+	// Handle SIGINT and SIGTERM
+	sigs := make(chan os.Signal, 1)
+	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
+	go func() {
+		<-sigs
+		instrumentation.Logger().Println("Terminating agent, sending partial results...")
+		newAgent.Stop()
+		os.Exit(1)
+	}()
+
 	defaultAgent = newAgent
 	return newAgent.Run(m)
 }
