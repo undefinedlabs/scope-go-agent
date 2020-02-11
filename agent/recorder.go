@@ -47,17 +47,18 @@ type (
 		statsOnce sync.Once
 	}
 	RecorderStats struct {
-		totalSpans       int64
-		sendSpansCalls   int64
-		sendSpansOk      int64
-		sendSpansKo      int64
-		sendSpansRetries int64
-		spansSent        int64
-		spansNotSent     int64
-		spansRejected    int64
-		totalTestSpans   int64
-		testSpansSent    int64
-		testSpansNotSent int64
+		totalSpans        int64
+		sendSpansCalls    int64
+		sendSpansOk       int64
+		sendSpansKo       int64
+		sendSpansRetries  int64
+		spansSent         int64
+		spansNotSent      int64
+		spansRejected     int64
+		totalTestSpans    int64
+		testSpansSent     int64
+		testSpansNotSent  int64
+		testSpansRejected int64
 	}
 )
 
@@ -83,6 +84,9 @@ func (r *SpanRecorder) RecordSpan(span tracer.RawSpan) {
 	if !r.t.Alive() {
 		atomic.AddInt64(&r.stats.spansRejected, 1)
 		atomic.AddInt64(&r.stats.totalSpans, 1)
+		if isTestSpan(span) {
+			atomic.AddInt64(&r.stats.testSpansRejected, 1)
+		}
 		r.logger.Printf("a span has been received but the recorder is not running")
 		return
 	}
@@ -146,7 +150,7 @@ func (r *SpanRecorder) sendSpans() (error, bool) {
 
 	var testSpans int64
 	for _, span := range spans {
-		if span.Tags["span.kind"] == "test" {
+		if isTestSpan(span) {
 			testSpans++
 		}
 	}
@@ -190,6 +194,7 @@ func (r *SpanRecorder) writeStats() {
 		r.logger.Printf("  Total test spans: %d\n", r.stats.totalTestSpans)
 		r.logger.Printf("     Test spans sent: %d\n", r.stats.testSpansSent)
 		r.logger.Printf("     Test spans not sent: %d\n", r.stats.testSpansNotSent)
+		r.logger.Printf("     Test spans rejected: %d\n", r.stats.testSpansRejected)
 		r.logger.Printf("  SendSpans calls: %d\n", r.stats.sendSpansCalls)
 		r.logger.Printf("     SendSpans OK: %d\n", r.stats.sendSpansOk)
 		r.logger.Printf("     SendSpans KO: %d\n", r.stats.sendSpansKo)
@@ -364,7 +369,11 @@ func (r *SpanRecorder) addSpan(span tracer.RawSpan) {
 	defer r.Unlock()
 	r.spans = append(r.spans, span)
 	atomic.AddInt64(&r.stats.totalSpans, 1)
-	if span.Tags["span.kind"] == "test" {
+	if isTestSpan(span) {
 		atomic.AddInt64(&r.stats.totalTestSpans, 1)
 	}
+}
+
+func isTestSpan(span tracer.RawSpan) bool {
+	return span.Tags["span.kind"] == "test"
 }
