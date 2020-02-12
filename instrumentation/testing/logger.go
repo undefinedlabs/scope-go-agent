@@ -9,6 +9,7 @@ import (
 	"github.com/undefinedlabs/go-mpatch"
 
 	"go.undefinedlabs.com/scopeagent/instrumentation"
+	"go.undefinedlabs.com/scopeagent/reflection"
 )
 
 var (
@@ -22,10 +23,8 @@ var (
 
 func init() {
 	// We get the *testing.common type to use in the patch method
-	var t testing.T
-	typeOfT := reflect.TypeOf(t)
-	if cm, ok := typeOfT.FieldByName("common"); ok {
-		commonPtr = reflect.PtrTo(cm.Type)
+	if cPtr, err := reflection.GetTypePointer(testing.T{}, "common"); err == nil {
+		commonPtr = cPtr
 	}
 }
 
