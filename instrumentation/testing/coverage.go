@@ -51,11 +51,12 @@ var (
 	counters      map[string][]uint32
 	countersMutex sync.Mutex
 	filePathData  map[string]string
+	initOnce      sync.Once
 )
 
 // Initialize coverage
-func InitCoverage() {
-	if filePathData == nil {
+func initCoverage() {
+	initOnce.Do(func() {
 		var files []string
 		for key := range cover.Blocks {
 			files = append(files, key)
@@ -74,18 +75,16 @@ func InitCoverage() {
 				filePathData[key] = filePath
 			}
 		}
-	}
+		counters = map[string][]uint32{}
+	})
 }
 
 // Clean the counters for a new coverage session
 func startCoverage() {
 	countersMutex.Lock()
 	defer countersMutex.Unlock()
+	initCoverage()
 
-	if counters == nil {
-		counters = map[string][]uint32{}
-		InitCoverage()
-	}
 	for name, counts := range cover.Counters {
 		counters[name] = make([]uint32, len(counts))
 		for i := range counts {

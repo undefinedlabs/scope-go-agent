@@ -48,7 +48,6 @@ func Run(m *testing.M, opts ...agent.Option) int {
 	}()
 
 	defaultAgent = newAgent
-	scopetesting.InitCoverage()
 	return newAgent.Run(m)
 }
 
