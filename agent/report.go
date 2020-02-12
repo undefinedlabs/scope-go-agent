@@ -6,7 +6,7 @@ import (
 )
 
 func (a *Agent) PrintReport() {
-	printReportOnce.Do(func() {
+	a.printReportOnce.Do(func() {
 		if a.testingMode && a.recorder.stats.totalTestSpans > 0 {
 			fmt.Printf("\n** Scope Test Report **\n")
 			if a.recorder.stats.testSpansNotSent == 0 && a.recorder.stats.testSpansRejected == 0 {

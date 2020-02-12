@@ -51,7 +51,8 @@ type (
 		userAgent string
 		agentType string
 
-		logger *log.Logger
+		logger          *log.Logger
+		printReportOnce sync.Once
 	}
 
 	Option func(*Agent)
@@ -59,8 +60,6 @@ type (
 
 var (
 	version = "0.1.11"
-
-	printReportOnce sync.Once
 
 	testingModeFrequency    = time.Second
 	nonTestingModeFrequency = time.Minute
