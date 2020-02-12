@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/opentracing/opentracing-go"
+	"go.undefinedlabs.com/scopeagent/env"
 	"go.undefinedlabs.com/scopeagent/instrumentation"
 	"reflect"
 	"strings"
@@ -52,6 +53,7 @@ func WrapDriver(d driver.Driver, options ...Option) driver.Driver {
 	for _, option := range options {
 		option(wrapper)
 	}
+	wrapper.configuration.statements = wrapper.configuration.statements || env.ScopeInstrumentationDbStatementValues.Value
 	return wrapper
 }
 

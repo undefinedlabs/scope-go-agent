@@ -151,7 +151,7 @@ func (e *MapEnvVar) Tuple() (map[string]interface{}, bool) {
 	return e.Value, e.IsSet
 }
 
-// For defaults in runtime
+// For fallback support
 
 func (e *BooleanEnvVar) ValueIfSetOr(fallback bool) bool {
 	if e.IsSet {
