@@ -18,7 +18,7 @@ import (
 
 var (
 	defaultAgent *agent.Agent
-	runningMutex sync.Mutex
+	runningMutex sync.RWMutex
 	running      bool
 )
 
@@ -147,7 +147,7 @@ func setRunningFlag(value bool) {
 	running = value
 }
 func getRunningFlag() bool {
-	runningMutex.Lock()
-	defer runningMutex.Unlock()
+	runningMutex.RLock()
+	defer runningMutex.RUnlock()
 	return running
 }
