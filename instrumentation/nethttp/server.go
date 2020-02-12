@@ -2,7 +2,6 @@ package nethttp
 
 import (
 	"bytes"
-	"go.undefinedlabs.com/scopeagent/env"
 	"net"
 	"net/http"
 	"net/url"
@@ -12,6 +11,8 @@ import (
 	"github.com/opentracing/opentracing-go"
 	"github.com/opentracing/opentracing-go/ext"
 
+	"go.undefinedlabs.com/scopeagent/env"
+	"go.undefinedlabs.com/scopeagent/errors"
 	"go.undefinedlabs.com/scopeagent/instrumentation"
 )
 
@@ -178,6 +179,15 @@ func middlewareFunc(tr opentracing.Tracer, h http.HandlerFunc, options ...MWOpti
 			} else {
 				sp.SetTag("http.response_payload.unavailable", "disabled")
 			}
+
+			if r := recover(); r != nil {
+				if r != errors.MarkSpanAsError {
+					errors.LogError(sp, r, 1)
+				}
+				sp.Finish()
+				panic(r)
+			}
+
 			sp.Finish()
 		}()
 
