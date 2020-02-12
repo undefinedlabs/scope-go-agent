@@ -128,17 +128,17 @@ func getGitInfoFromGitFolder() map[string]interface{} {
 func getGitInfoFromEnv() map[string]interface{} {
 	gitInfo := map[string]interface{}{}
 
-	if repository, set := env.ScopeRepository.AsTuple(); set {
-		gitInfo[tags.Repository] = repository
+	if env.ScopeRepository.IsSet {
+		gitInfo[tags.Repository] = env.ScopeRepository.Value
 	}
-	if commit, set := env.ScopeCommitSha.AsTuple(); set {
-		gitInfo[tags.Commit] = commit
+	if env.ScopeCommitSha.IsSet {
+		gitInfo[tags.Commit] = env.ScopeCommitSha.Value
 	}
-	if sourceRoot, set := env.ScopeSourceRoot.AsTuple(); set {
-		gitInfo[tags.SourceRoot] = sourceRoot
+	if env.ScopeSourceRoot.IsSet {
+		gitInfo[tags.SourceRoot] = env.ScopeSourceRoot.Value
 	}
-	if branch, set := env.ScopeBranch.AsTuple(); set {
-		gitInfo[tags.Branch] = branch
+	if env.ScopeBranch.IsSet {
+		gitInfo[tags.Branch] = env.ScopeBranch.Value
 	}
 
 	return gitInfo
