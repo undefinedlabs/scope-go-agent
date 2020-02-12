@@ -229,8 +229,9 @@ func contains(outer, inner *testing.CoverBlock) bool {
 	return false
 }
 
-// Functions to find the absolute path from coverage data.
-// Extracted from: https://github.com/golang/go/blob/master/src/cmd/cover/func.go
+// The following functions are to find the absolute path from coverage data.
+// There are extracted from the go cover cmd tool: https://github.com/golang/go/blob/master/src/cmd/cover/func.go
+
 func findPkgs(fileNames []string) (map[string]*pkg, error) {
 	// Run go list to find the location of every package we care about.
 	pkgs := make(map[string]*pkg)
