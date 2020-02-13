@@ -6,7 +6,6 @@ import (
 	"crypto/x509"
 	"errors"
 	"fmt"
-	"io"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -202,18 +201,19 @@ func (r *SpanRecorder) writeStats() {
 }
 
 // Sends the encoded `payload` to the Scope ingest endpoint
-func (r *SpanRecorder) callIngest(payload io.Reader) (statusCode int, err error) {
-	req, err := http.NewRequest("POST", r.url, payload)
-	if err != nil {
-		return 0, err
-	}
-	req.Header.Set("User-Agent", r.userAgent)
-	req.Header.Set("Content-Type", "application/msgpack")
-	req.Header.Set("Content-Encoding", "gzip")
-	req.Header.Set("X-Scope-ApiKey", r.apiKey)
-
+func (r *SpanRecorder) callIngest(payload *bytes.Buffer) (statusCode int, err error) {
+	payloadBytes := payload.Bytes()
 	var lastError error
 	for i := 0; i <= numOfRetries; i++ {
+		req, err := http.NewRequest("POST", r.url, bytes.NewBuffer(payloadBytes))
+		if err != nil {
+			return 0, err
+		}
+		req.Header.Set("User-Agent", r.userAgent)
+		req.Header.Set("Content-Type", "application/msgpack")
+		req.Header.Set("Content-Encoding", "gzip")
+		req.Header.Set("X-Scope-ApiKey", r.apiKey)
+
 		if r.debugMode {
 			if i == 0 {
 				r.logger.Println("sending payload")
