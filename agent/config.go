@@ -5,8 +5,9 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
-	"os/user"
 	"runtime"
+
+	"github.com/mitchellh/go-homedir"
 )
 
 type Config struct {
@@ -21,11 +22,10 @@ type Profile struct {
 }
 
 func GetConfig() *Config {
-	currentUser, err := user.Current()
+	homeDir, err := homedir.Dir()
 	if err != nil {
 		return nil
 	}
-	homeDir := currentUser.HomeDir
 	var filePath string
 	if runtime.GOOS == "windows" {
 		filePath = fmt.Sprintf("%s/AppData/Roaming/scope/config.json", homeDir)
