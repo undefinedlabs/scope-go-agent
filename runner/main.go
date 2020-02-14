@@ -6,7 +6,6 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
-	"sync"
 	"testing"
 
 	goerrors "github.com/go-errors/errors"
@@ -21,7 +20,6 @@ type (
 		panicAsFail      bool
 		logger           *log.Logger
 		failed           bool
-		failedlock       *sync.Mutex
 	}
 	testDescriptor struct {
 		runner  *testRunner
@@ -57,7 +55,6 @@ func Run(m *testing.M, panicAsFail bool, failRetriesCount int, logger *log.Logge
 		failRetriesCount: failRetriesCount,
 		logger:           logger,
 		failed:           false,
-		failedlock:       &sync.Mutex{},
 	}
 	runner.init()
 	return runner.m.Run()
@@ -122,7 +119,7 @@ func (td *testDescriptor) run(t *testing.T) {
 			if !panicAsFail {
 				panic(innerError.ErrorStack())
 			}
-			td.runner.logger.Println("PANIC RECOVER:", innerError)
+			td.runner.logger.Printf("test '%s' %s - panic recover: %v", t.Name(), title, innerError)
 			td.error = true
 		}
 		td.skipped = innerTest.Skipped()
@@ -139,7 +136,7 @@ func (td *testDescriptor) run(t *testing.T) {
 			// Current run ok but previous run with fail -> Flaky
 			td.failed = false
 			td.flaky = true
-			td.runner.logger.Println("FLAKY TEST DETECTED:", t.Name())
+			td.runner.logger.Printf("test '%s' %s - is a flaky test!", t.Name(), title)
 			break
 		} else {
 			// Current run ok and previous run (if any) not marked as failed
@@ -153,10 +150,8 @@ func (td *testDescriptor) run(t *testing.T) {
 	}
 
 	// Set the global failed flag
-	td.runner.failedlock.Lock()
 	td.runner.failed = td.runner.failed || td.failed || td.error
 	setTestFailureFlag(getTestParent(t), td.runner.failed)
-	td.runner.failedlock.Unlock()
 
 	if td.error && !panicAsFail {
 		// If after all recovers and retries the test finish with error and we have the exitOnError flag,
