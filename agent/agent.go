@@ -284,7 +284,13 @@ func NewAgent(options ...Option) (*Agent, error) {
 
 	agent.recorder = NewSpanRecorder(agent)
 
-	agent.testingMode = agent.testingMode || env.ScopeTestingMode.ValueIfSetOr(agent.metadata[tags.CI].(bool))
+	if !agent.testingMode {
+		if env.ScopeTestingMode.IsSet {
+			agent.testingMode = env.ScopeTestingMode.Value
+		} else {
+			agent.testingMode = agent.metadata[tags.CI].(bool)
+		}
+	}
 	agent.SetTestingMode(agent.testingMode)
 
 	agent.tracer = tracer.NewWithOptions(tracer.Options{

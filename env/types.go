@@ -122,11 +122,7 @@ func newMapEnvVar(defaultValue map[string]interface{}, keys ...string) MapEnvVar
 	for _, item := range valItems {
 		itemArr := strings.Split(item, "=")
 		if len(itemArr) == 2 {
-			itemValue := itemArr[1]
-			if len(itemValue) > 0 && itemValue[0] == '$' {
-				itemValue = os.Getenv(itemValue[1:])
-			}
-			val[itemArr[0]] = itemValue
+			val[itemArr[0]] = os.ExpandEnv(itemArr[1])
 		}
 	}
 	envVar.Value = val
@@ -149,37 +145,4 @@ func (e *SliceEnvVar) Tuple() ([]string, bool) {
 }
 func (e *MapEnvVar) Tuple() (map[string]interface{}, bool) {
 	return e.Value, e.IsSet
-}
-
-// For fallback support
-
-func (e *BooleanEnvVar) ValueIfSetOr(fallback bool) bool {
-	if e.IsSet {
-		return e.Value
-	}
-	return fallback
-}
-func (e *IntEnvVar) ValueIfSetOr(fallback int) int {
-	if e.IsSet {
-		return e.Value
-	}
-	return fallback
-}
-func (e *StringEnvVar) ValueIfSetOr(fallback string) string {
-	if e.IsSet {
-		return e.Value
-	}
-	return fallback
-}
-func (e *SliceEnvVar) ValueIfSetOr(fallback []string) []string {
-	if e.IsSet {
-		return e.Value
-	}
-	return fallback
-}
-func (e *MapEnvVar) ValueIfSetOr(fallback map[string]interface{}) map[string]interface{} {
-	if e.IsSet {
-		return e.Value
-	}
-	return fallback
 }
