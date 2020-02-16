@@ -392,10 +392,6 @@ func (a *Agent) Stop() {
 	a.PrintReport()
 }
 
-func (a *Agent) IsPanicAsFail() bool {
-	return a.panicAsFail
-}
-
 func generateAgentID() string {
 	agentId, err := uuid.NewRandom()
 	if err != nil {
