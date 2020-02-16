@@ -30,15 +30,6 @@ func Run(m *testing.M, opts ...agent.Option) int {
 	logging.PatchStandardLogger()
 
 	scopetesting.Init(m)
-	scopetesting.SetDefaultPanicHandler(func(test *scopetesting.Test) {
-		if defaultAgent.IsPanicAsFail() {
-			return
-		}
-		instrumentation.Logger().Printf("test '%s' has panicked, stopping agent", test.Name())
-		if defaultAgent != nil {
-			defaultAgent.Stop()
-		}
-	})
 
 	// Handle SIGINT and SIGTERM
 	sigs := make(chan os.Signal, 1)
