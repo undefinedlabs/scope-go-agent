@@ -6,6 +6,7 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+	"time"
 
 	"go.undefinedlabs.com/scopeagent/env"
 	"go.undefinedlabs.com/scopeagent/tags"
@@ -133,15 +134,10 @@ func sameElements(a, b []string) bool {
 
 func TestTildeExpandRaceMetadata(t *testing.T) {
 	env.ScopeSourceRoot.Value = "~/scope"
-	var agents []*Agent
-	for i := 0; i < 10; i++ {
-		agent, err := NewAgent(WithApiKey("123"), WithTestingModeEnabled())
-		agents = append(agents, agent)
-		if err != nil {
-			t.Fatal(err)
-		}
+	agent, err := NewAgent(WithApiKey("123"), WithTestingModeEnabled())
+	if err != nil {
+		t.Fatal(err)
 	}
-	for _, agent := range agents {
-		agent.Stop()
-	}
+	<-time.After(5 * time.Second)
+	agent.Stop()
 }
