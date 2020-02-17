@@ -2,12 +2,12 @@ package agent
 
 import (
 	"fmt"
-	"math/rand"
 	"os/exec"
 	"reflect"
 	"strings"
 	"testing"
 
+	"go.undefinedlabs.com/scopeagent/env"
 	"go.undefinedlabs.com/scopeagent/tags"
 )
 
@@ -131,16 +131,17 @@ func sameElements(a, b []string) bool {
 	return true
 }
 
-func TestRaceMetadata(t *testing.T) {
-	agent, err := NewAgent(WithApiKey("123"), WithTestingModeEnabled())
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer agent.Stop()
-
-	go func() {
-		for {
-			agent.metadata["Empty"] = rand.Int()
+func TestTildeExpandRaceMetadata(t *testing.T) {
+	env.ScopeSourceRoot.Value = "~/scope"
+	var agents []*Agent
+	for i := 0; i < 10; i++ {
+		agent, err := NewAgent(WithApiKey("123"), WithTestingModeEnabled())
+		agents = append(agents, agent)
+		if err != nil {
+			t.Fatal(err)
 		}
-	}()
+	}
+	for _, agent := range agents {
+		agent.Stop()
+	}
 }
