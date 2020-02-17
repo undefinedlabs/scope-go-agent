@@ -20,24 +20,24 @@ type (
 	}
 
 	driverConfiguration struct {
-		t             opentracing.Tracer
-		statements    bool
-		connString    string
-		componentName string
-		peerService   string
-		user          string
-		port          string
-		instance      string
-		host          string
+		t               opentracing.Tracer
+		statementValues bool
+		connString      string
+		componentName   string
+		peerService     string
+		user            string
+		port            string
+		instance        string
+		host            string
 	}
 
 	Option func(*instrumentedDriver)
 )
 
-// Enable statement instrumentation
-func WithStatements() Option {
+// Enable statement values instrumentation
+func WithStatementValues() Option {
 	return func(d *instrumentedDriver) {
-		d.configuration.statements = true
+		d.configuration.statementValues = true
 	}
 }
 
@@ -46,14 +46,14 @@ func WrapDriver(d driver.Driver, options ...Option) driver.Driver {
 	wrapper := &instrumentedDriver{
 		driver: d,
 		configuration: &driverConfiguration{
-			t:          instrumentation.Tracer(),
-			statements: false,
+			t:               instrumentation.Tracer(),
+			statementValues: false,
 		},
 	}
 	for _, option := range options {
 		option(wrapper)
 	}
-	wrapper.configuration.statements = wrapper.configuration.statements || env.ScopeInstrumentationDbStatementValues.Value
+	wrapper.configuration.statementValues = wrapper.configuration.statementValues || env.ScopeInstrumentationDbStatementValues.Value
 	return wrapper
 }
 
@@ -120,7 +120,7 @@ func (t *driverConfiguration) newSpan(operationName string, query string, args [
 	} else {
 		operationName = fmt.Sprintf("%s:%s", c.peerService, strings.ToUpper(operationName))
 	}
-	if c.statements && args != nil && len(args) > 0 {
+	if c.statementValues && args != nil && len(args) > 0 {
 		dbParams := map[string]interface{}{}
 		for _, item := range args {
 			name := item.Name
