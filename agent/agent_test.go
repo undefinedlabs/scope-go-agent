@@ -1,34 +1,14 @@
-package agent_test
+package agent
 
 import (
 	"fmt"
-	"go.undefinedlabs.com/scopeagent"
 	"os/exec"
 	"reflect"
 	"strings"
 	"testing"
-	_ "unsafe"
 
-	"go.undefinedlabs.com/scopeagent/agent"
-	_ "go.undefinedlabs.com/scopeagent/autoinstrument"
-	"go.undefinedlabs.com/scopeagent/reflection"
 	"go.undefinedlabs.com/scopeagent/tags"
 )
-
-//go:linkname getDependencyMap go.undefinedlabs.com/scopeagent/agent.getDependencyMap
-func getDependencyMap() map[string]string
-
-//go:linkname parseDSN go.undefinedlabs.com/scopeagent/agent.parseDSN
-func parseDSN(dsnString string) (apiKey string, apiEndpoint string, err error)
-
-func getAgentMetadata(agent *agent.Agent) map[string]interface{} {
-	if ptr, err := reflection.GetFieldPointerOf(agent, "metadata"); err == nil {
-		return *(*map[string]interface{})(ptr)
-	}
-	return nil
-}
-
-//
 
 func TestDsnParser(t *testing.T) {
 	dsnValues := [][]string{
@@ -42,10 +22,9 @@ func TestDsnParser(t *testing.T) {
 		{"noise", "", "noise"},
 	}
 
-	test := scopeagent.GetTest(t)
 	for i := 0; i < len(dsnValues); i++ {
 		dsnValue := dsnValues[i]
-		test.Run(dsnValue[0], func(st *testing.T) {
+		t.Run(dsnValue[0], func(st *testing.T) {
 			apiKey, apiEndpoint, err := parseDSN(dsnValue[0])
 			if apiKey != dsnValue[1] || apiEndpoint != dsnValue[2] {
 				if err != nil {
@@ -87,13 +66,13 @@ func TestGetDependencies(t *testing.T) {
 func TestWithConfigurationKeys(t *testing.T) {
 	myKeys := []string{"ConfigKey01", "ConfigKey02", "ConfigKey03"}
 
-	agent, err := agent.NewAgent(agent.WithApiKey("123"), agent.WithConfigurationKeys(myKeys))
+	agent, err := NewAgent(WithApiKey("123"), WithConfigurationKeys(myKeys))
 	if err != nil {
 		t.Fatal(err)
 	}
 	agent.Stop()
 
-	if agentKeys, ok := getAgentMetadata(agent)[tags.ConfigurationKeys]; ok {
+	if agentKeys, ok := agent.metadata[tags.ConfigurationKeys]; ok {
 		if !reflect.DeepEqual(myKeys, agentKeys) {
 			t.Fatal("the configuration keys array are different")
 		}
@@ -110,13 +89,13 @@ func TestWithConfiguration(t *testing.T) {
 		myKeys[2]: true,
 	}
 
-	agent, err := agent.NewAgent(agent.WithApiKey("123"), agent.WithConfiguration(myConfiguration))
+	agent, err := NewAgent(WithApiKey("123"), WithConfiguration(myConfiguration))
 	if err != nil {
 		t.Fatal(err)
 	}
 	agent.Stop()
 
-	if agentKeys, ok := getAgentMetadata(agent)[tags.ConfigurationKeys]; ok {
+	if agentKeys, ok := agent.metadata[tags.ConfigurationKeys]; ok {
 		if !sameElements(myKeys, agentKeys.([]string)) {
 			t.Fatal("the configuration keys array are different", agentKeys, myKeys)
 		}
@@ -125,7 +104,7 @@ func TestWithConfiguration(t *testing.T) {
 	}
 
 	for k, v := range myConfiguration {
-		if mV, ok := getAgentMetadata(agent)[k]; ok {
+		if mV, ok := agent.metadata[k]; ok {
 			if !reflect.DeepEqual(v, mV) {
 				t.Fatal("the configuration values are different")
 			}
