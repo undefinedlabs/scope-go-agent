@@ -1,6 +1,7 @@
 package runner
 
 import (
+	"fmt"
 	"io/ioutil"
 	"log"
 	"regexp"
@@ -15,11 +16,9 @@ import (
 
 type (
 	testRunner struct {
-		m                *testing.M
-		failRetriesCount int
-		panicAsFail      bool
-		logger           *log.Logger
-		failed           bool
+		m       *testing.M
+		options Options
+		failed  bool
 	}
 	testDescriptor struct {
 		runner  *testRunner
@@ -29,6 +28,12 @@ type (
 		flaky   bool
 		error   bool
 		skipped bool
+	}
+	Options struct {
+		FailRetries int
+		PanicAsFail bool
+		Logger      *log.Logger
+		OnPanic     func(t *testing.T, err error)
 	}
 )
 
@@ -45,16 +50,17 @@ func GetOriginalTestName(name string) string {
 }
 
 // Runs a test suite
-func Run(m *testing.M, panicAsFail bool, failRetriesCount int, logger *log.Logger) int {
-	if logger == nil {
-		logger = log.New(ioutil.Discard, "", 0)
+func Run(m *testing.M, options Options) int {
+	if options.Logger == nil {
+		options.Logger = log.New(ioutil.Discard, "", 0)
+	}
+	if options.OnPanic == nil {
+		options.OnPanic = func(t *testing.T, err error) {}
 	}
 	runner := &testRunner{
-		m:                m,
-		panicAsFail:      panicAsFail,
-		failRetriesCount: failRetriesCount,
-		logger:           logger,
-		failed:           false,
+		m:       m,
+		options: options,
+		failed:  false,
 	}
 	runner.init()
 	return runner.m.Run()
@@ -85,8 +91,7 @@ func (r *testRunner) init() {
 // Internal test runner, each test calls this method in order to handle retries and process exiting
 func (td *testDescriptor) run(t *testing.T) {
 	run := 1
-	maxRetries := td.runner.failRetriesCount
-	panicAsFail := td.runner.panicAsFail
+	options := td.runner.options
 	var innerError *goerrors.Error
 
 	for {
@@ -116,10 +121,11 @@ func (td *testDescriptor) run(t *testing.T) {
 			})
 		})
 		if innerError != nil {
-			if !panicAsFail {
+			if !options.PanicAsFail {
+				options.OnPanic(t, innerError)
 				panic(innerError.ErrorStack())
 			}
-			td.runner.logger.Printf("test '%s' %s - panic recover: %v", t.Name(), title, innerError)
+			options.Logger.Printf("test '%s' %s - panic recover: %v", t.Name(), title, innerError)
 			td.error = true
 		}
 		td.skipped = innerTest.Skipped()
@@ -136,14 +142,14 @@ func (td *testDescriptor) run(t *testing.T) {
 			// Current run ok but previous run with fail -> Flaky
 			td.failed = false
 			td.flaky = true
-			td.runner.logger.Printf("test '%s' %s - is a flaky test!", t.Name(), title)
+			options.Logger.Printf("test '%s' %s - is a flaky test!", t.Name(), title)
 			break
 		} else {
 			// Current run ok and previous run (if any) not marked as failed
 			break
 		}
 
-		if run > maxRetries {
+		if run > options.FailRetries {
 			break
 		}
 		run++
@@ -151,12 +157,20 @@ func (td *testDescriptor) run(t *testing.T) {
 
 	// Set the global failed flag
 	td.runner.failed = td.runner.failed || td.failed || td.error
-	setTestFailureFlag(getTestParent(t), td.runner.failed)
+	tParent := getTestParent(t)
+	if tParent != nil {
+		setTestFailureFlag(tParent, td.runner.failed)
+	}
 
-	if td.error && !panicAsFail {
-		// If after all recovers and retries the test finish with error and we have the exitOnError flag,
-		// we panic with the latest recovered data
-		panic(innerError)
+	if td.error {
+		if !options.PanicAsFail {
+			// If after all recovers and retries the test finish with error and we have the exitOnError flag,
+			// we panic with the latest recovered data
+			options.OnPanic(t, innerError)
+			panic(innerError)
+		}
+		fmt.Printf("panic info for test '%s': %v\n", t.Name(), innerError)
+		options.Logger.Printf("panic info for test '%s': %v", t.Name(), innerError)
 	}
 	if !td.error && !td.failed {
 		// If test pass or flaky

@@ -21,7 +21,6 @@ import (
 	"go.undefinedlabs.com/scopeagent/env"
 	scopeError "go.undefinedlabs.com/scopeagent/errors"
 	"go.undefinedlabs.com/scopeagent/instrumentation"
-	scopetesting "go.undefinedlabs.com/scopeagent/instrumentation/testing"
 	"go.undefinedlabs.com/scopeagent/runner"
 	"go.undefinedlabs.com/scopeagent/tags"
 	"go.undefinedlabs.com/scopeagent/tracer"
@@ -372,17 +371,15 @@ func (a *Agent) Logger() *log.Logger {
 // Runs the test suite
 func (a *Agent) Run(m *testing.M) int {
 	defer a.Stop()
-	scopetesting.SetDefaultPanicHandler(func(test *scopetesting.Test) {
-		if a.panicAsFail {
-			return
-		}
-		instrumentation.Logger().Printf("test '%s' has panicked, stopping agent", test.Name())
-		a.Stop()
+	return runner.Run(m, runner.Options{
+		FailRetries: a.failRetriesCount,
+		PanicAsFail: a.panicAsFail,
+		Logger:      a.logger,
+		OnPanic: func(t *testing.T, err error) {
+			a.logger.Printf("test '%s' has panicked, stopping agent", t.Name())
+			a.Stop()
+		},
 	})
-	if a.panicAsFail || a.failRetriesCount > 0 {
-		return runner.Run(m, a.panicAsFail, a.failRetriesCount, a.logger)
-	}
-	return m.Run()
 }
 
 // Stops the agent

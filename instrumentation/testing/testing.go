@@ -25,10 +25,9 @@ import (
 type (
 	Test struct {
 		testing.TB
-		ctx            context.Context
-		span           opentracing.Span
-		t              *testing.T
-		onPanicHandler func(*Test)
+		ctx  context.Context
+		span opentracing.Span
+		t    *testing.T
 	}
 
 	Option func(*Test)
@@ -40,8 +39,6 @@ var (
 	autoInstrumentedTestsMutex sync.RWMutex
 	autoInstrumentedTests      = map[*testing.T]bool{}
 
-	defaultPanicHandler = func(test *Test) {}
-
 	TESTING_LOG_REGEX = regexp.MustCompile(`(?m)^ {4}(?P<file>[\w\/\.]+):(?P<line>\d+): (?P<message>(.*\n {8}.*)*.*)`)
 )
 
@@ -49,12 +46,6 @@ var (
 func WithContext(ctx context.Context) Option {
 	return func(test *Test) {
 		test.ctx = ctx
-	}
-}
-
-func WithOnPanicHandler(f func(*Test)) Option {
-	return func(test *Test) {
-		test.onPanicHandler = f
 	}
 }
 
@@ -185,9 +176,6 @@ func (test *Test) end() {
 			errors.LogError(test.span, r, 1)
 		}
 		test.span.FinishWithOptions(finishOptions)
-		if test.onPanicHandler != nil {
-			test.onPanicHandler(test)
-		}
 		panic(r)
 	}
 	if test.t.Failed() {
@@ -228,7 +216,7 @@ func getOrCreateTest(t *testing.T) (test *Test, exists bool) {
 		test = testPtr
 		exists = true
 	} else {
-		test = &Test{t: t, onPanicHandler: defaultPanicHandler}
+		test = &Test{t: t}
 		testMap[t] = test
 		exists = false
 	}
@@ -250,10 +238,9 @@ func GetTest(t *testing.T) *Test {
 		return test
 	}
 	return &Test{
-		ctx:            context.TODO(),
-		span:           nil,
-		t:              t,
-		onPanicHandler: nil,
+		ctx:  context.TODO(),
+		span: nil,
+		t:    t,
 	}
 }
 
@@ -262,11 +249,4 @@ func addAutoInstrumentedTest(t *testing.T) {
 	autoInstrumentedTestsMutex.Lock()
 	defer autoInstrumentedTestsMutex.Unlock()
 	autoInstrumentedTests[t] = true
-}
-
-// Sets the default panic handler
-func SetDefaultPanicHandler(handler func(*Test)) {
-	if handler != nil {
-		defaultPanicHandler = handler
-	}
 }
