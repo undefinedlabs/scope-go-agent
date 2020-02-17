@@ -65,7 +65,7 @@ type (
 	}
 )
 
-func NewSpanRecorder(agent *Agent) *SpanRecorder {
+func NewSpanRecorder(agent *Agent, flushFrequency time.Duration) *SpanRecorder {
 	r := new(SpanRecorder)
 	r.agentId = agent.agentId
 	r.apiEndpoint = agent.apiEndpoint
@@ -75,7 +75,7 @@ func NewSpanRecorder(agent *Agent) *SpanRecorder {
 	r.debugMode = agent.debugMode
 	r.metadata = agent.metadata
 	r.logger = agent.logger
-	r.flushFrequency = time.Minute
+	r.flushFrequency = flushFrequency
 	r.url = agent.getUrl("api/agent/ingest")
 	r.client = &http.Client{}
 	r.stats = &RecorderStats{}

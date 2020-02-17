@@ -306,7 +306,11 @@ func NewAgent(options ...Option) (*Agent, error) {
 		agent.logMetadata()
 	}
 
-	agent.recorder = NewSpanRecorder(agent)
+	flushFrequency := nonTestingModeFrequency
+	if agent.testingMode {
+		flushFrequency = testingModeFrequency
+	}
+	agent.recorder = NewSpanRecorder(agent, flushFrequency)
 	agent.tracer = tracer.NewWithOptions(tracer.Options{
 		Recorder: agent.recorder,
 		ShouldSample: func(traceID uint64) bool {
@@ -316,7 +320,6 @@ func NewAgent(options ...Option) (*Agent, error) {
 		// Log the error in the current span
 		OnSpanFinishPanic: scopeError.LogErrorInRawSpan,
 	})
-	agent.SetTestingMode(agent.testingMode)
 	instrumentation.SetTracer(agent.tracer)
 	instrumentation.SetLogger(agent.logger)
 	if agent.setGlobalTracer || env.ScopeTracerGlobal.Value {
@@ -341,15 +344,6 @@ func (a *Agent) setupLogging() error {
 
 	a.logger = log.New(file, "", log.LstdFlags|log.Lshortfile)
 	return nil
-}
-
-func (a *Agent) SetTestingMode(enabled bool) {
-	a.testingMode = enabled
-	if a.testingMode {
-		a.recorder.ChangeFlushFrequency(testingModeFrequency)
-	} else {
-		a.recorder.ChangeFlushFrequency(nonTestingModeFrequency)
-	}
 }
 
 func (a *Agent) Tracer() opentracing.Tracer {
