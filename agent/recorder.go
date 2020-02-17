@@ -75,7 +75,7 @@ func NewSpanRecorder(agent *Agent) *SpanRecorder {
 	r.debugMode = agent.debugMode
 	r.metadata = agent.metadata
 	r.logger = agent.logger
-	r.flushFrequency = time.Minute
+	r.flushFrequency = agent.flushFrequency
 	r.url = agent.getUrl("api/agent/ingest")
 	r.client = &http.Client{}
 	r.stats = &RecorderStats{}
@@ -96,12 +96,6 @@ func (r *SpanRecorder) RecordSpan(span tracer.RawSpan) {
 		return
 	}
 	r.addSpan(span)
-}
-
-func (r *SpanRecorder) ChangeFlushFrequency(frequency time.Duration) {
-	r.Lock()
-	defer r.Unlock()
-	r.flushFrequency = frequency
 }
 
 func (r *SpanRecorder) loop() error {
