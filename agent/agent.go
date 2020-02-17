@@ -7,7 +7,6 @@ import (
 	"log"
 	"net/url"
 	"os"
-	"os/user"
 	"path"
 	"runtime"
 	"strings"
@@ -16,6 +15,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/mitchellh/go-homedir"
 	"github.com/opentracing/opentracing-go"
 
 	"go.undefinedlabs.com/scopeagent/env"
@@ -314,6 +314,13 @@ func NewAgent(options ...Option) (*Agent, error) {
 	}
 	agent.panicAsFail = agent.panicAsFail || env.ScopeTestingPanicAsFail.Value
 
+	// Expand '~' in source root
+	if sRoot, ok := agent.metadata[tags.SourceRoot]; ok {
+		if sRootEx, err := homedir.Expand(sRoot.(string)); err == nil {
+			agent.metadata[tags.SourceRoot] = sRootEx
+		}
+	}
+
 	if agent.debugMode {
 		agent.logMetadata()
 	}
@@ -387,11 +394,10 @@ func getLogPath() (string, error) {
 	if runtime.GOOS == "linux" {
 		logFolder = "/var/log/scope"
 	} else {
-		currentUser, err := user.Current()
+		homeDir, err := homedir.Dir()
 		if err != nil {
 			return "", err
 		}
-		homeDir := currentUser.HomeDir
 		if runtime.GOOS == "windows" {
 			logFolder = fmt.Sprintf("%s/AppData/Roaming/scope/logs", homeDir)
 		} else if runtime.GOOS == "darwin" {

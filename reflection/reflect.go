@@ -28,6 +28,15 @@ func GetFieldPointerOfLogger(logger *stdlog.Logger, fieldName string) (unsafe.Po
 	return getFieldPointerOf(logger, fieldName)
 }
 
+// Gets the type pointer to a field name
+func GetTypePointer(i interface{}, fieldName string) (reflect.Type, error) {
+	typeOf := reflect.Indirect(reflect.ValueOf(i)).Type()
+	if member, ok := typeOf.FieldByName(fieldName); ok {
+		return reflect.PtrTo(member.Type), nil
+	}
+	return nil, errors.New("field can't be retrieved")
+}
+
 func getFieldPointerOf(i interface{}, fieldName string) (unsafe.Pointer, error) {
 	val := reflect.Indirect(reflect.ValueOf(i))
 	member := val.FieldByName(fieldName)
