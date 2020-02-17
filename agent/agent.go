@@ -44,6 +44,7 @@ type (
 
 		recorder         *SpanRecorder
 		recorderFilename string
+		flushFrequency   time.Duration
 
 		userAgent string
 		agentType string
@@ -306,11 +307,11 @@ func NewAgent(options ...Option) (*Agent, error) {
 		agent.logMetadata()
 	}
 
-	flushFrequency := nonTestingModeFrequency
+	agent.flushFrequency = nonTestingModeFrequency
 	if agent.testingMode {
-		flushFrequency = testingModeFrequency
+		agent.flushFrequency = testingModeFrequency
 	}
-	agent.recorder = NewSpanRecorder(agent, flushFrequency)
+	agent.recorder = NewSpanRecorder(agent)
 	agent.tracer = tracer.NewWithOptions(tracer.Options{
 		Recorder: agent.recorder,
 		ShouldSample: func(traceID uint64) bool {
