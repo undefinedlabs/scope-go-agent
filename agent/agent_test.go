@@ -2,6 +2,7 @@ package agent
 
 import (
 	"fmt"
+	"math/rand"
 	"os/exec"
 	"reflect"
 	"strings"
@@ -128,4 +129,18 @@ func sameElements(a, b []string) bool {
 		}
 	}
 	return true
+}
+
+func TestRaceMetadata(t *testing.T) {
+	agent, err := NewAgent(WithApiKey("123"), WithTestingModeEnabled())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer agent.Stop()
+
+	go func() {
+		for {
+			agent.metadata["Empty"] = rand.Int()
+		}
+	}()
 }
