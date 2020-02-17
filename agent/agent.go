@@ -296,7 +296,6 @@ func NewAgent(options ...Option) (*Agent, error) {
 			agent.testingMode = agent.metadata[tags.CI].(bool)
 		}
 	}
-	agent.SetTestingMode(agent.testingMode)
 
 	if agent.failRetriesCount == 0 {
 		agent.failRetriesCount = env.ScopeTestingFailRetries.Value
@@ -317,6 +316,7 @@ func NewAgent(options ...Option) (*Agent, error) {
 		// Log the error in the current span
 		OnSpanFinishPanic: scopeError.LogErrorInRawSpan,
 	})
+	agent.SetTestingMode(agent.testingMode)
 	instrumentation.SetTracer(agent.tracer)
 	instrumentation.SetLogger(agent.logger)
 	if agent.setGlobalTracer || env.ScopeTracerGlobal.Value {
