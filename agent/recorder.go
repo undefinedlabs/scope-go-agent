@@ -31,6 +31,7 @@ type (
 		sync.RWMutex
 		t tomb.Tomb
 
+		agentId     string
 		apiKey      string
 		apiEndpoint string
 		version     string
@@ -66,6 +67,7 @@ type (
 
 func NewSpanRecorder(agent *Agent) *SpanRecorder {
 	r := new(SpanRecorder)
+	r.agentId = agent.agentId
 	r.apiEndpoint = agent.apiEndpoint
 	r.apiKey = agent.apiKey
 	r.version = agent.version
@@ -142,7 +144,7 @@ func (r *SpanRecorder) sendSpans() (error, bool) {
 	atomic.AddInt64(&r.stats.sendSpansCalls, 1)
 
 	spans := r.popSpans()
-	payload := r.getPayload(spans, r.metadata)
+	payload := r.getPayload(spans)
 
 	buf, err := encodePayload(payload)
 	if err != nil {
@@ -283,7 +285,7 @@ func (r *SpanRecorder) callIngest(payload io.Reader) (statusCode int, err error)
 }
 
 // Combines `rawSpans` and `metadata` into a payload that the Scope backend can process
-func (r *SpanRecorder) getPayload(rawSpans []tracer.RawSpan, metadata map[string]interface{}) map[string]interface{} {
+func (r *SpanRecorder) getPayload(rawSpans []tracer.RawSpan) map[string]interface{} {
 	spans := []map[string]interface{}{}
 	events := []map[string]interface{}{}
 	for _, span := range rawSpans {
@@ -324,10 +326,10 @@ func (r *SpanRecorder) getPayload(rawSpans []tracer.RawSpan, metadata map[string
 		}
 	}
 	return map[string]interface{}{
-		"metadata":   metadata,
+		"metadata":   r.metadata,
 		"spans":      spans,
 		"events":     events,
-		tags.AgentID: metadata[tags.AgentID],
+		tags.AgentID: r.agentId,
 	}
 }
 

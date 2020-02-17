@@ -282,7 +282,12 @@ func NewAgent(options ...Option) (*Agent, error) {
 	// Dependencies
 	agent.metadata[tags.Dependencies] = getDependencyMap()
 
-	agent.recorder = NewSpanRecorder(agent)
+	// Expand '~' in source root
+	if sRoot, ok := agent.metadata[tags.SourceRoot]; ok {
+		if sRootEx, err := homedir.Expand(sRoot.(string)); err == nil {
+			agent.metadata[tags.SourceRoot] = sRootEx
+		}
+	}
 
 	if !agent.testingMode {
 		if env.ScopeTestingMode.IsSet {
@@ -291,8 +296,17 @@ func NewAgent(options ...Option) (*Agent, error) {
 			agent.testingMode = agent.metadata[tags.CI].(bool)
 		}
 	}
-	agent.SetTestingMode(agent.testingMode)
 
+	if agent.failRetriesCount == 0 {
+		agent.failRetriesCount = env.ScopeTestingFailRetries.Value
+	}
+	agent.panicAsFail = agent.panicAsFail || env.ScopeTestingPanicAsFail.Value
+
+	if agent.debugMode {
+		agent.logMetadata()
+	}
+
+	agent.recorder = NewSpanRecorder(agent)
 	agent.tracer = tracer.NewWithOptions(tracer.Options{
 		Recorder: agent.recorder,
 		ShouldSample: func(traceID uint64) bool {
@@ -302,28 +316,13 @@ func NewAgent(options ...Option) (*Agent, error) {
 		// Log the error in the current span
 		OnSpanFinishPanic: scopeError.LogErrorInRawSpan,
 	})
-
+	agent.SetTestingMode(agent.testingMode)
 	instrumentation.SetTracer(agent.tracer)
 	instrumentation.SetLogger(agent.logger)
-
 	if agent.setGlobalTracer || env.ScopeTracerGlobal.Value {
 		opentracing.SetGlobalTracer(agent.Tracer())
 	}
-	if agent.failRetriesCount == 0 {
-		agent.failRetriesCount = env.ScopeTestingFailRetries.Value
-	}
-	agent.panicAsFail = agent.panicAsFail || env.ScopeTestingPanicAsFail.Value
 
-	// Expand '~' in source root
-	if sRoot, ok := agent.metadata[tags.SourceRoot]; ok {
-		if sRootEx, err := homedir.Expand(sRoot.(string)); err == nil {
-			agent.metadata[tags.SourceRoot] = sRootEx
-		}
-	}
-
-	if agent.debugMode {
-		agent.logMetadata()
-	}
 	return agent, nil
 }
 
