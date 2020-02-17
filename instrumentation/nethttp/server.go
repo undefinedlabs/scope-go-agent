@@ -2,6 +2,7 @@ package nethttp
 
 import (
 	"bytes"
+	"go.undefinedlabs.com/scopeagent/env"
 	"net"
 	"net/http"
 	"net/url"
@@ -120,6 +121,7 @@ func middlewareFunc(tr opentracing.Tracer, h http.HandlerFunc, options ...MWOpti
 	for _, opt := range options {
 		opt(&opts)
 	}
+	opts.payloadInstrumentation = opts.payloadInstrumentation || env.ScopeInstrumentationHttpPayloads.Value
 	fn := func(w http.ResponseWriter, r *http.Request) {
 		if !opts.spanFilter(r) {
 			h(w, r)

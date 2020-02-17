@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"go.undefinedlabs.com/scopeagent/agent"
+	"go.undefinedlabs.com/scopeagent/env"
 	"go.undefinedlabs.com/scopeagent/instrumentation"
 	"go.undefinedlabs.com/scopeagent/instrumentation/logging"
 	scopetesting "go.undefinedlabs.com/scopeagent/instrumentation/testing"
@@ -37,7 +38,7 @@ func Run(m *testing.M, opts ...agent.Option) int {
 		}
 	})
 
-	if envDMPatch, set := os.LookupEnv("SCOPE_DISABLE_MONKEY_PATCHING"); !set || envDMPatch == "" {
+	if !env.ScopeDisableMonkeyPatching.Value {
 		scopetesting.PatchTestingLogger()
 		defer scopetesting.UnpatchTestingLogger()
 	}

@@ -2,13 +2,13 @@ package agent
 
 import (
 	"bufio"
-	"os"
 	"os/exec"
 	"strconv"
 	"strings"
 
 	"github.com/google/uuid"
 
+	"go.undefinedlabs.com/scopeagent/env"
 	"go.undefinedlabs.com/scopeagent/tags"
 )
 
@@ -128,19 +128,17 @@ func getGitInfoFromGitFolder() map[string]interface{} {
 func getGitInfoFromEnv() map[string]interface{} {
 	gitInfo := map[string]interface{}{}
 
-	if repository, set := os.LookupEnv("SCOPE_REPOSITORY"); set {
+	if repository, set := env.ScopeRepository.Tuple(); set && repository != "" {
 		gitInfo[tags.Repository] = repository
 	}
-	if commit, set := os.LookupEnv("SCOPE_COMMIT_SHA"); set {
+	if commit, set := env.ScopeCommitSha.Tuple(); set && commit != "" {
 		gitInfo[tags.Commit] = commit
 	}
-	if sourceRoot, set := os.LookupEnv("SCOPE_SOURCE_ROOT"); set {
+	if sourceRoot, set := env.ScopeSourceRoot.Tuple(); set && sourceRoot != "" {
 		gitInfo[tags.SourceRoot] = sourceRoot
 	}
-	if service, set := os.LookupEnv("SCOPE_SERVICE"); set {
-		gitInfo[tags.Service] = service
-	} else {
-		gitInfo[tags.Service] = "default"
+	if branch, set := env.ScopeBranch.Tuple(); set && branch != "" {
+		gitInfo[tags.Branch] = branch
 	}
 
 	return gitInfo

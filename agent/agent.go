@@ -18,6 +18,7 @@ import (
 	"github.com/mitchellh/go-homedir"
 	"github.com/opentracing/opentracing-go"
 
+	"go.undefinedlabs.com/scopeagent/env"
 	scopeError "go.undefinedlabs.com/scopeagent/errors"
 	"go.undefinedlabs.com/scopeagent/instrumentation"
 	"go.undefinedlabs.com/scopeagent/runner"
@@ -54,8 +55,7 @@ type (
 )
 
 var (
-	version            = "0.1.11"
-	defaultApiEndpoint = "https://app.scope.dev"
+	version = "0.1.11"
 
 	printReportOnce sync.Once
 
@@ -185,12 +185,12 @@ func NewAgent(options ...Option) (*Agent, error) {
 		agent.logger = log.New(ioutil.Discard, "", 0)
 	}
 
-	agent.debugMode = agent.debugMode || getBoolEnv("SCOPE_DEBUG", false)
+	agent.debugMode = agent.debugMode || env.ScopeDebug.Value
 
 	configProfile := GetConfigCurrentProfile()
 
 	if agent.apiKey == "" || agent.apiEndpoint == "" {
-		if dsn, set := os.LookupEnv("SCOPE_DSN"); set && dsn != "" {
+		if dsn, set := env.ScopeDsn.Tuple(); set && dsn != "" {
 			dsnApiKey, dsnApiEndpoint, dsnErr := parseDSN(dsn)
 			if dsnErr != nil {
 				agent.logger.Printf("Error parsing dsn value: %v\n", dsnErr)
@@ -204,8 +204,8 @@ func NewAgent(options ...Option) (*Agent, error) {
 	}
 
 	if agent.apiKey == "" {
-		if apikey, set := os.LookupEnv("SCOPE_APIKEY"); set && apikey != "" {
-			agent.apiKey = apikey
+		if apiKey, set := env.ScopeApiKey.Tuple(); set && apiKey != "" {
+			agent.apiKey = apiKey
 		} else if configProfile != nil {
 			agent.logger.Println("API key found in the native app configuration")
 			agent.apiKey = configProfile.ApiKey
@@ -217,14 +217,14 @@ func NewAgent(options ...Option) (*Agent, error) {
 	}
 
 	if agent.apiEndpoint == "" {
-		if endpoint, set := os.LookupEnv("SCOPE_API_ENDPOINT"); set && endpoint != "" {
+		if endpoint, set := env.ScopeApiEndpoint.Tuple(); set && endpoint != "" {
 			agent.apiEndpoint = endpoint
 		} else if configProfile != nil {
 			agent.logger.Println("API endpoint found in the native app configuration")
 			agent.apiEndpoint = configProfile.ApiEndpoint
 		} else {
-			agent.logger.Printf("using default endpoint: %v\n", defaultApiEndpoint)
-			agent.apiEndpoint = defaultApiEndpoint
+			agent.logger.Printf("using default endpoint: %v\n", endpoint)
+			agent.apiEndpoint = endpoint
 		}
 	}
 
@@ -261,6 +261,15 @@ func NewAgent(options ...Option) (*Agent, error) {
 	// Go version
 	agent.metadata[tags.GoVersion] = runtime.Version()
 
+	// Service name
+	addElementToMapIfEmpty(agent.metadata, tags.Service, env.ScopeService.Value)
+
+	// Configurations
+	addElementToMapIfEmpty(agent.metadata, tags.ConfigurationKeys, env.ScopeConfiguration.Value)
+
+	// Metadata
+	addToMapIfEmpty(agent.metadata, env.ScopeMetadata.Value)
+
 	// Git data
 	addToMapIfEmpty(agent.metadata, getGitInfoFromEnv())
 	addToMapIfEmpty(agent.metadata, getCIMetadata())
@@ -275,10 +284,12 @@ func NewAgent(options ...Option) (*Agent, error) {
 
 	agent.recorder = NewSpanRecorder(agent)
 
-	if _, set := os.LookupEnv("SCOPE_TESTING_MODE"); set {
-		agent.testingMode = getBoolEnv("SCOPE_TESTING_MODE", false)
-	} else {
-		agent.testingMode = agent.testingMode || agent.metadata[tags.CI].(bool)
+	if !agent.testingMode {
+		if env.ScopeTestingMode.IsSet {
+			agent.testingMode = env.ScopeTestingMode.Value
+		} else {
+			agent.testingMode = agent.metadata[tags.CI].(bool)
+		}
 	}
 	agent.SetTestingMode(agent.testingMode)
 
@@ -295,13 +306,13 @@ func NewAgent(options ...Option) (*Agent, error) {
 	instrumentation.SetTracer(agent.tracer)
 	instrumentation.SetLogger(agent.logger)
 
-	if agent.setGlobalTracer || getBoolEnv("SCOPE_SET_GLOBAL_TRACER", false) {
+	if agent.setGlobalTracer || env.ScopeTracerGlobal.Value {
 		opentracing.SetGlobalTracer(agent.Tracer())
 	}
 	if agent.failRetriesCount == 0 {
-		agent.failRetriesCount = getIntEnv("SCOPE_TESTING_FAIL_RETRIES", agent.failRetriesCount)
+		agent.failRetriesCount = env.ScopeTestingFailRetries.Value
 	}
-	agent.panicAsFail = agent.panicAsFail || getBoolEnv("SCOPE_TESTING_PANIC_AS_FAIL", false)
+	agent.panicAsFail = agent.panicAsFail || env.ScopeTestingPanicAsFail.Value
 
 	// Expand '~' in source root
 	if sRoot, ok := agent.metadata[tags.SourceRoot]; ok {
@@ -375,8 +386,8 @@ func generateAgentID() string {
 }
 
 func getLogPath() (string, error) {
-	if logPath, set := os.LookupEnv("SCOPE_LOG_ROOT_PATH"); set {
-		return logPath, nil
+	if env.ScopeLoggerRoot.IsSet {
+		return env.ScopeLoggerRoot.Value, nil
 	}
 
 	logFolder := ""

@@ -1,7 +1,6 @@
 package autoinstrument
 
 import (
-	"os"
 	"reflect"
 	"sync"
 	"testing"
@@ -9,6 +8,7 @@ import (
 	"github.com/undefinedlabs/go-mpatch"
 
 	"go.undefinedlabs.com/scopeagent"
+	"go.undefinedlabs.com/scopeagent/env"
 	"go.undefinedlabs.com/scopeagent/instrumentation"
 )
 
@@ -18,7 +18,7 @@ var (
 
 func init() {
 	once.Do(func() {
-		if envDMPatch, set := os.LookupEnv("SCOPE_DISABLE_MONKEY_PATCHING"); set && envDMPatch != "" {
+		if env.ScopeDisableMonkeyPatching.Value {
 			return
 		}
 		var m *testing.M
