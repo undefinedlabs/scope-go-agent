@@ -155,21 +155,21 @@ func startBenchmark(b *testing.B, pc uintptr, benchFunc func(b *testing.B)) {
 }
 
 func getParentBenchmark(b *testing.B) *testing.B {
-	if ptr, err := reflection.GetFieldPointerOfB(b, "parent"); err == nil {
+	if ptr, err := reflection.GetFieldPointerOf(b, "parent"); err == nil {
 		return *(**testing.B)(ptr)
 	}
 	return nil
 }
 
 func getBenchmarkSuiteName(b *testing.B) string {
-	if ptr, err := reflection.GetFieldPointerOfB(b, "importPath"); err == nil {
+	if ptr, err := reflection.GetFieldPointerOf(b, "importPath"); err == nil {
 		return *(*string)(ptr)
 	}
 	return ""
 }
 
 func getBenchmarkHasSub(b *testing.B) int32 {
-	if ptr, err := reflection.GetFieldPointerOfB(b, "hasSub"); err == nil {
+	if ptr, err := reflection.GetFieldPointerOf(b, "hasSub"); err == nil {
 		return *(*int32)(ptr)
 	}
 	return 0
@@ -177,7 +177,7 @@ func getBenchmarkHasSub(b *testing.B) int32 {
 
 //Extract benchmark result from the private result field in testing.B
 func extractBenchmarkResult(b *testing.B) (*testing.BenchmarkResult, error) {
-	if ptr, err := reflection.GetFieldPointerOfB(b, "result"); err == nil {
+	if ptr, err := reflection.GetFieldPointerOf(b, "result"); err == nil {
 		return (*testing.BenchmarkResult)(ptr), nil
 	} else {
 		return nil, err

@@ -65,7 +65,7 @@ func Run(m *testing.M, panicAsFail bool, failRetriesCount int, logger *log.Logge
 
 // Initialize test runner, replace the internal test with an indirection
 func (r *testRunner) init() {
-	if tPointer, err := reflection.GetFieldPointerOfM(r.m, "tests"); err == nil {
+	if tPointer, err := reflection.GetFieldPointerOf(r.m, "tests"); err == nil {
 		tests := make([]testing.InternalTest, 0)
 		internalTests := (*[]testing.InternalTest)(tPointer)
 		for _, test := range *internalTests {
@@ -171,14 +171,14 @@ func (td *testDescriptor) run(t *testing.T) {
 
 // Sets the test failure flag
 func setTestFailureFlag(t *testing.T, value bool) {
-	if ptr, err := reflection.GetFieldPointerOfT(t, "failed"); err == nil {
+	if ptr, err := reflection.GetFieldPointerOf(t, "failed"); err == nil {
 		*(*bool)(ptr) = value
 	}
 }
 
 // Gets the parent from a test
 func getTestParent(t *testing.T) *testing.T {
-	if parentPtr, err := reflection.GetFieldPointerOfT(t, "parent"); err == nil {
+	if parentPtr, err := reflection.GetFieldPointerOf(t, "parent"); err == nil {
 		parentTPointer := (**testing.T)(parentPtr)
 		if parentTPointer != nil && *parentTPointer != nil {
 			return *parentTPointer
@@ -189,14 +189,14 @@ func getTestParent(t *testing.T) *testing.T {
 
 // Sets the chatty flag
 func setChattyFlag(t *testing.T, value bool) {
-	if ptr, err := reflection.GetFieldPointerOfT(t, "chatty"); err == nil {
+	if ptr, err := reflection.GetFieldPointerOf(t, "chatty"); err == nil {
 		*(*bool)(ptr) = value
 	}
 }
 
 // Sets the test name
 func setTestName(t *testing.T, value string) {
-	if ptr, err := reflection.GetFieldPointerOfT(t, "name"); err == nil {
+	if ptr, err := reflection.GetFieldPointerOf(t, "name"); err == nil {
 		*(*string)(ptr) = value
 	}
 }
