@@ -68,6 +68,8 @@ func TestMain(m *testing.M) {
 
 func TestGrpc(t *testing.T) {
 	ctx := scopeagent.GetContextFromTest(t)
+	r.Reset()
+
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
