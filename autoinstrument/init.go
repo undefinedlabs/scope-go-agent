@@ -8,8 +8,8 @@ import (
 	"github.com/undefinedlabs/go-mpatch"
 
 	"go.undefinedlabs.com/scopeagent"
-	"go.undefinedlabs.com/scopeagent/env"
 	"go.undefinedlabs.com/scopeagent/instrumentation"
+	scopetesting "go.undefinedlabs.com/scopeagent/instrumentation/testing"
 )
 
 var (
@@ -18,9 +18,6 @@ var (
 
 func init() {
 	once.Do(func() {
-		if env.ScopeDisableMonkeyPatching.Value {
-			return
-		}
 		var m *testing.M
 		var mRunMethod reflect.Method
 		var ok bool
@@ -36,6 +33,8 @@ func init() {
 			defer func() {
 				logOnError(runPatch.Patch())
 			}()
+			scopetesting.PatchTestingLogger()
+			defer scopetesting.UnpatchTestingLogger()
 			return scopeagent.Run(m)
 		})
 		logOnError(err)

@@ -12,7 +12,6 @@ var (
 	ScopeBranch                           = newStringEnvVar("", "SCOPE_BRANCH")
 	ScopeSourceRoot                       = newStringEnvVar("", "SCOPE_SOURCE_ROOT")
 	ScopeLoggerRoot                       = newStringEnvVar("", "SCOPE_LOGGER_ROOT", "SCOPE_LOG_ROOT_PATH")
-	ScopeDisableMonkeyPatching            = newBooleanEnvVar(false, "SCOPE_DISABLE_MONKEY_PATCHING")
 	ScopeDebug                            = newBooleanEnvVar(false, "SCOPE_DEBUG")
 	ScopeTracerGlobal                     = newBooleanEnvVar(false, "SCOPE_TRACER_GLOBAL", "SCOPE_SET_GLOBAL_TRACER")
 	ScopeTestingMode                      = newBooleanEnvVar(false, "SCOPE_TESTING_MODE")
