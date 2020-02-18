@@ -27,15 +27,15 @@ import (
 )
 
 var (
-	server *httptest.Server
-	onPayloadError = func(error) {}
-	onPayloadWithSpans = func(map[string]interface{}){}
+	server             *httptest.Server
+	onPayloadError     = func(error) {}
+	onPayloadWithSpans = func(map[string]interface{}) {}
 )
 
 func TestMain(m *testing.M) {
 	url := configureServer()
-	env.ScopeApiEndpoint.Value = url
-	env.ScopeApiEndpoint.IsSet = true
+	env.ScopeDsn.Value = url
+	env.ScopeDsn.IsSet = true
 	os.Exit(scopeagent.Run(m, agent.WithSetGlobalTracer()))
 }
 
@@ -53,7 +53,7 @@ func runAndGetPayload(f func()) map[string]interface{} {
 	pChan := make(chan map[string]interface{}, 1)
 	onPayloadWithSpans = func(payload map[string]interface{}) { pChan <- payload }
 	f()
-	pload := <- pChan
+	pload := <-pChan
 	onPayloadWithSpans = nil
 	return pload
 }
@@ -76,12 +76,12 @@ func getSpans(payload map[string]interface{}) []tracer.RawSpan {
 			tags = pTags
 		}
 		cBaggage := map[string]string{}
-		for k,v := range baggage {
+		for k, v := range baggage {
 			cBaggage[k] = fmt.Sprintf("%v", v)
 		}
 
-		rSpan := tracer.RawSpan {
-			Context:      tracer.SpanContext{
+		rSpan := tracer.RawSpan{
+			Context: tracer.SpanContext{
 				TraceID: traceId,
 				SpanID:  spanId,
 				Sampled: true,
