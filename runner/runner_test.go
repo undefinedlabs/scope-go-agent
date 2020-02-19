@@ -3,6 +3,7 @@ package runner
 import (
 	"fmt"
 	"testing"
+	"time"
 )
 
 var (
@@ -89,4 +90,42 @@ func TestFailSubTest(t *testing.T) {
 		failSubTest++
 		t.Fatal("Subtest fail")
 	})
+}
+
+func TestParallelPass(t *testing.T) {
+	t.Parallel()
+
+	for i := 0; i < 10; i++ {
+		t.Run("child", func(t *testing.T) {
+			t.Parallel()
+		})
+	}
+
+	<-time.After(1 * time.Second)
+}
+
+func TestParallelFail(t *testing.T) {
+	t.Parallel()
+
+	for i := 0; i < 10; i++ {
+		t.Run("child", func(t *testing.T) {
+			t.Parallel()
+		})
+	}
+
+	<-time.After(1 * time.Second)
+	t.FailNow()
+}
+
+func TestParallelPanic(t *testing.T) {
+	t.Parallel()
+
+	for i := 0; i < 10; i++ {
+		t.Run("child", func(t *testing.T) {
+			t.Parallel()
+		})
+	}
+
+	<-time.After(1 * time.Second)
+	panic("forced parallel test panic")
 }

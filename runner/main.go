@@ -7,6 +7,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"sync"
 	"testing"
 
 	goerrors "github.com/go-errors/errors"
@@ -16,9 +17,10 @@ import (
 
 type (
 	testRunner struct {
-		m       *testing.M
-		options Options
-		failed  bool
+		m          *testing.M
+		options    Options
+		failed     bool
+		failedLock sync.Mutex
 	}
 	testDescriptor struct {
 		runner  *testRunner
@@ -122,6 +124,9 @@ func (td *testDescriptor) run(t *testing.T) {
 				innerTest = gt
 				td.test.F(gt)
 			})
+			if getIsParallel(innerTest) && !getIsParallel(t) {
+				t.Parallel()
+			}
 		})
 		if innerError != nil {
 			if !options.PanicAsFail {
@@ -159,11 +164,7 @@ func (td *testDescriptor) run(t *testing.T) {
 	}
 
 	// Set the global failed flag
-	td.runner.failed = td.runner.failed || td.failed || td.error
-	tParent := getTestParent(t)
-	if tParent != nil {
-		setTestFailureFlag(tParent, td.runner.failed)
-	}
+	td.refreshGlobalFailedFlag(t)
 
 	if td.error {
 		if !options.PanicAsFail {
@@ -181,8 +182,31 @@ func (td *testDescriptor) run(t *testing.T) {
 	}
 }
 
+func (td *testDescriptor) refreshGlobalFailedFlag(t *testing.T) {
+	td.runner.failedLock.Lock()
+	defer td.runner.failedLock.Unlock()
+	td.runner.failed = td.runner.failed || td.failed || td.error
+	tParent := getTestParent(t)
+	if tParent != nil {
+		setTestFailureFlag(tParent, td.runner.failed)
+	}
+}
+
+func getTestMutex(t *testing.T) *sync.RWMutex {
+	if ptr, err := reflection.GetFieldPointerOf(t, "mu"); err == nil {
+		return (*sync.RWMutex)(ptr)
+	}
+	return nil
+}
+
 // Sets the test failure flag
 func setTestFailureFlag(t *testing.T, value bool) {
+	mu := getTestMutex(t)
+	if mu != nil {
+		mu.Lock()
+		defer mu.Unlock()
+	}
+
 	if ptr, err := reflection.GetFieldPointerOf(t, "failed"); err == nil {
 		*(*bool)(ptr) = value
 	}
@@ -190,6 +214,12 @@ func setTestFailureFlag(t *testing.T, value bool) {
 
 // Gets the parent from a test
 func getTestParent(t *testing.T) *testing.T {
+	mu := getTestMutex(t)
+	if mu != nil {
+		mu.RLock()
+		defer mu.RUnlock()
+	}
+
 	if parentPtr, err := reflection.GetFieldPointerOf(t, "parent"); err == nil {
 		parentTPointer := (**testing.T)(parentPtr)
 		if parentTPointer != nil && *parentTPointer != nil {
@@ -201,6 +231,12 @@ func getTestParent(t *testing.T) *testing.T {
 
 // Sets the chatty flag
 func setChattyFlag(t *testing.T, value bool) {
+	mu := getTestMutex(t)
+	if mu != nil {
+		mu.Lock()
+		defer mu.Unlock()
+	}
+
 	if ptr, err := reflection.GetFieldPointerOf(t, "chatty"); err == nil {
 		*(*bool)(ptr) = value
 	}
@@ -208,7 +244,25 @@ func setChattyFlag(t *testing.T, value bool) {
 
 // Sets the test name
 func setTestName(t *testing.T, value string) {
+	mu := getTestMutex(t)
+	if mu != nil {
+		mu.Lock()
+		defer mu.Unlock()
+	}
+
 	if ptr, err := reflection.GetFieldPointerOf(t, "name"); err == nil {
 		*(*string)(ptr) = value
 	}
+}
+
+func getIsParallel(t *testing.T) bool {
+	mu := getTestMutex(t)
+	if mu != nil {
+		mu.Lock()
+		defer mu.Unlock()
+	}
+	if pointer, err := reflection.GetFieldPointerOf(t, "isParallel"); err == nil {
+		return *(*bool)(pointer)
+	}
+	return false
 }
