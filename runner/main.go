@@ -124,7 +124,7 @@ func (td *testDescriptor) run(t *testing.T) {
 				innerTest = gt
 				td.test.F(gt)
 			})
-			if getIsParallel(innerTest) && !getIsParallel(t) {
+			if reflection.GetIsParallel(innerTest) && !reflection.GetIsParallel(t) {
 				t.Parallel()
 			}
 		})
@@ -192,16 +192,9 @@ func (td *testDescriptor) refreshGlobalFailedFlag(t *testing.T) {
 	}
 }
 
-func getTestMutex(t *testing.T) *sync.RWMutex {
-	if ptr, err := reflection.GetFieldPointerOf(t, "mu"); err == nil {
-		return (*sync.RWMutex)(ptr)
-	}
-	return nil
-}
-
 // Sets the test failure flag
 func setTestFailureFlag(t *testing.T, value bool) {
-	mu := getTestMutex(t)
+	mu := reflection.GetTestMutex(t)
 	if mu != nil {
 		mu.Lock()
 		defer mu.Unlock()
@@ -214,7 +207,7 @@ func setTestFailureFlag(t *testing.T, value bool) {
 
 // Gets the parent from a test
 func getTestParent(t *testing.T) *testing.T {
-	mu := getTestMutex(t)
+	mu := reflection.GetTestMutex(t)
 	if mu != nil {
 		mu.RLock()
 		defer mu.RUnlock()
@@ -231,7 +224,7 @@ func getTestParent(t *testing.T) *testing.T {
 
 // Sets the chatty flag
 func setChattyFlag(t *testing.T, value bool) {
-	mu := getTestMutex(t)
+	mu := reflection.GetTestMutex(t)
 	if mu != nil {
 		mu.Lock()
 		defer mu.Unlock()
@@ -244,7 +237,7 @@ func setChattyFlag(t *testing.T, value bool) {
 
 // Sets the test name
 func setTestName(t *testing.T, value string) {
-	mu := getTestMutex(t)
+	mu := reflection.GetTestMutex(t)
 	if mu != nil {
 		mu.Lock()
 		defer mu.Unlock()
@@ -253,16 +246,4 @@ func setTestName(t *testing.T, value string) {
 	if ptr, err := reflection.GetFieldPointerOf(t, "name"); err == nil {
 		*(*string)(ptr) = value
 	}
-}
-
-func getIsParallel(t *testing.T) bool {
-	mu := getTestMutex(t)
-	if mu != nil {
-		mu.Lock()
-		defer mu.Unlock()
-	}
-	if pointer, err := reflection.GetFieldPointerOf(t, "isParallel"); err == nil {
-		return *(*bool)(pointer)
-	}
-	return false
 }

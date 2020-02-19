@@ -18,6 +18,7 @@ import (
 	"go.undefinedlabs.com/scopeagent/errors"
 	"go.undefinedlabs.com/scopeagent/instrumentation"
 	"go.undefinedlabs.com/scopeagent/instrumentation/logging"
+	"go.undefinedlabs.com/scopeagent/reflection"
 	"go.undefinedlabs.com/scopeagent/runner"
 	"go.undefinedlabs.com/scopeagent/tags"
 )
@@ -161,7 +162,7 @@ func (test *Test) end() {
 	}
 
 	// Checks if the current test is running parallel to extract the coverage or not
-	if getIsParallel(test.t) {
+	if reflection.GetIsParallel(test.t) {
 		instrumentation.Logger().Printf("CodePath in parallel test is not supported: %v\n", test.t.Name())
 		restoreCoverageCounters()
 	} else {

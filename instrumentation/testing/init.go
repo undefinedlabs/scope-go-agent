@@ -2,7 +2,6 @@ package testing
 
 import (
 	"reflect"
-	"sync"
 	"testing"
 
 	"go.undefinedlabs.com/scopeagent/reflection"
@@ -44,23 +43,4 @@ func Init(m *testing.M) {
 		}
 		*intBenchmarks = benchmarks
 	}
-}
-
-func getTestMutex(t *testing.T) *sync.RWMutex {
-	if ptr, err := reflection.GetFieldPointerOf(t, "mu"); err == nil {
-		return (*sync.RWMutex)(ptr)
-	}
-	return nil
-}
-
-func getIsParallel(t *testing.T) bool {
-	mu := getTestMutex(t)
-	if mu != nil {
-		mu.Lock()
-		defer mu.Unlock()
-	}
-	if pointer, err := reflection.GetFieldPointerOf(t, "isParallel"); err == nil {
-		return *(*bool)(pointer)
-	}
-	return false
 }

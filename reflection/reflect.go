@@ -3,6 +3,8 @@ package reflection
 import (
 	"errors"
 	"reflect"
+	"sync"
+	"testing"
 	"unsafe"
 )
 
@@ -24,4 +26,23 @@ func GetFieldPointerOf(i interface{}, fieldName string) (unsafe.Pointer, error) 
 		return ptrToY, nil
 	}
 	return nil, errors.New("field can't be retrieved")
+}
+
+func GetTestMutex(t *testing.T) *sync.RWMutex {
+	if ptr, err := GetFieldPointerOf(t, "mu"); err == nil {
+		return (*sync.RWMutex)(ptr)
+	}
+	return nil
+}
+
+func GetIsParallel(t *testing.T) bool {
+	mu := GetTestMutex(t)
+	if mu != nil {
+		mu.Lock()
+		defer mu.Unlock()
+	}
+	if pointer, err := GetFieldPointerOf(t, "isParallel"); err == nil {
+		return *(*bool)(pointer)
+	}
+	return false
 }
