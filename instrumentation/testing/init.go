@@ -9,7 +9,7 @@ import (
 
 // Initialize the testing instrumentation
 func Init(m *testing.M) {
-	if tPointer, err := reflection.GetFieldPointerOfM(m, "tests"); err == nil {
+	if tPointer, err := reflection.GetFieldPointerOf(m, "tests"); err == nil {
 		intTests := (*[]testing.InternalTest)(tPointer)
 		tests := make([]testing.InternalTest, 0)
 		for _, test := range *intTests {
@@ -28,7 +28,7 @@ func Init(m *testing.M) {
 		// Replace internal tests with new test indirection
 		*intTests = tests
 	}
-	if bPointer, err := reflection.GetFieldPointerOfM(m, "benchmarks"); err == nil {
+	if bPointer, err := reflection.GetFieldPointerOf(m, "benchmarks"); err == nil {
 		intBenchmarks := (*[]testing.InternalBenchmark)(bPointer)
 		var benchmarks []testing.InternalBenchmark
 		for _, benchmark := range *intBenchmarks {

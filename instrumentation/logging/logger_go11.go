@@ -18,7 +18,7 @@ func getStdLoggerWriter() io.Writer {
 // Gets the writer of a custom logger
 func getLoggerWriter(logger *stdlog.Logger) io.Writer {
 	// There is not API in Go1.11 to get the current writer, accessing by reflection.
-	if ptr, err := reflection.GetFieldPointerOfLogger(logger, "out"); err == nil {
+	if ptr, err := reflection.GetFieldPointerOf(logger, "out"); err == nil {
 		return *(*io.Writer)(ptr)
 	}
 	return nil
