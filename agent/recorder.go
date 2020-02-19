@@ -135,38 +135,59 @@ func (r *SpanRecorder) loop() error {
 // Sends the spans in the buffer to Scope
 func (r *SpanRecorder) sendSpans() (error, bool) {
 	atomic.AddInt64(&r.stats.sendSpansCalls, 1)
-
 	spans := r.popSpans()
-	payload := r.getPayload(spans)
 
-	buf, err := encodePayload(payload)
-	if err != nil {
-		atomic.AddInt64(&r.stats.sendSpansKo, 1)
-		atomic.AddInt64(&r.stats.spansNotSent, int64(len(spans)))
-		return err, false
-	}
+	const batchSize = 1000
+	batchLength := len(spans) / batchSize
 
-	var testSpans int64
-	for _, span := range spans {
-		if isTestSpan(span) {
-			testSpans++
+	r.logger.Printf("sending %d spans in %d batches", len(spans), batchLength+1)
+
+	var lastError error
+	for b := 0; b <= batchLength; b++ {
+		var batch []tracer.RawSpan
+		// We extract the batch of spans to be send
+		if b == batchLength {
+			// If we are in the last batch, we select the remaining spans
+			batch = spans[b*batchSize:]
+		} else {
+			batch = spans[b*batchSize : ((b + 1) * batchSize)]
 		}
-	}
 
-	statusCode, err := r.callIngest(buf)
-	if err != nil {
-		atomic.AddInt64(&r.stats.sendSpansKo, 1)
-		atomic.AddInt64(&r.stats.spansNotSent, int64(len(spans)))
-		atomic.AddInt64(&r.stats.testSpansNotSent, testSpans)
-	} else {
-		atomic.AddInt64(&r.stats.sendSpansOk, 1)
-		atomic.AddInt64(&r.stats.spansSent, int64(len(spans)))
-		atomic.AddInt64(&r.stats.testSpansSent, testSpans)
+		payload := r.getPayload(batch)
+
+		buf, err := encodePayload(payload)
+		if err != nil {
+			atomic.AddInt64(&r.stats.sendSpansKo, 1)
+			atomic.AddInt64(&r.stats.spansNotSent, int64(len(spans)))
+			return err, false
+		}
+
+		var testSpans int64
+		for _, span := range batch {
+			if isTestSpan(span) {
+				testSpans++
+			}
+		}
+
+		if batchLength > 0 {
+			r.logger.Printf("sending batch %d with %d spans", b+1, len(batch))
+		}
+		statusCode, err := r.callIngest(buf)
+		if err != nil {
+			atomic.AddInt64(&r.stats.sendSpansKo, 1)
+			atomic.AddInt64(&r.stats.spansNotSent, int64(len(spans)))
+			atomic.AddInt64(&r.stats.testSpansNotSent, testSpans)
+		} else {
+			atomic.AddInt64(&r.stats.sendSpansOk, 1)
+			atomic.AddInt64(&r.stats.spansSent, int64(len(spans)))
+			atomic.AddInt64(&r.stats.testSpansSent, testSpans)
+		}
+		if statusCode == 401 {
+			return err, true
+		}
+		lastError = err
 	}
-	if statusCode == 401 {
-		return err, true
-	}
-	return err, false
+	return lastError, false
 }
 
 // Stop recorder
