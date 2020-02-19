@@ -1,7 +1,6 @@
 package process
 
 import (
-	"context"
 	"fmt"
 	"os"
 	"os/exec"
@@ -9,6 +8,8 @@ import (
 
 	"github.com/opentracing/opentracing-go"
 
+	"go.undefinedlabs.com/scopeagent"
+	"go.undefinedlabs.com/scopeagent/agent"
 	"go.undefinedlabs.com/scopeagent/instrumentation"
 	"go.undefinedlabs.com/scopeagent/tracer"
 )
@@ -18,14 +19,12 @@ var r *tracer.InMemorySpanRecorder
 func TestMain(m *testing.M) {
 	// Test tracer
 	r = tracer.NewInMemoryRecorder()
-	instrumentation.SetTracer(tracer.New(r))
-
-	os.Exit(m.Run())
+	os.Exit(scopeagent.Run(m, agent.WithRecorders(r)))
 }
 
 func TestProcessContextInjection(t *testing.T) {
+	ctx := scopeagent.GetContextFromTest(t)
 	r.Reset()
-	_, ctx := opentracing.StartSpanFromContextWithTracer(context.Background(), instrumentation.Tracer(), "Test")
 
 	// Create command and inject the context
 	cmd := exec.Command("/usr/local/my-cli", "FirstArg", "SecondArg")

@@ -2,11 +2,14 @@ package agent
 
 import (
 	"fmt"
-	"go.undefinedlabs.com/scopeagent/tags"
 	"os/exec"
 	"reflect"
 	"strings"
 	"testing"
+	"time"
+
+	"go.undefinedlabs.com/scopeagent/env"
+	"go.undefinedlabs.com/scopeagent/tags"
 )
 
 func TestDsnParser(t *testing.T) {
@@ -127,4 +130,14 @@ func sameElements(a, b []string) bool {
 		}
 	}
 	return true
+}
+
+func TestTildeExpandRaceMetadata(t *testing.T) {
+	env.ScopeSourceRoot.Value = "~/scope"
+	agent, err := NewAgent(WithApiKey("123"), WithTestingModeEnabled())
+	if err != nil {
+		t.Fatal(err)
+	}
+	<-time.After(5 * time.Second)
+	agent.Stop()
 }

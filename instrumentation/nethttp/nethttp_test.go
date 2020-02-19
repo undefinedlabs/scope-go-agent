@@ -1,16 +1,14 @@
 package nethttp
 
 import (
-	"context"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"testing"
 
-	"github.com/opentracing/opentracing-go"
-
-	"go.undefinedlabs.com/scopeagent/instrumentation"
+	"go.undefinedlabs.com/scopeagent"
+	"go.undefinedlabs.com/scopeagent/agent"
 	"go.undefinedlabs.com/scopeagent/tracer"
 )
 
@@ -21,20 +19,18 @@ func TestMain(m *testing.M) {
 
 	// Test tracer
 	r = tracer.NewInMemoryRecorder()
-	instrumentation.SetTracer(tracer.New(r))
-
-	os.Exit(m.Run())
+	os.Exit(scopeagent.Run(m, agent.WithRecorders(r)))
 }
 
 func TestHttpClient(t *testing.T) {
+	testCtx := scopeagent.GetContextFromTest(t)
 	r.Reset()
-	_, ctx := opentracing.StartSpanFromContextWithTracer(context.Background(), instrumentation.Tracer(), "Test")
 
 	req, err := http.NewRequest("GET", "https://www.google.com/", nil)
 	if err != nil {
 		t.Fatalf("%+v", err)
 	}
-	req = req.WithContext(ctx)
+	req = req.WithContext(testCtx)
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		t.Fatalf("%+v", err)
@@ -58,9 +54,8 @@ func TestHttpClient(t *testing.T) {
 }
 
 func TestHttpServer(t *testing.T) {
+	testCtx := scopeagent.GetContextFromTest(t)
 	r.Reset()
-	sp, ctx := opentracing.StartSpanFromContextWithTracer(context.Background(), instrumentation.Tracer(), "Test")
-	sp.SetBaggageItem("trace.kind", "test")
 
 	http.HandleFunc("/hello", func(w http.ResponseWriter, r *http.Request) {
 		_, err := fmt.Fprintf(w, "Hello world")
@@ -76,7 +71,7 @@ func TestHttpServer(t *testing.T) {
 	if err != nil {
 		t.Fatalf("%+v", err)
 	}
-	req = req.WithContext(ctx)
+	req = req.WithContext(testCtx)
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		t.Fatalf("%+v", err)

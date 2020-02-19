@@ -46,10 +46,13 @@ type (
 		recorderFilename string
 		flushFrequency   time.Duration
 
+		optionalRecorders []tracer.SpanRecorder
+
 		userAgent string
 		agentType string
 
-		logger *log.Logger
+		logger          *log.Logger
+		printReportOnce sync.Once
 	}
 
 	Option func(*Agent)
@@ -57,8 +60,6 @@ type (
 
 var (
 	version = "0.1.11"
-
-	printReportOnce sync.Once
 
 	testingModeFrequency    = time.Second
 	nonTestingModeFrequency = time.Minute
@@ -165,6 +166,12 @@ func WithRetriesOnFail(retriesCount int) Option {
 func WithHandlePanicAsFail() Option {
 	return func(agent *Agent) {
 		agent.panicAsFail = true
+	}
+}
+
+func WithRecorders(recorders ...tracer.SpanRecorder) Option {
+	return func(agent *Agent) {
+		agent.optionalRecorders = recorders
 	}
 }
 
@@ -312,8 +319,14 @@ func NewAgent(options ...Option) (*Agent, error) {
 		agent.flushFrequency = testingModeFrequency
 	}
 	agent.recorder = NewSpanRecorder(agent)
+	var recorder tracer.SpanRecorder = agent.recorder
+	if agent.optionalRecorders != nil {
+		recorders := append(agent.optionalRecorders, agent.recorder)
+		recorder = tracer.NewMultiRecorder(recorders...)
+	}
+
 	agent.tracer = tracer.NewWithOptions(tracer.Options{
-		Recorder: agent.recorder,
+		Recorder: recorder,
 		ShouldSample: func(traceID uint64) bool {
 			return true
 		},

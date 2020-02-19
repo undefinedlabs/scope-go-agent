@@ -10,7 +10,8 @@ import (
 
 	"github.com/opentracing/opentracing-go/ext"
 
-	"go.undefinedlabs.com/scopeagent/instrumentation"
+	"go.undefinedlabs.com/scopeagent"
+	"go.undefinedlabs.com/scopeagent/agent"
 	"go.undefinedlabs.com/scopeagent/tracer"
 
 	"google.golang.org/grpc"
@@ -62,13 +63,13 @@ func TestMain(m *testing.M) {
 
 	// Test tracer
 	r = tracer.NewInMemoryRecorder()
-	instrumentation.SetTracer(tracer.New(r))
-
-	os.Exit(m.Run())
+	os.Exit(scopeagent.Run(m, agent.WithRecorders(r)))
 }
 
 func TestGrpc(t *testing.T) {
-	ctx := context.Background()
+	ctx := scopeagent.GetContextFromTest(t)
+	r.Reset()
+
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
