@@ -227,12 +227,12 @@ func (r *SpanRecorder) callIngest(payload *bytes.Buffer) (statusCode int, err er
 			if v, ok := err.(*url.Error); ok {
 				// Don't retry if the error was due to TLS cert verification failure.
 				if _, ok := v.Err.(x509.UnknownAuthorityError); ok {
-					return 0, errors.New(fmt.Sprintf("error: http client returns: %v", err.Error()))
+					return 0, errors.New(fmt.Sprintf("error: http client returns: %s", err.Error()))
 				}
 			}
 
 			lastError = err
-			r.logger.Printf("client error, retrying in %d seconds", retryBackoff/time.Second)
+			r.logger.Printf("client error '%s', retrying in %d seconds", err.Error(), retryBackoff/time.Second)
 			time.Sleep(retryBackoff)
 			atomic.AddInt64(&r.stats.sendSpansRetries, 1)
 			continue
@@ -263,12 +263,15 @@ func (r *SpanRecorder) callIngest(payload *bytes.Buffer) (statusCode int, err er
 		// errors and may relate to outages on the server side. This will catch
 		// invalid response codes as well, like 0 and 999.
 		if statusCode == 0 || (statusCode >= 500 && statusCode != 501) {
-			r.logger.Printf("error: status code: %d, retrying in %d seconds", statusCode, retryBackoff/time.Second)
+			r.logger.Printf("error: [status code: %d], retrying in %d seconds", statusCode, retryBackoff/time.Second)
 			time.Sleep(retryBackoff)
 			atomic.AddInt64(&r.stats.sendSpansRetries, 1)
 			continue
 		}
 
+		if i > 0 {
+			r.logger.Printf("payload was sent successfully after retry.")
+		}
 		break
 	}
 
