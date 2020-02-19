@@ -88,7 +88,7 @@ func startCoverage() {
 	for name, counts := range cover.Counters {
 		counters[name] = make([]uint32, len(counts))
 		for i := range counts {
-			counters[name][i] = counts[i]
+			counters[name][i] = atomic.LoadUint32(&counts[i])
 			counts[i] = 0
 		}
 	}
