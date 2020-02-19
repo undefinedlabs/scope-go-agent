@@ -3,6 +3,7 @@ package runner
 import (
 	"fmt"
 	"testing"
+	"time"
 )
 
 var (
@@ -14,7 +15,14 @@ var (
 )
 
 func TestMain(m *testing.M) {
-	Run(m, true, 4, nil)
+	Run(m, Options{
+		FailRetries: 4,
+		PanicAsFail: true,
+		Logger:      nil,
+		OnPanic: func(t *testing.T, err error) {
+			fmt.Printf("the test '%s' has paniked with error: %s", t.Name(), err)
+		},
+	})
 	fmt.Println(okCount, failCount, errorCount, flakyCount, failSubTest)
 	if okCount != 1 {
 		panic("TestOk ran an unexpected number of times")
@@ -82,4 +90,42 @@ func TestFailSubTest(t *testing.T) {
 		failSubTest++
 		t.Fatal("Subtest fail")
 	})
+}
+
+func TestParallelPass(t *testing.T) {
+	t.Parallel()
+
+	for i := 0; i < 10; i++ {
+		t.Run("child", func(t *testing.T) {
+			t.Parallel()
+		})
+	}
+
+	<-time.After(1 * time.Second)
+}
+
+func TestParallelFail(t *testing.T) {
+	t.Parallel()
+
+	for i := 0; i < 10; i++ {
+		t.Run("child", func(t *testing.T) {
+			t.Parallel()
+		})
+	}
+
+	<-time.After(1 * time.Second)
+	t.FailNow()
+}
+
+func TestParallelPanic(t *testing.T) {
+	t.Parallel()
+
+	for i := 0; i < 10; i++ {
+		t.Run("child", func(t *testing.T) {
+			t.Parallel()
+		})
+	}
+
+	<-time.After(1 * time.Second)
+	panic("forced parallel test panic")
 }

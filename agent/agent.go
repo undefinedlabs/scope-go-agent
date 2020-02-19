@@ -371,10 +371,15 @@ func (a *Agent) Logger() *log.Logger {
 // Runs the test suite
 func (a *Agent) Run(m *testing.M) int {
 	defer a.Stop()
-	if a.panicAsFail || a.failRetriesCount > 0 {
-		return runner.Run(m, a.panicAsFail, a.failRetriesCount, a.logger)
-	}
-	return m.Run()
+	return runner.Run(m, runner.Options{
+		FailRetries: a.failRetriesCount,
+		PanicAsFail: a.panicAsFail,
+		Logger:      a.logger,
+		OnPanic: func(t *testing.T, err error) {
+			a.logger.Printf("test '%s' has panicked, stopping agent", t.Name())
+			a.Stop()
+		},
+	})
 }
 
 // Stops the agent
