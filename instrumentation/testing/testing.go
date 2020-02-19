@@ -18,7 +18,6 @@ import (
 	"go.undefinedlabs.com/scopeagent/errors"
 	"go.undefinedlabs.com/scopeagent/instrumentation"
 	"go.undefinedlabs.com/scopeagent/instrumentation/logging"
-	"go.undefinedlabs.com/scopeagent/reflection"
 	"go.undefinedlabs.com/scopeagent/runner"
 	"go.undefinedlabs.com/scopeagent/tags"
 )
@@ -171,15 +170,12 @@ func (test *Test) end() {
 	}
 
 	// Checks if the current test is running parallel to extract the coverage or not
-	if pointer, err := reflection.GetFieldPointerOf(test.t, "isParallel"); err == nil {
-		isParallel := *(*bool)(pointer)
-		if isParallel {
-			instrumentation.Logger().Printf("CodePath in parallel test is not supported: %v\n", test.t.Name())
-			restoreCoverageCounters()
-		} else {
-			cov := endCoverage()
-			test.span.SetTag(tags.Coverage, *cov)
-		}
+	if getIsParallel(test.t) {
+		instrumentation.Logger().Printf("CodePath in parallel test is not supported: %v\n", test.t.Name())
+		restoreCoverageCounters()
+	} else {
+		cov := endCoverage()
+		test.span.SetTag(tags.Coverage, *cov)
 	}
 
 	if r := recover(); r != nil {
