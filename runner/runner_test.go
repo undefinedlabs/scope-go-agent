@@ -19,7 +19,7 @@ func TestMain(m *testing.M) {
 		FailRetries: 4,
 		PanicAsFail: true,
 		Logger:      nil,
-		OnPanic: func(t *testing.T, err error) {
+		OnPanic: func(t *testing.T, err interface{}) {
 			fmt.Printf("the test '%s' has paniked with error: %s", t.Name(), err)
 		},
 	})

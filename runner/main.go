@@ -35,7 +35,7 @@ type (
 		FailRetries int
 		PanicAsFail bool
 		Logger      *log.Logger
-		OnPanic     func(t *testing.T, err error)
+		OnPanic     func(t *testing.T, err interface{})
 	}
 )
 
@@ -53,40 +53,53 @@ func GetOriginalTestName(name string) string {
 
 // Runs a test suite
 func Run(m *testing.M, options Options) int {
-	if options.FailRetries == 0 && !options.PanicAsFail {
-		return m.Run()
-	}
 	if options.Logger == nil {
 		options.Logger = log.New(ioutil.Discard, "", 0)
 	}
 	if options.OnPanic == nil {
-		options.OnPanic = func(t *testing.T, err error) {}
+		options.OnPanic = func(t *testing.T, err interface{}) {}
 	}
 	runner := &testRunner{
 		m:       m,
 		options: options,
 		failed:  false,
 	}
-	runner.init()
+	runner.init(options.FailRetries > 0 || options.PanicAsFail)
 	return runner.m.Run()
 }
 
 // Initialize test runner, replace the internal test with an indirection
-func (r *testRunner) init() {
+func (r *testRunner) init(enableRunner bool) {
 	if tPointer, err := reflection.GetFieldPointerOf(r.m, "tests"); err == nil {
 		tests := make([]testing.InternalTest, 0)
 		internalTests := (*[]testing.InternalTest)(tPointer)
 		for _, test := range *internalTests {
-			td := &testDescriptor{
-				runner: r,
-				test:   test,
-				ran:    0,
-				failed: false,
+			if enableRunner {
+				td := &testDescriptor{
+					runner: r,
+					test:   test,
+					ran:    0,
+					failed: false,
+				}
+				tests = append(tests, testing.InternalTest{
+					Name: test.Name,
+					F:    td.run,
+				})
+			} else {
+				cTest := test
+				tests = append(tests, testing.InternalTest{
+					Name: test.Name,
+					F: func(t *testing.T) {
+						defer func() {
+							if rc := recover(); rc != nil {
+								r.options.OnPanic(t, rc)
+								panic(rc)
+							}
+						}()
+						cTest.F(t)
+					},
+				})
 			}
-			tests = append(tests, testing.InternalTest{
-				Name: test.Name,
-				F:    td.run,
-			})
 		}
 		// Replace internal tests
 		*internalTests = tests

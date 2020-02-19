@@ -375,8 +375,12 @@ func (a *Agent) Run(m *testing.M) int {
 		FailRetries: a.failRetriesCount,
 		PanicAsFail: a.panicAsFail,
 		Logger:      a.logger,
-		OnPanic: func(t *testing.T, err error) {
-			a.logger.Printf("test '%s' has panicked, stopping agent", t.Name())
+		OnPanic: func(t *testing.T, err interface{}) {
+			if t != nil {
+				a.logger.Printf("test '%s' has panicked (%v), stopping agent", t.Name(), err)
+			} else {
+				a.logger.Printf("panic: %v", err)
+			}
 			a.Stop()
 		},
 	})
