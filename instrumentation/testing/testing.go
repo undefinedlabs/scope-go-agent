@@ -121,6 +121,7 @@ func StartTestFromCaller(t *testing.T, pc uintptr, opts ...Option) *Test {
 	test.ctx = ctx
 
 	logging.Reset()
+	startCoverage()
 
 	return test
 }
@@ -166,6 +167,15 @@ func (test *Test) end() {
 	finishOptions := opentracing.FinishOptions{
 		FinishTime: finishTime,
 		LogRecords: logRecords,
+	}
+
+	// Checks if the current test is running parallel to extract the coverage or not
+	if getIsParallel(test.t) {
+		instrumentation.Logger().Printf("CodePath in parallel test is not supported: %v\n", test.t.Name())
+		restoreCoverageCounters()
+	} else {
+		cov := endCoverage()
+		test.span.SetTag(tags.Coverage, *cov)
 	}
 
 	if r := recover(); r != nil {
