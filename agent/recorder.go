@@ -145,7 +145,9 @@ func (r *SpanRecorder) sendSpans() (error, bool) {
 	var lastError error
 	for b := 0; b <= batchLength; b++ {
 		var batch []tracer.RawSpan
+		// We extract the batch of spans to be send
 		if b == batchLength {
+			// If we are in the last batch, we select the remaining spans
 			batch = spans[b*batchSize:]
 		} else {
 			batch = spans[b*batchSize : ((b + 1) * batchSize)]
