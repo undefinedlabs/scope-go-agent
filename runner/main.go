@@ -51,6 +51,9 @@ func GetOriginalTestName(name string) string {
 
 // Runs a test suite
 func Run(m *testing.M, options Options) int {
+	if options.FailRetries == 0 && !options.PanicAsFail {
+		return m.Run()
+	}
 	if options.Logger == nil {
 		options.Logger = log.New(ioutil.Discard, "", 0)
 	}
