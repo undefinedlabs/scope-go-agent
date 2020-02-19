@@ -35,7 +35,7 @@ type (
 		FailRetries int
 		PanicAsFail bool
 		Logger      *log.Logger
-		OnPanic     func(t *testing.T, err error)
+		OnPanic     func(t *testing.T, err interface{})
 	}
 )
 
@@ -53,14 +53,20 @@ func GetOriginalTestName(name string) string {
 
 // Runs a test suite
 func Run(m *testing.M, options Options) int {
-	if options.FailRetries == 0 && !options.PanicAsFail {
-		return m.Run()
-	}
 	if options.Logger == nil {
 		options.Logger = log.New(ioutil.Discard, "", 0)
 	}
 	if options.OnPanic == nil {
-		options.OnPanic = func(t *testing.T, err error) {}
+		options.OnPanic = func(t *testing.T, err interface{}) {}
+	}
+	if options.FailRetries == 0 && !options.PanicAsFail {
+		defer func() {
+			if rc := recover(); rc != nil {
+				options.OnPanic(nil, rc)
+				panic(rc)
+			}
+		}()
+		return m.Run()
 	}
 	runner := &testRunner{
 		m:       m,
