@@ -10,7 +10,6 @@ import (
 	"testing"
 
 	"go.undefinedlabs.com/scopeagent/agent"
-	"go.undefinedlabs.com/scopeagent/env"
 	"go.undefinedlabs.com/scopeagent/instrumentation"
 	"go.undefinedlabs.com/scopeagent/instrumentation/logging"
 	scopetesting "go.undefinedlabs.com/scopeagent/instrumentation/testing"
@@ -37,11 +36,6 @@ func Run(m *testing.M, opts ...agent.Option) int {
 			defaultAgent.Stop()
 		}
 	})
-
-	if !env.ScopeDisableMonkeyPatching.Value {
-		scopetesting.PatchTestingLogger()
-		defer scopetesting.UnpatchTestingLogger()
-	}
 
 	// Handle SIGINT and SIGTERM
 	sigs := make(chan os.Signal, 1)
