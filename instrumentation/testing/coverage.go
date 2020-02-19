@@ -64,13 +64,13 @@ func initCoverage() {
 		pkgData, err := findPkgs(files)
 		if err != nil {
 			pkgData = map[string]*pkg{}
-			instrumentation.Logger().Printf("Coverage error: %v", err)
+			instrumentation.Logger().Printf("coverage error: %v", err)
 		}
 		filePathData = map[string]string{}
 		for key := range cover.Blocks {
 			filePath, err := findFile(pkgData, key)
 			if err != nil {
-				instrumentation.Logger().Printf("Coverage error: %v", err)
+				instrumentation.Logger().Printf("coverage error: %v", err)
 			} else {
 				filePathData[key] = filePath
 			}
