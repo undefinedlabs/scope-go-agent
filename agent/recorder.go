@@ -6,7 +6,6 @@ import (
 	"crypto/x509"
 	"errors"
 	"fmt"
-	"io"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -202,18 +201,19 @@ func (r *SpanRecorder) writeStats() {
 }
 
 // Sends the encoded `payload` to the Scope ingest endpoint
-func (r *SpanRecorder) callIngest(payload io.Reader) (statusCode int, err error) {
-	req, err := http.NewRequest("POST", r.url, payload)
-	if err != nil {
-		return 0, err
-	}
-	req.Header.Set("User-Agent", r.userAgent)
-	req.Header.Set("Content-Type", "application/msgpack")
-	req.Header.Set("Content-Encoding", "gzip")
-	req.Header.Set("X-Scope-ApiKey", r.apiKey)
-
+func (r *SpanRecorder) callIngest(payload *bytes.Buffer) (statusCode int, err error) {
+	payloadBytes := payload.Bytes()
 	var lastError error
 	for i := 0; i <= numOfRetries; i++ {
+		req, err := http.NewRequest("POST", r.url, bytes.NewBuffer(payloadBytes))
+		if err != nil {
+			return 0, err
+		}
+		req.Header.Set("User-Agent", r.userAgent)
+		req.Header.Set("Content-Type", "application/msgpack")
+		req.Header.Set("Content-Encoding", "gzip")
+		req.Header.Set("X-Scope-ApiKey", r.apiKey)
+
 		if r.debugMode {
 			if i == 0 {
 				r.logger.Println("sending payload")
@@ -227,12 +227,12 @@ func (r *SpanRecorder) callIngest(payload io.Reader) (statusCode int, err error)
 			if v, ok := err.(*url.Error); ok {
 				// Don't retry if the error was due to TLS cert verification failure.
 				if _, ok := v.Err.(x509.UnknownAuthorityError); ok {
-					return 0, errors.New(fmt.Sprintf("error: http client returns: %v", err.Error()))
+					return 0, errors.New(fmt.Sprintf("error: http client returns: %s", err.Error()))
 				}
 			}
 
 			lastError = err
-			r.logger.Printf("client error, retrying in %d seconds", retryBackoff/time.Second)
+			r.logger.Printf("client error '%s', retrying in %d seconds", err.Error(), retryBackoff/time.Second)
 			time.Sleep(retryBackoff)
 			atomic.AddInt64(&r.stats.sendSpansRetries, 1)
 			continue
@@ -263,12 +263,15 @@ func (r *SpanRecorder) callIngest(payload io.Reader) (statusCode int, err error)
 		// errors and may relate to outages on the server side. This will catch
 		// invalid response codes as well, like 0 and 999.
 		if statusCode == 0 || (statusCode >= 500 && statusCode != 501) {
-			r.logger.Printf("error: status code: %d, retrying in %d seconds", statusCode, retryBackoff/time.Second)
+			r.logger.Printf("error: [status code: %d], retrying in %d seconds", statusCode, retryBackoff/time.Second)
 			time.Sleep(retryBackoff)
 			atomic.AddInt64(&r.stats.sendSpansRetries, 1)
 			continue
 		}
 
+		if i > 0 {
+			r.logger.Printf("payload was sent successfully after retry.")
+		}
 		break
 	}
 
