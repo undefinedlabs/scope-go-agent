@@ -165,8 +165,7 @@ func (test *Test) end() {
 	if reflection.GetIsParallel(test.t) {
 		instrumentation.Logger().Printf("CodePath in parallel test is not supported: %v\n", test.t.Name())
 		restoreCoverageCounters()
-	} else {
-		cov := endCoverage()
+	} else if cov := endCoverage(); cov != nil {
 		test.span.SetTag(tags.Coverage, *cov)
 	}
 
