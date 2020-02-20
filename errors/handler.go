@@ -119,6 +119,29 @@ func GetCurrentError(recoverData interface{}) *errors.Error {
 	return errors.Wrap(recoverData, 1)
 }
 
+// Gets the current stack frames array
+func GetCurrentStackFrames(skip int) []StackFrames {
+	skip = skip + 1
+	err := errors.New(nil)
+	errStack := err.StackFrames()
+	nLength := len(errStack) - skip
+	if nLength < 0 {
+		return nil
+	}
+	stackFrames := make([]StackFrames, nLength)
+	for idx, frame := range errStack {
+		if idx >= skip {
+			stackFrames[idx-skip] = StackFrames{
+				File:       frame.File,
+				LineNumber: frame.LineNumber,
+				Name:       frame.Name,
+				Package:    frame.Package,
+			}
+		}
+	}
+	return stackFrames
+}
+
 func getExceptionLogFields(eventType string, recoverData interface{}, skipFrames int) []log.Field {
 	if recoverData != nil {
 		err := errors.Wrap(recoverData, 2+skipFrames)
