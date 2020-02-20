@@ -292,10 +292,12 @@ func NewAgent(options ...Option) (*Agent, error) {
 	agent.metadata[tags.Dependencies] = getDependencyMap()
 
 	// Expand '~' in source root
+	var sourceRoot string
 	if sRoot, ok := agent.metadata[tags.SourceRoot]; ok {
 		cSRoot := sRoot.(string)
 		cSRoot = filepath.Clean(cSRoot)
-		if sRootEx, err := homedir.Expand(cSRoot); err == nil {
+		if sRootEx, err := homedir.Expand(sRoot.(string)); err == nil {
+			sourceRoot = sRootEx
 			agent.metadata[tags.SourceRoot] = sRootEx
 		}
 	}
@@ -335,10 +337,11 @@ func NewAgent(options ...Option) (*Agent, error) {
 		},
 		MaxLogsPerSpan: 10000,
 		// Log the error in the current span
-		OnSpanFinishPanic: scopeError.LogErrorInRawSpan,
+		OnSpanFinishPanic: scopeError.WriteExceptionEventInRawSpan,
 	})
 	instrumentation.SetTracer(agent.tracer)
 	instrumentation.SetLogger(agent.logger)
+	instrumentation.SetSourceRoot(sourceRoot)
 	if agent.setGlobalTracer || env.ScopeTracerGlobal.Value {
 		opentracing.SetGlobalTracer(agent.Tracer())
 	}
