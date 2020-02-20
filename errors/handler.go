@@ -3,6 +3,7 @@ package errors
 import (
 	"context"
 	"fmt"
+	"go.undefinedlabs.com/scopeagent/tags"
 	"path"
 	"path/filepath"
 	"strings"
