@@ -19,31 +19,39 @@ var (
 
 func init() {
 	once.Do(func() {
-		var m *testing.M
-		var mRunMethod reflect.Method
-		var ok bool
-		mType := reflect.TypeOf(m)
-		if mRunMethod, ok = mType.MethodByName("Run"); !ok {
-			return
-		}
-
-		var runPatch *mpatch.Patch
-		var err error
-		runPatch, err = mpatch.PatchMethodByReflect(mRunMethod, func(m *testing.M) int {
-			logOnError(runPatch.Unpatch())
-			defer func() {
-				logOnError(runPatch.Patch())
-			}()
-			scopetesting.PatchTestingLogger()
-			defer scopetesting.UnpatchTestingLogger()
-			return scopeagent.Run(m, agent.WithGlobalPanicHandler())
-		})
-		logOnError(err)
+		patchMRun()
+		scopetesting.PatchTRun()
+		scopetesting.PatchBRun()
 	})
 }
 
-func logOnError(err error) {
+func patchMRun() {
+	var m *testing.M
+	var mRunMethod reflect.Method
+	var ok bool
+	mType := reflect.TypeOf(m)
+	if mRunMethod, ok = mType.MethodByName("Run"); !ok {
+		return
+	}
+
+	var runPatch *mpatch.Patch
+	var err error
+	runPatch, err = mpatch.PatchMethodByReflect(mRunMethod, func(m *testing.M) int {
+		logOnError(runPatch.Unpatch())
+		defer func() {
+			logOnError(runPatch.Patch())
+		}()
+		scopetesting.PatchTestingLogger()
+		defer scopetesting.UnpatchTestingLogger()
+		return scopeagent.Run(m, agent.WithGlobalPanicHandler())
+	})
+	logOnError(err)
+}
+
+func logOnError(err error) bool {
 	if err != nil {
 		instrumentation.Logger().Println(err)
+		return true
 	}
+	return false
 }
