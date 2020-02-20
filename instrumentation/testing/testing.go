@@ -161,13 +161,14 @@ func (test *Test) end() {
 		LogRecords: logRecords,
 	}
 
-	// Checks if the current test is running parallel to extract the coverage or not
-	if reflection.GetIsParallel(test.t) {
-		instrumentation.Logger().Printf("CodePath in parallel test is not supported: %v\n", test.t.Name())
-		restoreCoverageCounters()
-	} else {
-		cov := endCoverage()
-		test.span.SetTag(tags.Coverage, *cov)
+	if testing.CoverMode() != "" {
+		// Checks if the current test is running parallel to extract the coverage or not
+		if reflection.GetIsParallel(test.t) {
+			instrumentation.Logger().Printf("CodePath in parallel test is not supported: %v\n", test.t.Name())
+			restoreCoverageCounters()
+		} else if cov := endCoverage(); cov != nil {
+			test.span.SetTag(tags.Coverage, *cov)
+		}
 	}
 
 	if r := recover(); r != nil {

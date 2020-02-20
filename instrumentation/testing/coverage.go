@@ -83,6 +83,9 @@ func initCoverage() {
 func startCoverage() {
 	countersMutex.Lock()
 	defer countersMutex.Unlock()
+	if cover.Mode == "" {
+		return
+	}
 	initCoverage()
 
 	for name, counts := range cover.Counters {
@@ -97,6 +100,9 @@ func startCoverage() {
 func restoreCoverageCounters() {
 	countersMutex.Lock()
 	defer countersMutex.Unlock()
+	if cover.Mode == "" {
+		return
+	}
 	for name, counts := range cover.Counters {
 		for i := range counts {
 			atomic.StoreUint32(&counts[i], counters[name][i]+atomic.LoadUint32(&counts[i]))
@@ -108,6 +114,9 @@ func restoreCoverageCounters() {
 func endCoverage() *coverage {
 	countersMutex.Lock()
 	defer countersMutex.Unlock()
+	if cover.Mode == "" {
+		return nil
+	}
 
 	var covSource = map[string][]*blockWithCount{}
 	for name, counts := range cover.Counters {
