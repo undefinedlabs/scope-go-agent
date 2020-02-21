@@ -46,6 +46,7 @@ type (
 		recorder         *SpanRecorder
 		recorderFilename string
 		flushFrequency   time.Duration
+		concurrencyLevel int
 
 		optionalRecorders []tracer.SpanRecorder
 
@@ -62,8 +63,8 @@ type (
 var (
 	version = "0.1.13-pre5"
 
-	testingModeFrequency    = time.Second
-	nonTestingModeFrequency = time.Minute
+	testingModeFrequency    = time.Duration(env.ScopeTracerDispatcherHealthcheckFrequencyInTestMode.Value) * time.Millisecond
+	nonTestingModeFrequency = time.Duration(env.ScopeTracerDispatcherHealthcheckFrequency.Value) * time.Millisecond
 )
 
 func WithApiKey(apiKey string) Option {
@@ -185,6 +186,7 @@ func NewAgent(options ...Option) (*Agent, error) {
 	agent.userAgent = fmt.Sprintf("scope-agent-go/%s", agent.version)
 	agent.panicAsFail = false
 	agent.failRetriesCount = 0
+	agent.concurrencyLevel = env.ScopeTracerDispatcherConcurrencyLevel.Value
 
 	for _, opt := range options {
 		opt(agent)

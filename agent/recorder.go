@@ -41,9 +41,10 @@ type (
 		payloadSpans  []PayloadSpan
 		payloadEvents []PayloadEvent
 
-		flushFrequency time.Duration
-		url            string
-		client         *http.Client
+		flushFrequency   time.Duration
+		concurrencyLevel int
+		url              string
+		client           *http.Client
 
 		logger    *log.Logger
 		stats     *RecorderStats
@@ -79,9 +80,13 @@ func NewSpanRecorder(agent *Agent) *SpanRecorder {
 	r.metadata = agent.metadata
 	r.logger = agent.logger
 	r.flushFrequency = agent.flushFrequency
+	r.concurrencyLevel = agent.concurrencyLevel
 	r.url = agent.getUrl("api/agent/ingest")
 	r.client = &http.Client{}
 	r.stats = &RecorderStats{}
+
+	r.logger.Printf("recorder frequency: %v", agent.flushFrequency)
+	r.logger.Printf("recorder concurrency level: %v", agent.concurrencyLevel)
 	r.t.Go(r.loop)
 	return r
 }
