@@ -220,7 +220,6 @@ func (test *Test) Helper() {
 func getSourceFileAndNumber() string {
 	var source string
 	if pc, file, line, ok := runtime.Caller(2); ok == true {
-		file = filepath.Clean(file)
 		pcEntry := runtime.FuncForPC(pc).Entry()
 		// Try to detect the patch function
 		if isAPatchPointer(pcEntry) {
@@ -231,6 +230,7 @@ func getSourceFileAndNumber() string {
 			}
 		} else {
 			// If we don't have monkey patching then we skip 2 frames
+			file = filepath.Clean(file)
 			source = fmt.Sprintf("%s:%d", file, line)
 		}
 	}
