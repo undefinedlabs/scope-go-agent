@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/opentracing/opentracing-go/log"
 	"go.undefinedlabs.com/scopeagent/tags"
+	"path/filepath"
 	"runtime"
 )
 
@@ -219,11 +220,13 @@ func (test *Test) Helper() {
 func getSourceFileAndNumber() string {
 	var source string
 	if pc, file, line, ok := runtime.Caller(2); ok == true {
+		file = filepath.Clean(file)
 		pcEntry := runtime.FuncForPC(pc).Entry()
 		// Try to detect the patch function
 		if isAPatchPointer(pcEntry) {
 			// The monkey patching version adds 4 frames to the stack.
 			if _, file, line, ok := runtime.Caller(6); ok == true {
+				file = filepath.Clean(file)
 				source = fmt.Sprintf("%s:%d", file, line)
 			}
 		} else {

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	stdlog "log"
+	"path/filepath"
 	"regexp"
 	"sync"
 	"time"
@@ -167,6 +168,7 @@ func (w *otWriter) storeLogRecord(item *logItem) {
 		log.String(tags.EventMessage, item.message),
 	}
 	if item.file != "" && item.lineNumber != "" {
+		item.file = filepath.Clean(item.file)
 		fields = append(fields, log.String(tags.EventSource, fmt.Sprintf("%s:%s", item.file, item.lineNumber)))
 	}
 	w.logRecords = append(w.logRecords, opentracing.LogRecord{
