@@ -102,6 +102,9 @@ func (r *SpanRecorder) RecordSpan(span tracer.RawSpan) {
 }
 
 func (r *SpanRecorder) loop() error {
+	defer func() {
+		r.logger.Println("recorder has been stopped.")
+	}()
 	ticker := time.NewTicker(1 * time.Second)
 	cTime := time.Now()
 	for {
@@ -142,8 +145,8 @@ func (r *SpanRecorder) sendSpans() (error, bool) {
 	const batchSize = 1000
 	var lastError error
 	for {
-		spans, spMore := r.takePayloadSpan(batchSize)
-		events, evMore := r.takePayloadEvents(batchSize)
+		spans, spMore, spTotal := r.takePayloadSpan(batchSize)
+		events, evMore, evTotal := r.takePayloadEvents(batchSize)
 		if len(spans) == 0 && len(events) == 0 {
 			break
 		}
@@ -168,7 +171,7 @@ func (r *SpanRecorder) sendSpans() (error, bool) {
 			}
 		}
 
-		r.logger.Printf("sending %d spans with %d events", len(spans), len(events))
+		r.logger.Printf("sending %d/%d spans with %d/%d events", len(spans), spTotal, len(events), evTotal)
 		statusCode, err := r.callIngest(buf)
 		if err != nil {
 			atomic.AddInt64(&r.stats.sendSpansKo, 1)
@@ -379,7 +382,7 @@ func (r *SpanRecorder) hasPayloadData() bool {
 }
 
 // Take a number of payload spans from buffer
-func (r *SpanRecorder) takePayloadSpan(count int) ([]PayloadSpan, bool) {
+func (r *SpanRecorder) takePayloadSpan(count int) ([]PayloadSpan, bool, int) {
 	r.Lock()
 	defer r.Unlock()
 	var spans []PayloadSpan
@@ -390,15 +393,15 @@ func (r *SpanRecorder) takePayloadSpan(count int) ([]PayloadSpan, bool) {
 			spans = make([]PayloadSpan, 0)
 		}
 		r.payloadSpans = make([]PayloadSpan, 0)
-		return spans, false
+		return spans, false, length
 	}
 	spans = r.payloadSpans[:count]
 	r.payloadSpans = r.payloadSpans[count:]
-	return spans, true
+	return spans, true, length
 }
 
 // Take a number of payload events from buffer
-func (r *SpanRecorder) takePayloadEvents(count int) ([]PayloadEvent, bool) {
+func (r *SpanRecorder) takePayloadEvents(count int) ([]PayloadEvent, bool, int) {
 	r.Lock()
 	defer r.Unlock()
 	var events []PayloadEvent
@@ -409,11 +412,11 @@ func (r *SpanRecorder) takePayloadEvents(count int) ([]PayloadEvent, bool) {
 			events = make([]PayloadEvent, 0)
 		}
 		r.payloadEvents = make([]PayloadEvent, 0)
-		return events, false
+		return events, false, length
 	}
 	events = r.payloadEvents[:count]
 	r.payloadEvents = r.payloadEvents[count:]
-	return events, true
+	return events, true, length
 }
 
 // Adds a span to the buffer
