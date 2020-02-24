@@ -38,7 +38,8 @@ type (
 		debugMode   bool
 		metadata    map[string]interface{}
 
-		spans []tracer.RawSpan
+		payloadSpans  []PayloadSpan
+		payloadEvents []PayloadEvent
 
 		flushFrequency time.Duration
 		url            string
@@ -62,6 +63,9 @@ type (
 		testSpansNotSent  int64
 		testSpansRejected int64
 	}
+
+	PayloadSpan  map[string]interface{}
+	PayloadEvent map[string]interface{}
 )
 
 func NewSpanRecorder(agent *Agent) *SpanRecorder {
@@ -94,7 +98,7 @@ func (r *SpanRecorder) RecordSpan(span tracer.RawSpan) {
 		r.logger.Printf("a span has been received but the recorder is not running")
 		return
 	}
-	r.addSpan(span)
+	r.addPayloadComponents(span)
 }
 
 func (r *SpanRecorder) loop() error {
@@ -103,10 +107,10 @@ func (r *SpanRecorder) loop() error {
 	for {
 		select {
 		case <-ticker.C:
-			hasSpans := r.hasSpans()
-			if hasSpans || time.Now().Sub(cTime) >= r.getFlushFrequency() {
+			hasPayloadData := r.hasPayloadData()
+			if hasPayloadData || time.Now().Sub(cTime) >= r.getFlushFrequency() {
 				if r.debugMode {
-					if hasSpans {
+					if hasPayloadData {
 						r.logger.Println("Ticker: Sending by buffer")
 					} else {
 						r.logger.Println("Ticker: Sending by time")
@@ -135,26 +139,21 @@ func (r *SpanRecorder) loop() error {
 // Sends the spans in the buffer to Scope
 func (r *SpanRecorder) sendSpans() (error, bool) {
 	atomic.AddInt64(&r.stats.sendSpansCalls, 1)
-	spans := r.popSpans()
-
 	const batchSize = 1000
-	batchLength := len(spans) / batchSize
-
-	r.logger.Printf("sending %d spans in %d batches", len(spans), batchLength+1)
-
 	var lastError error
-	for b := 0; b <= batchLength; b++ {
-		var batch []tracer.RawSpan
-		// We extract the batch of spans to be send
-		if b == batchLength {
-			// If we are in the last batch, we select the remaining spans
-			batch = spans[b*batchSize:]
-		} else {
-			batch = spans[b*batchSize : ((b + 1) * batchSize)]
+	for {
+		spans, spMore := r.takePayloadSpan(batchSize)
+		events, evMore := r.takePayloadEvents(batchSize)
+		if len(spans) == 0 && len(events) == 0 {
+			break
 		}
 
-		payload := r.getPayload(batch)
-
+		payload := map[string]interface{}{
+			"metadata":   r.metadata,
+			"spans":      spans,
+			"events":     events,
+			tags.AgentID: r.agentId,
+		}
 		buf, err := encodePayload(payload)
 		if err != nil {
 			atomic.AddInt64(&r.stats.sendSpansKo, 1)
@@ -163,15 +162,13 @@ func (r *SpanRecorder) sendSpans() (error, bool) {
 		}
 
 		var testSpans int64
-		for _, span := range batch {
-			if isTestSpan(span) {
+		for _, span := range spans {
+			if isTestPayloadSpan(span) {
 				testSpans++
 			}
 		}
 
-		if batchLength > 0 {
-			r.logger.Printf("sending batch %d with %d spans", b+1, len(batch))
-		}
+		r.logger.Printf("sending %d spans with %d events", len(spans), len(events))
 		statusCode, err := r.callIngest(buf)
 		if err != nil {
 			atomic.AddInt64(&r.stats.sendSpansKo, 1)
@@ -186,6 +183,10 @@ func (r *SpanRecorder) sendSpans() (error, bool) {
 			return err, true
 		}
 		lastError = err
+
+		if !spMore && !evMore {
+			break
+		}
 	}
 	return lastError, false
 }
@@ -302,53 +303,45 @@ func (r *SpanRecorder) callIngest(payload *bytes.Buffer) (statusCode int, err er
 	return statusCode, lastError
 }
 
-// Combines `rawSpans` and `metadata` into a payload that the Scope backend can process
-func (r *SpanRecorder) getPayload(rawSpans []tracer.RawSpan) map[string]interface{} {
-	spans := []map[string]interface{}{}
-	events := []map[string]interface{}{}
-	for _, span := range rawSpans {
-		var parentSpanID string
-		if span.ParentSpanID != 0 {
-			parentSpanID = fmt.Sprintf("%x", span.ParentSpanID)
+// Get payload components
+func (r *SpanRecorder) getPayloadComponents(span tracer.RawSpan) (PayloadSpan, []PayloadEvent) {
+	events := make([]PayloadEvent, 0)
+	var parentSpanID string
+	if span.ParentSpanID != 0 {
+		parentSpanID = fmt.Sprintf("%x", span.ParentSpanID)
+	}
+	payloadSpan := PayloadSpan{
+		"context": map[string]interface{}{
+			"trace_id": fmt.Sprintf("%x", span.Context.TraceID),
+			"span_id":  fmt.Sprintf("%x", span.Context.SpanID),
+			"baggage":  span.Context.Baggage,
+		},
+		"parent_span_id": parentSpanID,
+		"operation":      span.Operation,
+		"start":          r.applyNTPOffset(span.Start).Format(time.RFC3339Nano),
+		"duration":       span.Duration.Nanoseconds(),
+		"tags":           span.Tags,
+	}
+	for _, event := range span.Logs {
+		var fields = make(map[string]interface{})
+		for _, field := range event.Fields {
+			fields[field.Key()] = field.Value()
 		}
-		spans = append(spans, map[string]interface{}{
+		eventId, err := uuid.NewRandom()
+		if err != nil {
+			panic(err)
+		}
+		events = append(events, PayloadEvent{
 			"context": map[string]interface{}{
 				"trace_id": fmt.Sprintf("%x", span.Context.TraceID),
 				"span_id":  fmt.Sprintf("%x", span.Context.SpanID),
-				"baggage":  span.Context.Baggage,
+				"event_id": eventId.String(),
 			},
-			"parent_span_id": parentSpanID,
-			"operation":      span.Operation,
-			"start":          r.applyNTPOffset(span.Start).Format(time.RFC3339Nano),
-			"duration":       span.Duration.Nanoseconds(),
-			"tags":           span.Tags,
+			"timestamp": r.applyNTPOffset(event.Timestamp).Format(time.RFC3339Nano),
+			"fields":    fields,
 		})
-		for _, event := range span.Logs {
-			var fields = make(map[string]interface{})
-			for _, field := range event.Fields {
-				fields[field.Key()] = field.Value()
-			}
-			eventId, err := uuid.NewRandom()
-			if err != nil {
-				panic(err)
-			}
-			events = append(events, map[string]interface{}{
-				"context": map[string]interface{}{
-					"trace_id": fmt.Sprintf("%x", span.Context.TraceID),
-					"span_id":  fmt.Sprintf("%x", span.Context.SpanID),
-					"event_id": eventId.String(),
-				},
-				"timestamp": r.applyNTPOffset(event.Timestamp).Format(time.RFC3339Nano),
-				"fields":    fields,
-			})
-		}
 	}
-	return map[string]interface{}{
-		"metadata":   r.metadata,
-		"spans":      spans,
-		"events":     events,
-		tags.AgentID: r.agentId,
-	}
+	return payloadSpan, events
 }
 
 // Encodes `payload` using msgpack and compress it with gzip
@@ -379,26 +372,58 @@ func (r *SpanRecorder) getFlushFrequency() time.Duration {
 }
 
 // Gets if there any span available to be send
-func (r *SpanRecorder) hasSpans() bool {
+func (r *SpanRecorder) hasPayloadData() bool {
 	r.RLock()
 	defer r.RUnlock()
-	return len(r.spans) > 0
+	return len(r.payloadSpans) > 0 || len(r.payloadEvents) > 0
 }
 
-// Gets the spans to be send and clears the buffer
-func (r *SpanRecorder) popSpans() []tracer.RawSpan {
+// Take a number of payload spans from buffer
+func (r *SpanRecorder) takePayloadSpan(count int) ([]PayloadSpan, bool) {
 	r.Lock()
 	defer r.Unlock()
-	spans := r.spans
-	r.spans = nil
-	return spans
+	var spans []PayloadSpan
+	length := len(r.payloadSpans)
+	if length <= count || count == -1 {
+		spans = r.payloadSpans
+		if spans == nil {
+			spans = make([]PayloadSpan, 0)
+		}
+		r.payloadSpans = make([]PayloadSpan, 0)
+		return spans, false
+	}
+	spans = r.payloadSpans[:count]
+	r.payloadSpans = r.payloadSpans[count:]
+	return spans, true
+}
+
+// Take a number of payload events from buffer
+func (r *SpanRecorder) takePayloadEvents(count int) ([]PayloadEvent, bool) {
+	r.Lock()
+	defer r.Unlock()
+	var events []PayloadEvent
+	length := len(r.payloadEvents)
+	if length <= count || count == -1 {
+		events = r.payloadEvents
+		if events == nil {
+			events = make([]PayloadEvent, 0)
+		}
+		r.payloadEvents = make([]PayloadEvent, 0)
+		return events, false
+	}
+	events = r.payloadEvents[:count]
+	r.payloadEvents = r.payloadEvents[count:]
+	return events, true
 }
 
 // Adds a span to the buffer
-func (r *SpanRecorder) addSpan(span tracer.RawSpan) {
+func (r *SpanRecorder) addPayloadComponents(span tracer.RawSpan) {
 	r.Lock()
 	defer r.Unlock()
-	r.spans = append(r.spans, span)
+	payloadSpan, payloadEvents := r.getPayloadComponents(span)
+	r.payloadSpans = append(r.payloadSpans, payloadSpan)
+	r.payloadEvents = append(r.payloadEvents, payloadEvents...)
+
 	atomic.AddInt64(&r.stats.totalSpans, 1)
 	if isTestSpan(span) {
 		atomic.AddInt64(&r.stats.totalTestSpans, 1)
@@ -407,4 +432,8 @@ func (r *SpanRecorder) addSpan(span tracer.RawSpan) {
 
 func isTestSpan(span tracer.RawSpan) bool {
 	return span.Tags["span.kind"] == "test"
+}
+
+func isTestPayloadSpan(span PayloadSpan) bool {
+	return span["span.kind"] == "test"
 }
