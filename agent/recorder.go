@@ -3,6 +3,7 @@ package agent
 import (
 	"bytes"
 	"compress/gzip"
+	"context"
 	"crypto/x509"
 	"errors"
 	"fmt"
@@ -16,6 +17,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/vmihailenco/msgpack"
+	"golang.org/x/sync/semaphore"
 	"gopkg.in/tomb.v2"
 
 	"go.undefinedlabs.com/scopeagent/tags"
@@ -45,6 +47,7 @@ type (
 		concurrencyLevel int
 		url              string
 		client           *http.Client
+		s                *semaphore.Weighted
 
 		logger    *log.Logger
 		stats     *RecorderStats
@@ -84,7 +87,7 @@ func NewSpanRecorder(agent *Agent) *SpanRecorder {
 	r.url = agent.getUrl("api/agent/ingest")
 	r.client = &http.Client{}
 	r.stats = &RecorderStats{}
-
+	r.s = semaphore.NewWeighted(int64(r.concurrencyLevel))
 	r.logger.Printf("recorder frequency: %v", agent.flushFrequency)
 	r.logger.Printf("recorder concurrency level: %v", agent.concurrencyLevel)
 	r.t.Go(r.loop)
@@ -146,48 +149,91 @@ func (r *SpanRecorder) loop() error {
 
 // Sends the spans in the buffer to Scope
 func (r *SpanRecorder) sendSpans() (error, bool) {
+	defer func() {
+		// We acquire all to ensure all previous go routines has finished before leaving this function
+		if r.s.Acquire(context.Background(), int64(r.concurrencyLevel)) == nil {
+			r.s.Release(int64(r.concurrencyLevel))
+		}
+	}()
 	atomic.AddInt64(&r.stats.sendSpansCalls, 1)
 	const batchSize = 1000
+
+	// Local mutex to synchronize go routines and avoid race conditions in lastError var
+	var lastErrorMutex sync.Mutex
 	var lastError error
+	getLastError := func() error {
+		lastErrorMutex.Lock()
+		defer lastErrorMutex.Unlock()
+		return lastError
+	}
+	setLastError := func(err error) {
+		lastErrorMutex.Lock()
+		defer lastErrorMutex.Unlock()
+		lastError = err
+	}
+
+	var shouldCancel int32
+
 	for {
 		spans, spMore, spTotal := r.popPayloadSpan(batchSize)
 		events, evMore, evTotal := r.popPayloadEvents(batchSize)
 
-		payload := map[string]interface{}{
-			"metadata":   r.metadata,
-			"spans":      spans,
-			"events":     events,
-			tags.AgentID: r.agentId,
-		}
-		buf, err := encodePayload(payload)
+		// We acquire one concurrency slot, if the concurrency level has been reached, we wait until a release
+		err := r.s.Acquire(context.Background(), 1)
 		if err != nil {
 			atomic.AddInt64(&r.stats.sendSpansKo, 1)
 			atomic.AddInt64(&r.stats.spansNotSent, int64(len(spans)))
 			return err, false
 		}
+		// If we had acquire then a previous go routine has finished, we check if the shouldCancel has been set from previous goroutines
+		if atomic.LoadInt32(&shouldCancel) > 0 {
+			return getLastError(), true
+		}
 
-		var testSpans int64
-		for _, span := range spans {
-			if isTestSpan(span) {
-				testSpans++
+		go func(sp []PayloadSpan, ev []PayloadEvent, spTotalCount, evTotalCount int) {
+			defer r.s.Release(1)
+			payload := map[string]interface{}{
+				"metadata":   r.metadata,
+				"spans":      sp,
+				"events":     ev,
+				tags.AgentID: r.agentId,
 			}
-		}
+			buf, err := encodePayload(payload)
+			if err != nil {
+				atomic.AddInt64(&r.stats.sendSpansKo, 1)
+				atomic.AddInt64(&r.stats.spansNotSent, int64(len(sp)))
+				setLastError(err)
+				return
+			}
+			var testSpans int64
+			for _, span := range sp {
+				if isTestSpan(span) {
+					testSpans++
+				}
+			}
 
-		r.logger.Printf("sending %d/%d spans with %d/%d events", len(spans), spTotal, len(events), evTotal)
-		statusCode, err := r.callIngest(buf)
-		if err != nil {
-			atomic.AddInt64(&r.stats.sendSpansKo, 1)
-			atomic.AddInt64(&r.stats.spansNotSent, int64(len(spans)))
-			atomic.AddInt64(&r.stats.testSpansNotSent, testSpans)
-		} else {
-			atomic.AddInt64(&r.stats.sendSpansOk, 1)
-			atomic.AddInt64(&r.stats.spansSent, int64(len(spans)))
-			atomic.AddInt64(&r.stats.testSpansSent, testSpans)
-		}
-		if statusCode == 401 {
-			return err, true
-		}
-		lastError = err
+			if len(sp) == 0 && len(ev) == 0 {
+				r.logger.Print("sending health check")
+			} else {
+				r.logger.Printf("sending %d/%d spans with %d/%d events", len(sp), spTotalCount, len(ev), evTotalCount)
+			}
+			statusCode, err := r.callIngest(buf)
+			if err != nil {
+				atomic.AddInt64(&r.stats.sendSpansKo, 1)
+				atomic.AddInt64(&r.stats.spansNotSent, int64(len(spans)))
+				atomic.AddInt64(&r.stats.testSpansNotSent, testSpans)
+				setLastError(err)
+			} else {
+				atomic.AddInt64(&r.stats.sendSpansOk, 1)
+				atomic.AddInt64(&r.stats.spansSent, int64(len(spans)))
+				atomic.AddInt64(&r.stats.testSpansSent, testSpans)
+			}
+			if statusCode == 401 {
+				atomic.AddInt32(&shouldCancel, 1)
+				return
+			}
+
+		}(spans, events, spTotal, evTotal)
 
 		if !spMore && !evMore {
 			break
