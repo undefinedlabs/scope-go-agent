@@ -2,9 +2,7 @@ package testing
 
 import (
 	"context"
-	"fmt"
 	"math"
-	"path"
 	"regexp"
 	"runtime"
 	"strings"
@@ -14,7 +12,6 @@ import (
 
 	"github.com/opentracing/opentracing-go"
 
-	"go.undefinedlabs.com/scopeagent/ast"
 	"go.undefinedlabs.com/scopeagent/instrumentation"
 	"go.undefinedlabs.com/scopeagent/reflection"
 	"go.undefinedlabs.com/scopeagent/runner"
@@ -89,10 +86,10 @@ func startBenchmark(b *testing.B, pc uintptr, benchFunc func(b *testing.B)) {
 	if bChild == nil {
 		return
 	}
-	if getBenchmarkHasSub(bChild) > 0 {
+	if reflection.GetBenchmarkHasSub(bChild) > 0 {
 		return
 	}
-	results, err := extractBenchmarkResult(bChild)
+	results, err := reflection.GetBenchmarkResult(bChild)
 	if err != nil {
 		instrumentation.Logger().Printf("Error while extracting the benchmark result object: %v\n", err)
 		return
@@ -103,7 +100,7 @@ func startBenchmark(b *testing.B, pc uintptr, benchFunc func(b *testing.B)) {
 	fullTestName := runner.GetOriginalTestName(b.Name())
 
 	// We detect if the parent benchmark is instrumented, and if so we remove the "*" SubBenchmark from the previous instrumentation
-	parentBenchmark := getParentBenchmark(b)
+	parentBenchmark := reflection.GetParentBenchmark(b)
 	if parentBenchmark != nil && hasBenchmark(parentBenchmark) {
 		var nameSegments []string
 		for _, match := range benchmarkNameRegex.FindAllStringSubmatch(fullTestName, -1) {
@@ -113,30 +110,11 @@ func startBenchmark(b *testing.B, pc uintptr, benchFunc func(b *testing.B)) {
 		}
 		fullTestName = strings.Join(nameSegments, "/")
 	}
-
-	testNameSlash := strings.IndexByte(fullTestName, '/')
-	funcName := fullTestName
-	if testNameSlash >= 0 {
-		funcName = fullTestName[:testNameSlash]
-	}
-	packageName := getBenchmarkSuiteName(b)
+	packageName := reflection.GetBenchmarkSuiteName(b)
 	if packageName == "" {
-		funcFullName := runtime.FuncForPC(pc).Name()
-		funcNameIndex := strings.LastIndex(funcFullName, funcName)
-		if funcNameIndex < 1 {
-			funcNameIndex = len(funcFullName)
-		}
-		packageName = funcFullName[:funcNameIndex-1]
-		if len(packageName) > 0 && packageName[0] == '_' && strings.Index(packageName, sourceRoot) != -1 {
-			packageName = strings.Replace(packageName, path.Dir(sourceRoot)+"/", "", -1)[1:]
-		}
+		packageName = getPackageName(pc, fullTestName)
 	}
-
-	sourceBounds, _ := ast.GetFuncSourceForName(pc, funcName)
-	var testCode string
-	if sourceBounds != nil {
-		testCode = fmt.Sprintf("%s:%d:%d", sourceBounds.File, sourceBounds.Start.Line, sourceBounds.End.Line)
-	}
+	testCode := getTestCodeBoundaries(pc, fullTestName)
 
 	var startOptions []opentracing.StartSpanOption
 	startOptions = append(startOptions, opentracing.Tags{
@@ -164,34 +142,4 @@ func startBenchmark(b *testing.B, pc uintptr, benchFunc func(b *testing.B)) {
 	span.FinishWithOptions(opentracing.FinishOptions{
 		FinishTime: startTime.Add(results.T),
 	})
-}
-
-func getParentBenchmark(b *testing.B) *testing.B {
-	if ptr, err := reflection.GetFieldPointerOf(b, "parent"); err == nil {
-		return *(**testing.B)(ptr)
-	}
-	return nil
-}
-
-func getBenchmarkSuiteName(b *testing.B) string {
-	if ptr, err := reflection.GetFieldPointerOf(b, "importPath"); err == nil {
-		return *(*string)(ptr)
-	}
-	return ""
-}
-
-func getBenchmarkHasSub(b *testing.B) int32 {
-	if ptr, err := reflection.GetFieldPointerOf(b, "hasSub"); err == nil {
-		return *(*int32)(ptr)
-	}
-	return 0
-}
-
-//Extract benchmark result from the private result field in testing.B
-func extractBenchmarkResult(b *testing.B) (*testing.BenchmarkResult, error) {
-	if ptr, err := reflection.GetFieldPointerOf(b, "result"); err == nil {
-		return (*testing.BenchmarkResult)(ptr), nil
-	} else {
-		return nil, err
-	}
 }
