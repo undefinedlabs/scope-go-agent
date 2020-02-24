@@ -27,7 +27,7 @@ func getPackageName(pc uintptr, fullName string) string {
 	// Full func name (format ex: {packageName}.{test/benchmark name}.{inner function of sub benchmark/test}
 	funcFullName := runtime.FuncForPC(pc).Name()
 
-	// We select the packageName as the index of the test/benchmark name minus 1
+	// We select the packageName as substring from start to the index of the test/benchmark name minus 1
 	funcNameIndex := strings.LastIndex(funcFullName, funcName)
 	if funcNameIndex < 1 {
 		funcNameIndex = len(funcFullName)
