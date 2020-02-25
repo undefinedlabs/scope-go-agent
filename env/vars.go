@@ -17,6 +17,7 @@ var (
 	ScopeTestingMode                      = newBooleanEnvVar(false, "SCOPE_TESTING_MODE")
 	ScopeTestingFailRetries               = newIntEnvVar(0, "SCOPE_TESTING_FAIL_RETRIES")
 	ScopeTestingPanicAsFail               = newBooleanEnvVar(false, "SCOPE_TESTING_PANIC_AS_FAIL")
+	ScopeTestingDisableParallel           = newBooleanEnvVar(false, "SCOPE_TESTING_DISABLE_PARALLEL")
 	ScopeConfiguration                    = newSliceEnvVar([]string{tags.PlatformName, tags.PlatformArchitecture, tags.GoVersion}, "SCOPE_CONFIGURATION")
 	ScopeMetadata                         = newMapEnvVar(nil, "SCOPE_METADATA")
 	ScopeInstrumentationHttpPayloads      = newBooleanEnvVar(false, "SCOPE_INSTRUMENTATION_HTTP_PAYLOADS")

@@ -8,6 +8,7 @@ import (
 	"github.com/undefinedlabs/go-mpatch"
 
 	"go.undefinedlabs.com/scopeagent"
+	"go.undefinedlabs.com/scopeagent/env"
 	"go.undefinedlabs.com/scopeagent/instrumentation"
 	scopetesting "go.undefinedlabs.com/scopeagent/instrumentation/testing"
 )
@@ -37,6 +38,18 @@ func init() {
 			defer scopetesting.UnpatchTestingLogger()
 			return scopeagent.Run(m)
 		})
+		logOnError(err)
+
+		if !env.ScopeTestingDisableParallel.Value {
+			return
+		}
+		var t *testing.T
+		var tParallelMethod reflect.Method
+		tType := reflect.TypeOf(t)
+		if tParallelMethod, ok = tType.MethodByName("Parallel"); !ok {
+			return
+		}
+		_, err = mpatch.PatchMethodByReflect(tParallelMethod, func(t *testing.T) {})
 		logOnError(err)
 	})
 }
