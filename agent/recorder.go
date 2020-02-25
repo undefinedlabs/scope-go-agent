@@ -147,9 +147,6 @@ func (r *SpanRecorder) sendSpans() (error, bool) {
 	for {
 		spans, spMore, spTotal := r.takePayloadSpan(batchSize)
 		events, evMore, evTotal := r.takePayloadEvents(batchSize)
-		if len(spans) == 0 && len(events) == 0 {
-			break
-		}
 
 		payload := map[string]interface{}{
 			"metadata":   r.metadata,
