@@ -392,7 +392,7 @@ func (r *SpanRecorder) takePayloadSpan(count int) ([]PayloadSpan, bool, int) {
 		if spans == nil {
 			spans = make([]PayloadSpan, 0)
 		}
-		r.payloadSpans = make([]PayloadSpan, 0)
+		r.payloadSpans = nil
 		return spans, false, length
 	}
 	spans = r.payloadSpans[:count]
@@ -411,7 +411,7 @@ func (r *SpanRecorder) takePayloadEvents(count int) ([]PayloadEvent, bool, int) 
 		if events == nil {
 			events = make([]PayloadEvent, 0)
 		}
-		r.payloadEvents = make([]PayloadEvent, 0)
+		r.payloadEvents = nil
 		return events, false, length
 	}
 	events = r.payloadEvents[:count]
