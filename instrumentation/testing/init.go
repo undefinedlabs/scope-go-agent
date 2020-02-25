@@ -31,6 +31,9 @@ func Init(m *testing.M) {
 			tests = append(tests, testing.InternalTest{
 				Name: test.Name,
 				F: func(t *testing.T) { // Creating a new test function as an indirection of the original test
+					if shouldSkipTest(t, funcPointer) {
+						return
+					}
 					addAutoInstrumentedTest(t)
 					tStruct := StartTestFromCaller(t, funcPointer)
 					defer tStruct.end()

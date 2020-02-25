@@ -16,6 +16,7 @@ import (
 	"go.undefinedlabs.com/scopeagent/errors"
 	"go.undefinedlabs.com/scopeagent/instrumentation"
 	"go.undefinedlabs.com/scopeagent/instrumentation/logging"
+	"go.undefinedlabs.com/scopeagent/instrumentation/testing/config"
 	"go.undefinedlabs.com/scopeagent/reflection"
 	"go.undefinedlabs.com/scopeagent/runner"
 	"go.undefinedlabs.com/scopeagent/tags"
@@ -134,11 +135,19 @@ func (test *Test) Context() context.Context {
 
 // Runs an auto instrumented sub test
 func (test *Test) Run(name string, f func(t *testing.T)) bool {
-	if test.span == nil { // No span = not instrumented
-		return test.t.Run(name, f)
-	}
 	pc, _, _, _ := runtime.Caller(1)
+	if test.span == nil { // No span = not instrumented
+		return test.t.Run(name, func(cT *testing.T) {
+			if shouldSkipTest(cT, pc) {
+				return
+			}
+			f(cT)
+		})
+	}
 	return test.t.Run(name, func(childT *testing.T) {
+		if shouldSkipTest(childT, pc) {
+			return
+		}
 		addAutoInstrumentedTest(childT)
 		childTest := StartTestFromCaller(childT, pc)
 		defer childTest.end()
@@ -278,4 +287,29 @@ func addAutoInstrumentedTest(t *testing.T) {
 	autoInstrumentedTestsMutex.Lock()
 	defer autoInstrumentedTestsMutex.Unlock()
 	autoInstrumentedTests[t] = true
+}
+
+// Should skip test
+func shouldSkipTest(t *testing.T, pc uintptr) bool {
+	fullTestName := runner.GetOriginalTestName(t.Name())
+	testNameSlash := strings.IndexByte(fullTestName, '/')
+	funcName := fullTestName
+	if testNameSlash >= 0 {
+		funcName = fullTestName[:testNameSlash]
+	}
+
+	funcFullName := runtime.FuncForPC(pc).Name()
+	funcNameIndex := strings.LastIndex(funcFullName, funcName)
+	if funcNameIndex < 1 {
+		funcNameIndex = len(funcFullName)
+	}
+	packageName := funcFullName[:funcNameIndex-1]
+
+	fqn := fmt.Sprintf("%s.%s", packageName, fullTestName)
+	skipMap := config.GetSkipMap()
+	if _, ok := skipMap[fqn]; ok {
+		reflection.SkipAndFinishTest(t)
+		return true
+	}
+	return false
 }
