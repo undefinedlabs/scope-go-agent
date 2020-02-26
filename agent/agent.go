@@ -424,7 +424,7 @@ func getLogPath() (string, error) {
 	if logFolder != "" {
 		if _, err := os.Stat(logFolder); err == nil {
 			return logFolder, nil
-		} else if os.IsNotExist(err) && os.Mkdir(logFolder, os.ModeDir) == nil {
+		} else if os.IsNotExist(err) && os.Mkdir(logFolder, 0755) == nil {
 			return logFolder, nil
 		}
 	}
@@ -433,7 +433,7 @@ func getLogPath() (string, error) {
 	logFolder = path.Join(os.TempDir(), "scope")
 	if _, err := os.Stat(logFolder); err == nil {
 		return logFolder, nil
-	} else if os.IsNotExist(err) && os.Mkdir(logFolder, os.ModeDir) == nil {
+	} else if os.IsNotExist(err) && os.Mkdir(logFolder, 0755) == nil {
 		return logFolder, nil
 	} else {
 		return "", err
