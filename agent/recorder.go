@@ -493,4 +493,3 @@ func (r *SpanRecorder) addSpan(span tracer.RawSpan) {
 func isTestSpan(tags map[string]interface{}) bool {
 	return tags["span.kind"] == "test"
 }
-
