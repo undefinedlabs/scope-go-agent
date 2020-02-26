@@ -17,6 +17,13 @@ func WithPayloadInstrumentation() Option {
 	}
 }
 
+// Enables stacktrace
+func WithStacktrace() Option {
+	return func(t *Transport) {
+		t.Stacktrace = true
+	}
+}
+
 // Patches the default http client with the instrumented transport
 func PatchHttpDefaultClient(options ...Option) {
 	once.Do(func() {
@@ -25,6 +32,7 @@ func PatchHttpDefaultClient(options ...Option) {
 			option(transport)
 		}
 		transport.PayloadInstrumentation = transport.PayloadInstrumentation || env.ScopeInstrumentationHttpPayloads.Value
+		transport.Stacktrace = transport.Stacktrace || env.ScopeInstrumentationHttpStacktrace.Value
 		http.DefaultClient = &http.Client{Transport: transport}
 	})
 }

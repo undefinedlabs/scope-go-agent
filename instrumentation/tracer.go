@@ -8,8 +8,9 @@ import (
 )
 
 var (
-	tracer opentracing.Tracer = opentracing.NoopTracer{}
-	logger                    = log.New(ioutil.Discard, "", 0)
+	tracer     opentracing.Tracer = opentracing.NoopTracer{}
+	logger                        = log.New(ioutil.Discard, "", 0)
+	sourceRoot                    = ""
 
 	m sync.RWMutex
 )
@@ -40,4 +41,18 @@ func Logger() *log.Logger {
 	defer m.RUnlock()
 
 	return logger
+}
+
+func SetSourceRoot(root string) {
+	m.Lock()
+	defer m.Unlock()
+
+	sourceRoot = root
+}
+
+func GetSourceRoot() string {
+	m.RLock()
+	defer m.RUnlock()
+
+	return sourceRoot
 }

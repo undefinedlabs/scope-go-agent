@@ -5,11 +5,14 @@ import (
 	"database/sql/driver"
 	"errors"
 	"fmt"
-	"github.com/opentracing/opentracing-go"
-	"go.undefinedlabs.com/scopeagent/env"
-	"go.undefinedlabs.com/scopeagent/instrumentation"
 	"reflect"
 	"strings"
+
+	"github.com/opentracing/opentracing-go"
+
+	"go.undefinedlabs.com/scopeagent/env"
+	scopeerrors "go.undefinedlabs.com/scopeagent/errors"
+	"go.undefinedlabs.com/scopeagent/instrumentation"
 )
 
 type (
@@ -22,6 +25,7 @@ type (
 	driverConfiguration struct {
 		t               opentracing.Tracer
 		statementValues bool
+		stacktrace      bool
 		connString      string
 		componentName   string
 		peerService     string
@@ -41,6 +45,13 @@ func WithStatementValues() Option {
 	}
 }
 
+// Enable span stacktrace
+func WithStacktrace() Option {
+	return func(d *instrumentedDriver) {
+		d.configuration.stacktrace = true
+	}
+}
+
 // Wraps the current sql driver to add instrumentation
 func WrapDriver(d driver.Driver, options ...Option) driver.Driver {
 	wrapper := &instrumentedDriver{
@@ -54,6 +65,7 @@ func WrapDriver(d driver.Driver, options ...Option) driver.Driver {
 		option(wrapper)
 	}
 	wrapper.configuration.statementValues = wrapper.configuration.statementValues || env.ScopeInstrumentationDbStatementValues.Value
+	wrapper.configuration.stacktrace = wrapper.configuration.stacktrace || env.ScopeInstrumentationDbStacktrace.Value
 	return wrapper
 }
 
@@ -106,6 +118,11 @@ func (t *driverConfiguration) newSpan(operationName string, query string, args [
 		"db.instance":   c.instance,
 		"peer.hostname": c.host,
 	})
+	if t.stacktrace {
+		opts = append(opts, opentracing.Tags{
+			"stacktrace": scopeerrors.GetCurrentStackTrace(2),
+		})
+	}
 	if query != "" {
 		stIndex := strings.IndexRune(query, ' ')
 		var method string

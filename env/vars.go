@@ -20,5 +20,7 @@ var (
 	ScopeConfiguration                    = newSliceEnvVar([]string{tags.PlatformName, tags.PlatformArchitecture, tags.GoVersion}, "SCOPE_CONFIGURATION")
 	ScopeMetadata                         = newMapEnvVar(nil, "SCOPE_METADATA")
 	ScopeInstrumentationHttpPayloads      = newBooleanEnvVar(false, "SCOPE_INSTRUMENTATION_HTTP_PAYLOADS")
+	ScopeInstrumentationHttpStacktrace    = newBooleanEnvVar(false, "SCOPE_INSTRUMENTATION_HTTP_STACKTRACE")
 	ScopeInstrumentationDbStatementValues = newBooleanEnvVar(false, "SCOPE_INSTRUMENTATION_DB_STATEMENT_VALUES")
+	ScopeInstrumentationDbStacktrace      = newBooleanEnvVar(false, "SCOPE_INSTRUMENTATION_DB_STACKTRACE")
 )
