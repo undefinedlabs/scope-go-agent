@@ -28,13 +28,14 @@ type (
 		sync.RWMutex
 		t tomb.Tomb
 
-		agentId     string
-		apiKey      string
-		apiEndpoint string
-		version     string
-		userAgent   string
-		debugMode   bool
-		metadata    map[string]interface{}
+		agentId      string
+		apiKey       string
+		apiEndpoint  string
+		version      string
+		userAgent    string
+		debugMode    bool
+		metadata     map[string]interface{}
+		metadataOnce sync.Once
 
 		payloadSpans  []PayloadSpan
 		payloadEvents []PayloadEvent
@@ -147,11 +148,16 @@ func (r *SpanRecorder) sendSpans() (error, bool) {
 		events, evMore, evTotal := r.popPayloadEvents(batchSize)
 
 		payload := map[string]interface{}{
-			"metadata":   r.metadata,
 			"spans":      spans,
 			"events":     events,
 			tags.AgentID: r.agentId,
 		}
+
+		// We send the metadata only in the first payload
+		r.metadataOnce.Do(func() {
+			payload["metadata"] = r.metadata
+		})
+
 		buf, err := msgPackEncodePayload(payload)
 		if err != nil {
 			atomic.AddInt64(&r.stats.sendSpansKo, 1)
