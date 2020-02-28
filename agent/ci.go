@@ -102,6 +102,8 @@ func getCIMetadata() map[string]interface{} {
 		)
 		ciMetadata[tags.Commit] = sha
 		ciMetadata[tags.SourceRoot] = os.Getenv("GITHUB_WORKSPACE")
+		ciMetadata[tags.CIBuildId] = os.Getenv("GITHUB_RUN_ID")
+		ciMetadata[tags.CIBuildNumber] = os.Getenv("GITHUB_RUN_NUMBER")
 	} else if _, set := os.LookupEnv("TEAMCITY_VERSION"); set {
 		buildId := os.Getenv("BUILD_ID")
 		ciMetadata[tags.CI] = true
