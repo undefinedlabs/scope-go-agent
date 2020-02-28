@@ -15,6 +15,7 @@ type (
 		Configuration   []string               `yaml:"configuration" env:"SCOPE_CONFIGURATION" default:"platform.name, platform.architecture, go.version"`
 		TestingMode     *bool                  `yaml:"testing_mode" env:"SCOPE_TESTING_MODE" default:"false"`
 		Instrumentation InstrumentationConfig  `yaml:"instrumentation"`
+		Tracer          TracerConfig           `yaml:"tracer"`
 		Debug           *bool                  `env:"SCOPE_DEBUG" default:"false"`
 	}
 	LoggerConfig struct {
