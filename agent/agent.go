@@ -19,6 +19,7 @@ import (
 	"github.com/mitchellh/go-homedir"
 	"github.com/opentracing/opentracing-go"
 
+	"go.undefinedlabs.com/scopeagent/config"
 	"go.undefinedlabs.com/scopeagent/env"
 	scopeError "go.undefinedlabs.com/scopeagent/errors"
 	"go.undefinedlabs.com/scopeagent/instrumentation"
@@ -362,6 +363,9 @@ func NewAgent(options ...Option) (*Agent, error) {
 	instrumentation.SetTracer(agent.tracer)
 	instrumentation.SetLogger(agent.logger)
 	instrumentation.SetSourceRoot(sourceRoot)
+	if err := config.Load(path.Join(sourceRoot, "scope.yml")); err != nil {
+		agent.logger.Println(err)
+	}
 	if agent.setGlobalTracer || env.ScopeTracerGlobal.Value {
 		opentracing.SetGlobalTracer(agent.Tracer())
 	}
