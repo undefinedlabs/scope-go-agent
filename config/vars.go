@@ -3,12 +3,14 @@ package config
 import (
 	"errors"
 	"fmt"
-	"github.com/undefinedlabs/go-env"
-	"gopkg.in/yaml.v2"
 	"io/ioutil"
 	"os"
 	"path/filepath"
 	"sync"
+
+	"gopkg.in/yaml.v2"
+
+	"github.com/undefinedlabs/go-env"
 )
 
 var (
