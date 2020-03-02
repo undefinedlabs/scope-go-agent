@@ -1,30 +1,32 @@
-package reflection
+package reflection_test
 
 import (
-	"fmt"
 	"sync/atomic"
 	"testing"
 	"time"
+
+	_ "go.undefinedlabs.com/scopeagent/autoinstrument"
+	"go.undefinedlabs.com/scopeagent/reflection"
 )
 
 func TestPanicHandler(t *testing.T) {
 	var panicHandlerVisit int32
 
-	AddPanicHandler(func(e interface{}) {
-		fmt.Println("PANIC HANDLER FOR:", e)
+	reflection.AddPanicHandler(func(e interface{}) {
+		t.Log("PANIC HANDLER FOR:", e)
 		atomic.AddInt32(&panicHandlerVisit, 1)
 	})
 
-	t.Run("OnPanic", func(t *testing.T) {
+	t.Run("OnPanic", func(t2 *testing.T) {
 		go func() {
 
 			defer func() {
 				if r := recover(); r != nil {
-					fmt.Println("PANIC RECOVERED")
+					t.Log("PANIC RECOVERED")
 				}
 			}()
 
-			fmt.Println("PANICKING!")
+			t.Log("PANICKING!")
 			panic("Panic error")
 
 		}()
