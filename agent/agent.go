@@ -393,6 +393,15 @@ func (a *Agent) Stop() {
 	a.PrintReport()
 }
 
+// Flush agent buffer
+func (a *Agent) Flush() {
+	a.logger.Println("Flushing agent buffer...")
+	err := a.recorder.Flush()
+	if err != nil {
+		a.logger.Println(err)
+	}
+}
+
 func generateAgentID() string {
 	agentId, err := uuid.NewRandom()
 	if err != nil {

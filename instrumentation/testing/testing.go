@@ -246,6 +246,29 @@ func GetTest(t *testing.T) *Test {
 	}
 }
 
+// Fails and write panic on running tests
+// Use this only if the process is going to crash
+func PanicAllRunningTests(e interface{}, skip int) {
+	autoInstrumentedTestsMutex.Lock()
+	defer autoInstrumentedTestsMutex.Unlock()
+
+	// We copy the testMap because v.end() locks
+	testMapMutex.RLock()
+	tmp := map[*testing.T]*Test{}
+	for k, v := range testMap {
+		tmp[k] = v
+	}
+	testMapMutex.RUnlock()
+
+	for _, v := range tmp {
+		delete(autoInstrumentedTests, v.t)
+		v.t.Fail()
+		v.span.SetTag("error", true)
+		errors.LogError(v.span, e, 1+skip)
+		v.end()
+	}
+}
+
 // Adds an auto instrumented test to the map
 func addAutoInstrumentedTest(t *testing.T) {
 	autoInstrumentedTestsMutex.Lock()
