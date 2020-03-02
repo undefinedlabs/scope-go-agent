@@ -2,16 +2,17 @@ package reflection
 
 import (
 	"fmt"
+	"sync/atomic"
 	"testing"
 	"time"
 )
 
 func TestPanicHandler(t *testing.T) {
-	panicHandlerVisit := 0
+	var panicHandlerVisit int32
 
 	AddPanicHandler(func(e interface{}) {
 		fmt.Println("PANIC HANDLER FOR:", e)
-		panicHandlerVisit++
+		atomic.AddInt32(&panicHandlerVisit, 1)
 	})
 
 	t.Run("OnPanic", func(t *testing.T) {
@@ -31,7 +32,7 @@ func TestPanicHandler(t *testing.T) {
 		time.Sleep(1 * time.Second)
 	})
 
-	if panicHandlerVisit != 1 {
+	if atomic.LoadInt32(&panicHandlerVisit) != 1 {
 		t.Fatalf("panic handler should be executed once.")
 	}
 }
