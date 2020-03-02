@@ -4,7 +4,7 @@ type (
 	ScopeConfig struct {
 		Dsn             *string                `env:"SCOPE_DSN"`
 		ApiKey          *string                `env:"SCOPE_APIKEY"`
-		ApiEndpoint     *string                `env:"SCOPE_API_ENDPOINT" default:"https://app.scope.dev"`
+		ApiEndpoint     *string                `env:"SCOPE_API_ENDPOINT"`
 		Service         *string                `yaml:"service" env:"SCOPE_SERVICE" default:"default"`
 		Repository      *string                `yaml:"repository" env:"SCOPE_REPOSITORY"`
 		CommitSha       *string                `yaml:"commit_sha" env:"SCOPE_COMMIT_SHA"`
@@ -17,12 +17,13 @@ type (
 		Instrumentation InstrumentationConfig  `yaml:"instrumentation"`
 		Tracer          TracerConfig           `yaml:"tracer"`
 		Debug           *bool                  `env:"SCOPE_DEBUG" default:"false"`
+		ConfigPath      *string
+		LoadError       error
 	}
 	LoggerConfig struct {
 		Root *string `yaml:"root" env:"SCOPE_LOGGER_ROOT, SCOPE_LOG_ROOT_PATH"`
 	}
 	InstrumentationConfig struct {
-		Enabled         *bool                                `yaml:"enabled" env:"SCOPE_INSTRUMENTATION_ENABLED" default:"true"`
 		DiffSummary     *bool                                `yaml:"diff_summary" env:"SCOPE_INSTRUMENTATION_DIFF_SUMMARY" default:"true"`
 		TestsFrameworks InstrumentationTestsFrameworksConfig `yaml:"tests_frameworks"`
 		DB              InstrumentationDatabaseConfig        `yaml:"db"`
@@ -35,11 +36,13 @@ type (
 	}
 	InstrumentationDatabaseConfig struct {
 		StatementValues *bool `yaml:"statement_values" env:"SCOPE_INSTRUMENTATION_DB_STATEMENT_VALUES" default:"false"`
+		Stacktrace *bool `yaml:"stacktrace" env:"SCOPE_INSTRUMENTATION_DB_STACKTRACE" default:"false"`
 	}
 	InstrumentationHttpConfig struct {
 		Client   *bool    `yaml:"client" env:"SCOPE_INSTRUMENTATION_HTTP_CLIENT" default:"true"`
 		Server   *bool    `yaml:"server" env:"SCOPE_INSTRUMENTATION_HTTP_SERVER" default:"true"`
 		Payloads *bool    `yaml:"payloads" env:"SCOPE_INSTRUMENTATION_HTTP_PAYLOADS" default:"false"`
+		Stacktrace *bool `yaml:"stacktrace" env:"SCOPE_INSTRUMENTATION_HTTP_STACKTRACE" default:"false"`
 		Headers  []string `yaml:"headers" env:"SCOPE_INSTRUMENTATION_HTTP_HEADERS"`
 	}
 	InstrumentationLoggerConfig struct {

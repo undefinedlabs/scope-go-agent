@@ -12,6 +12,7 @@ import (
 	"testing"
 
 	"go.undefinedlabs.com/scopeagent/agent"
+	"go.undefinedlabs.com/scopeagent/config"
 	"go.undefinedlabs.com/scopeagent/instrumentation"
 	"go.undefinedlabs.com/scopeagent/instrumentation/logging"
 	scopetesting "go.undefinedlabs.com/scopeagent/instrumentation/testing"
@@ -21,6 +22,7 @@ var (
 	defaultAgent *agent.Agent
 	runningMutex sync.RWMutex
 	running      bool
+	cfg          = config.Get()
 )
 
 // Helper function to run a `testing.M` object and gracefully stopping the agent afterwards
@@ -38,7 +40,15 @@ func Run(m *testing.M, opts ...agent.Option) int {
 		return res
 	}
 
-	logging.PatchStandardLogger()
+	if cfg.Instrumentation.Logger.StandardLogger != nil && *cfg.Instrumentation.Logger.StandardLogger {
+		logging.PatchStandardLogger()
+	}
+	if cfg.Instrumentation.Logger.StandardOutput != nil && *cfg.Instrumentation.Logger.StandardOutput {
+		logging.PatchStdOut()
+	}
+	if cfg.Instrumentation.Logger.StandardError != nil && *cfg.Instrumentation.Logger.StandardError {
+		logging.PatchStdErr()
+	}
 
 	scopetesting.Init(m)
 

@@ -11,7 +11,6 @@ import (
 	"github.com/opentracing/opentracing-go"
 	"github.com/opentracing/opentracing-go/ext"
 
-	"go.undefinedlabs.com/scopeagent/env"
 	"go.undefinedlabs.com/scopeagent/errors"
 	"go.undefinedlabs.com/scopeagent/instrumentation"
 )
@@ -122,9 +121,9 @@ func middlewareFunc(tr opentracing.Tracer, h http.HandlerFunc, options ...MWOpti
 	for _, opt := range options {
 		opt(&opts)
 	}
-	opts.payloadInstrumentation = opts.payloadInstrumentation || env.ScopeInstrumentationHttpPayloads.Value
+	opts.payloadInstrumentation = opts.payloadInstrumentation || (cfg.Instrumentation.Http.Payloads != nil && *cfg.Instrumentation.Http.Payloads)
 	fn := func(w http.ResponseWriter, r *http.Request) {
-		if !opts.spanFilter(r) {
+		if !opts.spanFilter(r) || (cfg.Instrumentation.Http.Server != nil && !*cfg.Instrumentation.Http.Server) {
 			h(w, r)
 			return
 		}

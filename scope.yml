@@ -1,19 +1,18 @@
-service: 'service-name'                                           #SCOPE_SERVICE
+#service: 'service-name'                                           #SCOPE_SERVICE
 #logger:
 #  root: '/home/user/projects/scope/log'                           #SCOPE_LOGGER_ROOT
 metadata:                                                         #SCOPE_METADATA
   sample.key1: $SAMPLE_VAR1
-  sample.key2: $SAMPLE_VAR2
+  sample.key2: $PATH
   sample.key3: sampleValue3
-configuration:                                                    #SCOPE_CONFIGURATION
-  - sample.key1
-  - sample.key2
-  - sample.key3
+#configuration:                                                    #SCOPE_CONFIGURATION
+#  - sample.key1
+#  - sample.key2
+#  - sample.key3
 instrumentation:
-  enabled: true                                                   #SCOPE_INSTRUMENTATION_ENABLED
   diff_summary: true                                              #SCOPE_INSTRUMENTATION_DIFF_SUMMARY
   tests_frameworks:
-    fail_retries: 5                                               #SCOPE_INSTRUMENTATION_TESTS_FRAMEWORKS_FAIL_RETRIES
+    fail_retries: 4                                               #SCOPE_INSTRUMENTATION_TESTS_FRAMEWORKS_FAIL_RETRIES
     panic_as_fail: true                                           #SCOPE_INSTRUMENTATION_TESTS_FRAMEWORKS_PANIC_AS_FAIL
   db:
     statement_values: true                                        #SCOPE_INSTRUMENTATION_DB_STATEMENT_VALUES
@@ -27,8 +26,8 @@ instrumentation:
       - My-Header-Two
   logger:
     standard_logger: true                                         #SCOPE_INSTRUMENTATION_LOGGER_STANDARD_LOGGER
-    standard_output: true                                         #SCOPE_INSTRUMENTATION_LOGGER_STANDARD_OUTPUT
-    standard_error: true                                          #SCOPE_INSTRUMENTATION_LOGGER_STANDARD_ERROR
+    standard_output: false                                        #SCOPE_INSTRUMENTATION_LOGGER_STANDARD_OUTPUT
+    standard_error: false                                         #SCOPE_INSTRUMENTATION_LOGGER_STANDARD_ERROR
 tracer:
   global: true                                                    #SCOPE_TRACER_GLOBAL
   dispatcher:

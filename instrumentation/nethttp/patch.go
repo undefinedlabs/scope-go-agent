@@ -1,7 +1,6 @@
 package nethttp
 
 import (
-	"go.undefinedlabs.com/scopeagent/env"
 	"net/http"
 	"sync"
 )
@@ -31,8 +30,8 @@ func PatchHttpDefaultClient(options ...Option) {
 		for _, option := range options {
 			option(transport)
 		}
-		transport.PayloadInstrumentation = transport.PayloadInstrumentation || env.ScopeInstrumentationHttpPayloads.Value
-		transport.Stacktrace = transport.Stacktrace || env.ScopeInstrumentationHttpStacktrace.Value
+		transport.PayloadInstrumentation = transport.PayloadInstrumentation || (cfg.Instrumentation.Http.Payloads != nil && *cfg.Instrumentation.Http.Payloads)
+		transport.Stacktrace = transport.Stacktrace || (cfg.Instrumentation.Http.Stacktrace != nil && *cfg.Instrumentation.Http.Stacktrace)
 		http.DefaultClient = &http.Client{Transport: transport}
 	})
 }

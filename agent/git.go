@@ -13,7 +13,6 @@ import (
 	"strings"
 
 	"github.com/google/uuid"
-	"go.undefinedlabs.com/scopeagent/env"
 	"go.undefinedlabs.com/scopeagent/tags"
 )
 
@@ -163,6 +162,10 @@ func getGitFolder() (string, error) {
 }
 
 func getGitDiff() *GitDiff {
+	if cfg.Instrumentation.DiffSummary != nil && !*cfg.Instrumentation.DiffSummary {
+		return nil
+	}
+
 	var diff string
 	if diffBytes, err := exec.Command("git", "diff", "--numstat").Output(); err == nil {
 		diff = string(diffBytes)
@@ -229,20 +232,20 @@ func getGitInfoFromGitFolder() map[string]interface{} {
 func getGitInfoFromEnv() map[string]interface{} {
 	gitInfo := map[string]interface{}{}
 
-	if repository, set := env.ScopeRepository.Tuple(); set && repository != "" {
-		gitInfo[tags.Repository] = repository
+	if cfg.Repository != nil && *cfg.Repository != "" {
+		gitInfo[tags.Repository] = *cfg.Repository
 	}
-	if commit, set := env.ScopeCommitSha.Tuple(); set && commit != "" {
-		gitInfo[tags.Commit] = commit
+	if cfg.CommitSha != nil && *cfg.CommitSha != "" {
+		gitInfo[tags.Commit] = *cfg.CommitSha
 	}
-	if sourceRoot, set := env.ScopeSourceRoot.Tuple(); set && sourceRoot != "" {
+	if cfg.SourceRoot != nil && *cfg.SourceRoot != "" {
 		// We check if is a valid and existing folder
-		if fInfo, err := os.Stat(sourceRoot); err == nil && fInfo.IsDir() {
-			gitInfo[tags.SourceRoot] = sourceRoot
+		if fInfo, err := os.Stat(*cfg.SourceRoot); err == nil && fInfo.IsDir() {
+			gitInfo[tags.SourceRoot] = *cfg.SourceRoot
 		}
 	}
-	if branch, set := env.ScopeBranch.Tuple(); set && branch != "" {
-		gitInfo[tags.Branch] = branch
+	if cfg.Branch != nil && *cfg.Branch != "" {
+		gitInfo[tags.Branch] = *cfg.Branch
 	}
 
 	return gitInfo
