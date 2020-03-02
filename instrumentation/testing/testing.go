@@ -163,7 +163,7 @@ func (test *Test) end() {
 
 	if testing.CoverMode() != "" {
 		// Checks if the current test is running parallel to extract the coverage or not
-		if reflection.GetIsParallel(test.t) {
+		if reflection.GetIsParallel(test.t) && parallel > 1 {
 			instrumentation.Logger().Printf("CodePath in parallel test is not supported: %v\n", test.t.Name())
 			restoreCoverageCounters()
 		} else if cov := endCoverage(); cov != nil {

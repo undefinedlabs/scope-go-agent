@@ -1,14 +1,27 @@
 package testing
 
 import (
+	"flag"
 	"reflect"
 	"testing"
 
+	"go.undefinedlabs.com/scopeagent/instrumentation"
 	"go.undefinedlabs.com/scopeagent/reflection"
+)
+
+var (
+	parallel int
 )
 
 // Initialize the testing instrumentation
 func Init(m *testing.M) {
+	flag.Parse()
+	fPtr := flag.Lookup("test.parallel")
+	if fPtr != nil {
+		parallel = (*fPtr).Value.(flag.Getter).Get().(int)
+		instrumentation.Logger().Println("parallel flag set to:", parallel)
+	}
+
 	if tPointer, err := reflection.GetFieldPointerOf(m, "tests"); err == nil {
 		intTests := (*[]testing.InternalTest)(tPointer)
 		tests := make([]testing.InternalTest, 0)
