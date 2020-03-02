@@ -13,7 +13,7 @@ require (
 	github.com/opentracing/basictracer-go v1.0.0
 	github.com/opentracing/opentracing-go v1.1.0
 	github.com/stretchr/testify v1.5.1
-	github.com/undefinedlabs/go-env v0.0.0-20200228171926-13a0450a15a5
+	github.com/undefinedlabs/go-env v0.0.0-20200302090545-7716d204149a
 	github.com/undefinedlabs/go-mpatch v0.0.0-20200326085307-1a86426f42a6
 	github.com/vmihailenco/msgpack v4.0.4+incompatible
 	golang.org/x/net v0.0.0-20200301022130-244492dfa37a
