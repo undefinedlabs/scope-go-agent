@@ -1,6 +1,7 @@
 package nethttp
 
 import (
+	"bufio"
 	"bytes"
 	"context"
 	"io"
@@ -15,6 +16,7 @@ import (
 	"github.com/opentracing/opentracing-go/log"
 
 	"go.undefinedlabs.com/scopeagent/instrumentation"
+	"go.undefinedlabs.com/scopeagent/reflection"
 )
 
 type contextKey int
@@ -223,16 +225,34 @@ func (t *Transport) doRoundTrip(req *http.Request) (*http.Response, error) {
 // Gets the request payload
 func getRequestPayload(req *http.Request, bufferSize int) string {
 	var rqPayload string
-	if req != nil && req.Body != nil && req.Body != http.NoBody && req.GetBody != nil {
-		rqBody, rqErr := req.GetBody()
+	if req != nil && req.Body != nil && req.Body != http.NoBody {
+		getBody := req.GetBody
+		if getBody == nil {
+			if ptr, err := reflection.GetFieldPointerOf(req.Body, "src"); err == nil {
+				reader := *(*io.Reader)(ptr)
+				if limReader, ok := reader.(*io.LimitedReader); ok {
+					if bufReader, ok := limReader.R.(*bufio.Reader); ok {
+						size := bufReader.Buffered()
+						if size < bufferSize {
+							bufferSize = size
+						}
+						rqBodyBuffer, err := bufReader.Peek(bufferSize)
+						if err == nil {
+							return string(bytes.Runes(rqBodyBuffer))
+						}
+					}
+				}
+			}
+			return ""
+		}
+		rqBody, rqErr := getBody()
 		if rqErr == nil {
 			rqBodyBuffer := make([]byte, bufferSize)
 			if len, err := rqBody.Read(rqBodyBuffer); err == nil && len > 0 {
 				if len < bufferSize {
 					rqBodyBuffer = rqBodyBuffer[:len]
 				}
-				rqRunes := bytes.Runes(rqBodyBuffer)
-				rqPayload = string(rqRunes)
+				rqPayload = string(bytes.Runes(rqBodyBuffer))
 			}
 		}
 	}
