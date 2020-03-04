@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"compress/gzip"
 	"crypto/x509"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io/ioutil"
@@ -15,7 +16,6 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/vmihailenco/msgpack"
 	"gopkg.in/tomb.v2"
 
 	"go.undefinedlabs.com/scopeagent/tags"
@@ -231,7 +231,7 @@ func (r *SpanRecorder) callIngest(payload *bytes.Buffer) (statusCode int, err er
 			return 0, err
 		}
 		req.Header.Set("User-Agent", r.userAgent)
-		req.Header.Set("Content-Type", "application/msgpack")
+		req.Header.Set("Content-Type", "application/json")
 		req.Header.Set("Content-Encoding", "gzip")
 		req.Header.Set("X-Scope-ApiKey", r.apiKey)
 
@@ -353,7 +353,7 @@ func (r *SpanRecorder) getPayload(rawSpans []tracer.RawSpan) map[string]interfac
 
 // Encodes `payload` using msgpack and compress it with gzip
 func encodePayload(payload map[string]interface{}) (*bytes.Buffer, error) {
-	binaryPayload, err := msgpack.Marshal(payload)
+	binaryPayload, err := json.Marshal(payload)
 	if err != nil {
 		return nil, err
 	}
