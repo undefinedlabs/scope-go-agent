@@ -31,20 +31,3 @@ func getNTPOffset() (time.Duration, error) {
 	}
 	return 0, ntpError
 }
-
-// Applies the NTP offset to the given time
-func (r *SpanRecorder) applyNTPOffset(t time.Time) time.Time {
-	once.Do(func() {
-		if r.debugMode {
-			r.logger.Println("calculating ntp offset.")
-		}
-		offset, err := getNTPOffset()
-		if err == nil {
-			ntpOffset = offset
-			r.logger.Printf("ntp offset: %v\n", ntpOffset)
-		} else {
-			r.logger.Printf("error calculating the ntp offset: %v\n", err)
-		}
-	})
-	return t.Add(ntpOffset)
-}

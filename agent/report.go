@@ -7,18 +7,19 @@ import (
 
 func (a *Agent) PrintReport() {
 	a.printReportOnce.Do(func() {
-		if a.testingMode && a.recorder.stats.totalTestSpans > 0 {
+		stats := a.recorder.Stats()
+		if a.testingMode && stats.HasTests() {
 			fmt.Printf("\n** Scope Test Report **\n")
-			if a.recorder.stats.testSpansNotSent == 0 && a.recorder.stats.testSpansRejected == 0 {
+			if !stats.HasTestsNotSent() && !stats.HasTestRejected() {
 				fmt.Println("Access the detailed test report for this build at:")
 				fmt.Printf("   %s\n\n", a.getUrl(fmt.Sprintf("external/v1/results/%s", a.agentId)))
 			} else {
 				if !a.debugMode {
 					a.logMetadata()
 				}
-				a.recorder.writeStats()
+				stats.Write()
 				fmt.Println("There was a problem sending data to Scope.")
-				if a.recorder.stats.testSpansSent > 0 {
+				if stats.HasTestSent() {
 					fmt.Println("Partial results for this build are available at:")
 					fmt.Printf("   %s\n\n", a.getUrl(fmt.Sprintf("external/v1/results/%s", a.agentId)))
 				}

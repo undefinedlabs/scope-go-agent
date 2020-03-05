@@ -45,7 +45,7 @@ type (
 		panicAsFail      bool
 		failRetriesCount int
 
-		recorder         *SpanRecorder
+		recorder         ScopeSpanRecorder
 		recorderFilename string
 		flushFrequency   time.Duration
 
@@ -343,7 +343,7 @@ func NewAgent(options ...Option) (*Agent, error) {
 	if agent.testingMode {
 		agent.flushFrequency = testingModeFrequency
 	}
-	agent.recorder = NewSpanRecorder(agent)
+	agent.recorder = NewScopeSpanRecorder(agent)
 	var recorder tracer.SpanRecorder = agent.recorder
 	if agent.optionalRecorders != nil {
 		recorders := append(agent.optionalRecorders, agent.recorder)
