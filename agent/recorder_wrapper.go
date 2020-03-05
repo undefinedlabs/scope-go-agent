@@ -82,6 +82,7 @@ func newWrapperSpanRecorder(agent *Agent) ScopeSpanRecorder {
 }
 
 func (r *wrapperSpanRecorder) RecordSpan(span tracer.RawSpan) {
+	atomic.AddInt64(&r.stats.sendSpansCalls, 1)
 	atomic.AddInt64(&r.stats.totalSpans, 1)
 	isTest := isTestSpan(span)
 	if isTest {
