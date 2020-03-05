@@ -137,7 +137,7 @@ func (r *wrapperSpanRecorder) sendOk(isTest bool) {
 }
 
 func (r *wrapperSpanRecorder) Stop() {
-
+	r.stats.Write()
 }
 
 func (r *wrapperSpanRecorder) Stats() RecorderStats {
