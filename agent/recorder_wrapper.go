@@ -63,7 +63,7 @@ var transport http.RoundTripper = &http.Transport{
 	TLSHandshakeTimeout: 10 * time.Second,
 }
 
-func newWrapperSpanRecorder(agent *Agent) ScopeSpanRecorder {
+func newWrapperSpanRecorder(agent *Agent, unixSocket bool) ScopeSpanRecorder {
 	r := new(wrapperSpanRecorder)
 	r.agentId = agent.agentId
 	r.apiEndpoint = agent.apiEndpoint
@@ -73,9 +73,16 @@ func newWrapperSpanRecorder(agent *Agent) ScopeSpanRecorder {
 	r.debugMode = agent.debugMode
 	r.metadata = agent.metadata
 	r.logger = agent.logger
-	r.url = "http://unix/api/agent/ingest"
-	r.client = &http.Client{
-		Transport: transport,
+	if unixSocket {
+		r.logger.Println("wrapper recorder using unix sockets:", os.Getenv("SCOPE_CLI_UNIX_SOCKET"))
+		r.url = "http://unix/api/agent/ingest"
+		r.client = &http.Client{
+			Transport: transport,
+		}
+	} else {
+		r.logger.Println("wrapper recorder using tcp:", os.Getenv("SCOPE_CLI_TCP"))
+		r.url = strings.Replace(os.Getenv("SCOPE_CLI_TCP"), "tcp", "http", -1) + "/api/agent/ingest"
+		r.client = &http.Client{}
 	}
 	r.stats = &recorderStats{logger: r.logger}
 	return r
