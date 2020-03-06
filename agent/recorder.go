@@ -53,10 +53,10 @@ type (
 )
 
 func NewScopeSpanRecorder(agent *Agent) ScopeSpanRecorder {
-	if _, ok := os.LookupEnv("SCOPE_CLI_UNIX_SOCKET"); ok {
+	if val, ok := os.LookupEnv("SCOPE_CLI_UNIX_SOCKET"); ok && val != ""{
 		return newWrapperSpanRecorder(agent, true)
 	}
-	if _, ok := os.LookupEnv("SCOPE_CLI_TCP"); ok {
+	if val, ok := os.LookupEnv("SCOPE_CLI_TCP"); ok && val != "" {
 		return newWrapperSpanRecorder(agent, false)
 	}
 	return newInProcSpanRecorder(agent)
