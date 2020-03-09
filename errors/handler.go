@@ -49,9 +49,8 @@ func WriteExceptionEventInRawSpan(rawSpan *tracer.RawSpan, err **errors.Error) {
 	if rawSpan.Tags == nil {
 		rawSpan.Tags = opentracing.Tags{}
 	}
-	if *err == markSpanAsError {
-		rawSpan.Tags["error"] = true
-	} else {
+	rawSpan.Tags["error"] = true
+	if *err != markSpanAsError {
 		var exceptionFields = getExceptionLogFields("error", *err, 1)
 		if rawSpan.Logs == nil {
 			rawSpan.Logs = []opentracing.LogRecord{}
