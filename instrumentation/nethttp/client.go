@@ -227,6 +227,7 @@ func getRequestPayload(req *http.Request, bufferSize int) string {
 	var rqPayload string
 	if req != nil && req.Body != nil && req.Body != http.NoBody {
 		if req.GetBody == nil {
+			// GetBody is nil in server requests
 			return getBodyPayload(req.Body, bufferSize)
 		}
 		rqBody, rqErr := req.GetBody()
