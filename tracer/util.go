@@ -22,5 +22,9 @@ func randomID() uint64 {
 func randomID2() (uuid.UUID, uint64) {
 	seededIDLock.Lock()
 	defer seededIDLock.Unlock()
-	return uuid.New(), uint64(seededIDGen.Int63())
+	rndBytes := make([]byte, 8)
+	seededIDGen.Read(rndBytes)
+	uuidBytes := append(make([]byte, 8), rndBytes...)
+	tid, _ := uuid.FromBytes(uuidBytes)
+	return tid, uint64(seededIDGen.Int63())
 }
