@@ -45,7 +45,7 @@ func (p *textMapPropagator) Inject(
 		return opentracing.ErrInvalidCarrier
 	}
 
-	traceId := strings.ReplaceAll(sc.TraceID.String(), "-", "")
+	traceId := strings.Replace(sc.TraceID.String(), "-", "", -1)
 
 	carrier.Set(fieldNameTraceID, traceId)
 	carrier.Set(fieldNameSpanID, strconv.FormatUint(sc.SpanID, 16))
