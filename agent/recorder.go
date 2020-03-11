@@ -220,12 +220,12 @@ func (r *SpanRecorder) sendSpans() (error, bool) {
 			statusCode, err := r.callIngest(buf)
 			if err != nil {
 				atomic.AddInt64(&r.stats.sendSpansKo, 1)
-				atomic.AddInt64(&r.stats.spansNotSent, int64(len(spans)))
+				atomic.AddInt64(&r.stats.spansNotSent, int64(len(sp)))
 				atomic.AddInt64(&r.stats.testSpansNotSent, testSpans)
 				setLastError(err)
 			} else {
 				atomic.AddInt64(&r.stats.sendSpansOk, 1)
-				atomic.AddInt64(&r.stats.spansSent, int64(len(spans)))
+				atomic.AddInt64(&r.stats.spansSent, int64(len(sp)))
 				atomic.AddInt64(&r.stats.testSpansSent, testSpans)
 			}
 			if statusCode == 401 {
