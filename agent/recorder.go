@@ -38,8 +38,10 @@ type (
 		debugMode   bool
 		metadata    map[string]interface{}
 
-		payloadSpans  []PayloadSpan
-		payloadEvents []PayloadEvent
+		payloadSpans        []PayloadSpan
+		payloadEvents       []PayloadEvent
+		maxSpansPerPayload  int
+		maxEventsPerPayload int
 
 		flushFrequency time.Duration
 		url            string
@@ -82,6 +84,16 @@ func NewSpanRecorder(agent *Agent) *SpanRecorder {
 	r.url = agent.getUrl("api/agent/ingest")
 	r.client = &http.Client{}
 	r.stats = &RecorderStats{}
+	if cfg.Tracer.Dispatcher.Events.MaxPayloadSize != nil {
+		r.maxEventsPerPayload = *cfg.Tracer.Dispatcher.Events.MaxPayloadSize
+	} else {
+		r.maxEventsPerPayload = 1000
+	}
+	if cfg.Tracer.Dispatcher.Spans.MaxPayloadSize != nil {
+		r.maxSpansPerPayload = *cfg.Tracer.Dispatcher.Spans.MaxPayloadSize
+	} else {
+		r.maxSpansPerPayload = 1000
+	}
 	r.t.Go(r.loop)
 	return r
 }
@@ -142,11 +154,10 @@ func (r *SpanRecorder) loop() error {
 // Sends the spans in the buffer to Scope
 func (r *SpanRecorder) sendSpans() (error, bool) {
 	atomic.AddInt64(&r.stats.sendSpansCalls, 1)
-	const batchSize = 1000
 	var lastError error
 	for {
-		spans, spMore, spTotal := r.popPayloadSpan(batchSize)
-		events, evMore, evTotal := r.popPayloadEvents(batchSize)
+		spans, spMore, spTotal := r.popPayloadSpan(r.maxSpansPerPayload)
+		events, evMore, evTotal := r.popPayloadEvents(r.maxEventsPerPayload)
 
 		payload := map[string]interface{}{
 			"metadata":   r.metadata,

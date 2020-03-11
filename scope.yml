@@ -35,6 +35,6 @@ tracer:
     healthcheck_frecuency_in_testmode: 1000                       #SCOPE_TRACER_DISPATCHER_HEALTHCHECK_FRECUENCY_IN_TESTMODE
     concurrency_level: 5                                          #SCOPE_TRACER_DISPATCHER_CONCURRENCY_LEVEL
     spans:
-      max_payload_size: -1                                        #SCOPE_TRACER_DISPATCHER_SPANS_MAX_PAYLOAD_SIZE
+      max_payload_size: 1000                                      #SCOPE_TRACER_DISPATCHER_SPANS_MAX_PAYLOAD_SIZE
     events:
-      max_payload_size: -1                                        #SCOPE_TRACER_DISPATCHER_EVENTS_MAX_PAYLOAD_SIZE
+      max_payload_size: 1000                                      #SCOPE_TRACER_DISPATCHER_EVENTS_MAX_PAYLOAD_SIZE
