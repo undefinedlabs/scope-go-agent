@@ -145,8 +145,8 @@ func (r *SpanRecorder) sendSpans() (error, bool) {
 	const batchSize = 1000
 	var lastError error
 	for {
-		spans, spMore, spTotal := r.takePayloadSpan(batchSize)
-		events, evMore, evTotal := r.takePayloadEvents(batchSize)
+		spans, spMore, spTotal := r.popPayloadSpan(batchSize)
+		events, evMore, evTotal := r.popPayloadEvents(batchSize)
 
 		payload := map[string]interface{}{
 			"metadata":   r.metadata,
@@ -378,8 +378,8 @@ func (r *SpanRecorder) hasPayloadData() bool {
 	return len(r.payloadSpans) > 0 || len(r.payloadEvents) > 0
 }
 
-// Take a number of payload spans from buffer
-func (r *SpanRecorder) takePayloadSpan(count int) ([]PayloadSpan, bool, int) {
+// Gets a number of payload spans from buffer
+func (r *SpanRecorder) popPayloadSpan(count int) ([]PayloadSpan, bool, int) {
 	r.Lock()
 	defer r.Unlock()
 	var spans []PayloadSpan
@@ -397,8 +397,8 @@ func (r *SpanRecorder) takePayloadSpan(count int) ([]PayloadSpan, bool, int) {
 	return spans, true, length
 }
 
-// Take a number of payload events from buffer
-func (r *SpanRecorder) takePayloadEvents(count int) ([]PayloadEvent, bool, int) {
+// Gets a number of payload events from buffer
+func (r *SpanRecorder) popPayloadEvents(count int) ([]PayloadEvent, bool, int) {
 	r.Lock()
 	defer r.Unlock()
 	var events []PayloadEvent
