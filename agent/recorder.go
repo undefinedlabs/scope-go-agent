@@ -91,14 +91,14 @@ func (r *SpanRecorder) RecordSpan(span tracer.RawSpan) {
 	if !r.t.Alive() {
 		atomic.AddInt64(&r.stats.totalSpans, 1)
 		atomic.AddInt64(&r.stats.spansRejected, 1)
-		if isTestSpan(span) {
+		if isTestSpan(span.Tags) {
 			atomic.AddInt64(&r.stats.totalTestSpans, 1)
 			atomic.AddInt64(&r.stats.testSpansRejected, 1)
 		}
 		r.logger.Printf("a span has been received but the recorder is not running")
 		return
 	}
-	r.addPayloadComponents(span)
+	r.addSpan(span)
 }
 
 func (r *SpanRecorder) loop() error {
@@ -163,7 +163,7 @@ func (r *SpanRecorder) sendSpans() (error, bool) {
 
 		var testSpans int64
 		for _, span := range spans {
-			if isTestPayloadSpan(span) {
+			if isTestSpan(span) {
 				testSpans++
 			}
 		}
@@ -417,7 +417,7 @@ func (r *SpanRecorder) takePayloadEvents(count int) ([]PayloadEvent, bool, int) 
 }
 
 // Adds a span to the buffer
-func (r *SpanRecorder) addPayloadComponents(span tracer.RawSpan) {
+func (r *SpanRecorder) addSpan(span tracer.RawSpan) {
 	r.Lock()
 	defer r.Unlock()
 	payloadSpan, payloadEvents := r.getPayloadComponents(span)
@@ -425,15 +425,11 @@ func (r *SpanRecorder) addPayloadComponents(span tracer.RawSpan) {
 	r.payloadEvents = append(r.payloadEvents, payloadEvents...)
 
 	atomic.AddInt64(&r.stats.totalSpans, 1)
-	if isTestSpan(span) {
+	if isTestSpan(span.Tags) {
 		atomic.AddInt64(&r.stats.totalTestSpans, 1)
 	}
 }
 
-func isTestSpan(span tracer.RawSpan) bool {
-	return span.Tags["span.kind"] == "test"
-}
-
-func isTestPayloadSpan(span PayloadSpan) bool {
-	return span["span.kind"] == "test"
+func isTestSpan(tags map[string]interface{}) bool {
+	return tags["span.kind"] == "test"
 }
