@@ -1,7 +1,6 @@
 package nethttp
 
 import (
-	"bufio"
 	"bytes"
 	"context"
 	"io"
@@ -16,7 +15,6 @@ import (
 	"github.com/opentracing/opentracing-go/log"
 
 	"go.undefinedlabs.com/scopeagent/instrumentation"
-	"go.undefinedlabs.com/scopeagent/reflection"
 )
 
 type contextKey int
@@ -224,69 +222,73 @@ func (t *Transport) doRoundTrip(req *http.Request) (*http.Response, error) {
 
 // Gets the request payload
 func getRequestPayload(req *http.Request, bufferSize int) string {
-	var rqPayload string
-	if req != nil && req.Body != nil && req.Body != http.NoBody {
-		if req.GetBody == nil {
-			// GetBody is nil in server requests
-			return getBodyPayload(req.Body, bufferSize)
-		}
-		rqBody, rqErr := req.GetBody()
-		if rqErr == nil {
-			rqBodyBuffer := make([]byte, bufferSize)
-			if len, err := rqBody.Read(rqBodyBuffer); err == nil && len > 0 {
-				if len < bufferSize {
-					rqBodyBuffer = rqBodyBuffer[:len]
-				}
-				rqPayload = string(bytes.Runes(rqBodyBuffer))
-			}
-		}
-	}
-	return rqPayload
-}
-
-// Gets the payload from a body
-func getBodyPayload(body io.ReadCloser, bufferSize int) string {
-	if body == nil {
+	if req == nil || req.Body == nil || req.Body == http.NoBody {
 		return ""
 	}
-	if ptr, err := reflection.GetFieldPointerOf(body, "src"); err == nil {
-		reader := *(*io.Reader)(ptr)
-		if limReader, ok := reader.(*io.LimitedReader); ok {
-			if bufReader, ok := limReader.R.(*bufio.Reader); ok {
-				size := bufReader.Buffered()
-				if size < bufferSize {
-					bufferSize = size
-				}
-				rqBodyBuffer, err := bufReader.Peek(bufferSize)
-				if err == nil {
-					return string(bytes.Runes(rqBodyBuffer))
-				}
-			}
+	if req.GetBody == nil {
+		// GetBody is nil in server requests
+		nBody, payload := getBodyPayload(req.Body, bufferSize)
+		req.Body = nBody
+		return payload
+	}
+	rqBody, rqErr := req.GetBody()
+	if rqErr != nil {
+		return ""
+	}
+	rqBodyBuffer := make([]byte, bufferSize)
+	if ln, err := rqBody.Read(rqBodyBuffer); err == nil && ln > 0 {
+		if ln < bufferSize {
+			rqBodyBuffer = rqBodyBuffer[:ln]
 		}
+		return string(bytes.Runes(rqBodyBuffer))
 	}
 	return ""
 }
 
+// Gets the payload from a body
+func getBodyPayload(body io.ReadCloser, bufferSize int) (io.ReadCloser, string) {
+	if body == nil {
+		return body, ""
+	}
+	rsBodyBuffer := make([]byte, bufferSize)
+	ln, _ := body.Read(rsBodyBuffer)
+	if ln == 0 {
+		return body, ""
+	}
+	if ln < bufferSize {
+		rsBodyBuffer = rsBodyBuffer[:ln]
+	}
+	rsPayload := string(bytes.Runes(rsBodyBuffer))
+	rBody := struct {
+		io.Reader
+		io.Closer
+	}{
+		io.MultiReader(bytes.NewReader(rsBodyBuffer), body),
+		body,
+	}
+	return rBody, rsPayload
+}
+
 // Gets the response payload
 func getResponsePayload(resp *http.Response, bufferSize int) string {
-	var rsPayload string
-	if resp != nil && resp.Body != nil && resp.Body != http.NoBody {
-		rsBodyBuffer := make([]byte, bufferSize)
-		len, _ := resp.Body.Read(rsBodyBuffer)
-		if len > 0 {
-			if len < bufferSize {
-				rsBodyBuffer = rsBodyBuffer[:len]
-			}
-			rsRunes := bytes.Runes(rsBodyBuffer)
-			rsPayload = string(rsRunes)
-			resp.Body = struct {
-				io.Reader
-				io.Closer
-			}{
-				io.MultiReader(bytes.NewReader(rsBodyBuffer), resp.Body),
-				resp.Body,
-			}
-		}
+	if resp == nil || resp.Body == nil || resp.Body == http.NoBody {
+		return ""
+	}
+	rsBodyBuffer := make([]byte, bufferSize)
+	ln, _ := resp.Body.Read(rsBodyBuffer)
+	if ln == 0 {
+		return ""
+	}
+	if ln < bufferSize {
+		rsBodyBuffer = rsBodyBuffer[:ln]
+	}
+	rsPayload := string(bytes.Runes(rsBodyBuffer))
+	resp.Body = struct {
+		io.Reader
+		io.Closer
+	}{
+		io.MultiReader(bytes.NewReader(rsBodyBuffer), resp.Body),
+		resp.Body,
 	}
 	return rsPayload
 }
