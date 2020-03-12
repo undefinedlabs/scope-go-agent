@@ -1,5 +1,7 @@
 package agent
 
+import "os"
+
 func addToMapIfEmpty(dest map[string]interface{}, source map[string]interface{}) {
 	if source == nil {
 		return
@@ -15,4 +17,14 @@ func addElementToMapIfEmpty(source map[string]interface{}, key string, value int
 	if val, ok := source[key]; !ok || val == "" {
 		source[key] = value
 	}
+}
+
+func getSourceRootFromEnv(key string) string {
+	if value, ok := os.LookupEnv(key); ok {
+		// We check if is a valid and existing folder
+		if fInfo, err := os.Stat(value); err == nil && fInfo.IsDir() {
+			return value
+		}
+	}
+	return ""
 }
