@@ -259,8 +259,7 @@ func PanicAllRunningTests(e interface{}, skip int) {
 	for _, v := range tmp {
 		delete(autoInstrumentedTests, v.t)
 		v.t.Fail()
-		v.span.SetTag("error", true)
-		errors.LogError(v.span, e, 1+skip)
+		errors.WriteExceptionEvent(v.span, e, 1+skip)
 		v.end()
 	}
 }

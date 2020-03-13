@@ -1,13 +1,14 @@
 package instrumentation
 
 import (
-	"github.com/opentracing/opentracing-go"
 	"io/ioutil"
 	"log"
-	"path"
+	"path/filepath"
 	"runtime"
 	"strings"
 	"sync"
+
+	"github.com/opentracing/opentracing-go"
 )
 
 var (
@@ -68,9 +69,10 @@ func GetCallerInsideSourceRoot(skip int) (pc uintptr, file string, line int, ok 
 	frames := runtime.CallersFrames(pcs)
 	for {
 		frame, more := frames.Next()
-		dir := path.Dir(frame.File)
+		file := filepath.Clean(frame.File)
+		dir := filepath.Dir(file)
 		if strings.Index(dir, sourceRoot) != -1 {
-			return frame.PC, frame.File, frame.Line, true
+			return frame.PC, file, frame.Line, true
 		}
 		if !more {
 			break

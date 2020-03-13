@@ -2,12 +2,14 @@ package testing
 
 import (
 	"fmt"
+	"path/filepath"
+	"runtime"
+
 	"github.com/opentracing/opentracing-go/log"
+
 	"go.undefinedlabs.com/scopeagent/errors"
 	"go.undefinedlabs.com/scopeagent/instrumentation"
 	"go.undefinedlabs.com/scopeagent/tags"
-	"path/filepath"
-	"runtime"
 )
 
 // ***************************
