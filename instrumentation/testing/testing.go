@@ -87,27 +87,26 @@ func StartTestFromCaller(t *testing.T, pc uintptr, opts ...Option) *Test {
 	}
 	packageName := funcFullName[:funcNameIndex-1]
 
-	sourceBounds, _ := ast.GetFuncSourceForName(pc, funcName)
-	var testCode string
-	if sourceBounds != nil {
-		testCode = fmt.Sprintf("%s:%d:%d", sourceBounds.File, sourceBounds.Start.Line, sourceBounds.End.Line)
-	}
-
-	var startOptions []opentracing.StartSpanOption
-	startOptions = append(startOptions, opentracing.Tags{
+	testTags := opentracing.Tags{
 		"span.kind":      "test",
 		"test.name":      fullTestName,
 		"test.suite":     packageName,
-		"test.code":      testCode,
 		"test.framework": "testing",
 		"test.language":  "go",
-	})
+	}
+	sourceBounds, sErr := ast.GetFuncSourceForName(pc, funcName)
+	if sErr != nil {
+		instrumentation.Logger().Printf("error calculating the source boundaries for '%s [%s]': %v", funcName, funcFullName, sErr)
+	}
+	if sourceBounds != nil {
+		testTags["test.code"] = fmt.Sprintf("%s:%d:%d", sourceBounds.File, sourceBounds.Start.Line, sourceBounds.End.Line)
+	}
 
 	if test.ctx == nil {
 		test.ctx = context.Background()
 	}
 
-	span, ctx := opentracing.StartSpanFromContextWithTracer(test.ctx, instrumentation.Tracer(), fullTestName, startOptions...)
+	span, ctx := opentracing.StartSpanFromContextWithTracer(test.ctx, instrumentation.Tracer(), fullTestName, testTags)
 	span.SetBaggageItem("trace.kind", "test")
 	test.span = span
 	test.ctx = ctx

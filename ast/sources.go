@@ -59,6 +59,7 @@ func GetFuncSource(pc uintptr) (*MethodCodeBoundaries, error) {
 
 func getCodesForFile(file string) (map[string]*MethodCodeBoundaries, error) {
 	mutex.Lock()
+	defer mutex.Unlock()
 	if methodCodes == nil {
 		methodCodes = map[string]map[string]*MethodCodeBoundaries{}
 	}
@@ -99,6 +100,5 @@ func getCodesForFile(file string) (map[string]*MethodCodeBoundaries, error) {
 			}
 		}
 	}
-	mutex.Unlock()
 	return methodCodes[file], nil
 }
