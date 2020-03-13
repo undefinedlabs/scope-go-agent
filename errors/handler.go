@@ -2,6 +2,7 @@ package errors
 
 import (
 	"fmt"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -69,7 +70,7 @@ func getCurrentStackFrames(skip int) []StackFrames {
 	for idx, frame := range errStack {
 		if idx >= skip {
 			stackFrames = append(stackFrames, StackFrames{
-				File:       frame.File,
+				File:       filepath.Clean(frame.File),
 				LineNumber: frame.LineNumber,
 				Name:       frame.Name,
 				Package:    frame.Package,
@@ -154,7 +155,7 @@ func getExceptionFrameData(errMessage string, errStack []errors.StackFrame) map[
 		exFrames = append(exFrames, map[string]interface{}{
 			"name":   frame.Name,
 			"module": frame.Package,
-			"file":   frame.File,
+			"file":   filepath.Clean(frame.File),
 			"line":   frame.LineNumber,
 		})
 	}
