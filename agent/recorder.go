@@ -203,6 +203,15 @@ func (r *SpanRecorder) Stop() {
 	}
 }
 
+// Flush recorder
+func (r *SpanRecorder) Flush() error {
+	if r.debugMode {
+		r.logger.Println("Flushing recorder buffer...")
+	}
+	err, _ := r.sendSpans()
+	return err
+}
+
 // Write statistics
 func (r *SpanRecorder) writeStats() {
 	r.statsOnce.Do(func() {
