@@ -2,7 +2,6 @@ package errors
 
 import (
 	"fmt"
-	"path"
 	"strings"
 	"time"
 
@@ -10,7 +9,6 @@ import (
 	"github.com/opentracing/opentracing-go"
 	"github.com/opentracing/opentracing-go/log"
 
-	"go.undefinedlabs.com/scopeagent/instrumentation"
 	"go.undefinedlabs.com/scopeagent/tracer"
 )
 
@@ -60,7 +58,6 @@ func LogErrorInRawSpan(rawSpan *tracer.RawSpan, err **errors.Error) {
 
 // Gets the current stack frames array
 func getCurrentStackFrames(skip int) []StackFrames {
-	sourceRoot := instrumentation.GetSourceRoot()
 	skip = skip + 1
 	err := errors.New(nil)
 	errStack := err.StackFrames()
@@ -71,13 +68,6 @@ func getCurrentStackFrames(skip int) []StackFrames {
 	stackFrames := make([]StackFrames, 0)
 	for idx, frame := range errStack {
 		if idx >= skip {
-			if len(stackFrames) == 0 {
-				// We ensure that the first frame of the stacktrace should be inside the source.root
-				dir := path.Dir(frame.File)
-				if strings.Index(dir, sourceRoot) == -1 {
-					continue
-				}
-			}
 			stackFrames = append(stackFrames, StackFrames{
 				File:       frame.File,
 				LineNumber: frame.LineNumber,
