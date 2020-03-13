@@ -296,7 +296,7 @@ func NewAgent(options ...Option) (*Agent, error) {
 	if sRoot, ok := agent.metadata[tags.SourceRoot]; ok {
 		cSRoot := sRoot.(string)
 		cSRoot = filepath.Clean(cSRoot)
-		if sRootEx, err := homedir.Expand(sRoot.(string)); err == nil {
+		if sRootEx, err := homedir.Expand(cSRoot); err == nil {
 			sourceRoot = sRootEx
 			agent.metadata[tags.SourceRoot] = sRootEx
 		}
@@ -355,7 +355,7 @@ func (a *Agent) setupLogging() error {
 	if err != nil {
 		return err
 	}
-	a.recorderFilename = path.Join(dir, filename)
+	a.recorderFilename = filepath.Join(dir, filename)
 
 	file, err := os.OpenFile(a.recorderFilename, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
 	if err != nil {
@@ -445,7 +445,7 @@ func getLogPath() (string, error) {
 	}
 
 	// If the log folder can't be used we return a temporal path, so we don't miss the agent logs
-	logFolder = path.Join(os.TempDir(), "scope")
+	logFolder = filepath.Join(os.TempDir(), "scope")
 	if _, err := os.Stat(logFolder); err == nil {
 		return logFolder, nil
 	} else if os.IsNotExist(err) && os.Mkdir(logFolder, 0755) == nil {

@@ -3,7 +3,6 @@ package errors
 import (
 	"context"
 	"fmt"
-	"path"
 	"path/filepath"
 	"strings"
 	"time"
@@ -128,7 +127,7 @@ func getExceptionLogFields(eventType string, recoverData interface{}, skipFrames
 		if errStack != nil && len(errStack) > 0 {
 			sourceRoot := instrumentation.GetSourceRoot()
 			for _, currentFrame := range errStack {
-				dir := path.Dir(currentFrame.File)
+				dir := filepath.Dir(currentFrame.File)
 				if strings.Index(dir, sourceRoot) != -1 {
 					source = fmt.Sprintf("%s:%d", currentFrame.File, currentFrame.LineNumber)
 					break
