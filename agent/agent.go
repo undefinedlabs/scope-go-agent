@@ -8,6 +8,7 @@ import (
 	"net/url"
 	"os"
 	"path"
+	"path/filepath"
 	"runtime"
 	"strings"
 	"sync"
@@ -260,7 +261,7 @@ func NewAgent(options ...Option) (*Agent, error) {
 
 	// Current folder
 	wd, _ := os.Getwd()
-	agent.metadata[tags.CurrentFolder] = wd
+	agent.metadata[tags.CurrentFolder] = filepath.Clean(wd)
 
 	// Hostname
 	hostname, _ := os.Hostname()
@@ -292,7 +293,9 @@ func NewAgent(options ...Option) (*Agent, error) {
 
 	// Expand '~' in source root
 	if sRoot, ok := agent.metadata[tags.SourceRoot]; ok {
-		if sRootEx, err := homedir.Expand(sRoot.(string)); err == nil {
+		cSRoot := sRoot.(string)
+		cSRoot = filepath.Clean(cSRoot)
+		if sRootEx, err := homedir.Expand(cSRoot); err == nil {
 			agent.metadata[tags.SourceRoot] = sRootEx
 		}
 	}
