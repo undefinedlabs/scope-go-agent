@@ -16,7 +16,7 @@ import (
 var r *tracer.InMemorySpanRecorder
 
 func TestMain(m *testing.M) {
-	PatchHttpDefaultClient(WithPayloadInstrumentation())
+	PatchHttpDefaultClient(WithPayloadInstrumentation(), WithStacktrace())
 
 	// Test tracer
 	r = tracer.NewInMemoryRecorder()

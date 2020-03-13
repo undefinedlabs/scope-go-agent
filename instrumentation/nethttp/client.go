@@ -14,6 +14,7 @@ import (
 	"github.com/opentracing/opentracing-go/ext"
 	"github.com/opentracing/opentracing-go/log"
 
+	scopeerrors "go.undefinedlabs.com/scopeagent/errors"
 	"go.undefinedlabs.com/scopeagent/instrumentation"
 )
 
@@ -35,6 +36,9 @@ type Transport struct {
 
 	// Enable payload instrumentation
 	PayloadInstrumentation bool
+
+	// Enable stacktrace
+	Stacktrace bool
 }
 
 type clientOptions struct {
@@ -177,6 +181,10 @@ func (t *Transport) doRoundTrip(req *http.Request) (*http.Response, error) {
 	}
 
 	tracer.start(req)
+
+	if t.Stacktrace {
+		tracer.sp.SetTag("stacktrace", scopeerrors.GetCurrentStackTrace(2))
+	}
 
 	ext.HTTPMethod.Set(tracer.sp, req.Method)
 	ext.HTTPUrl.Set(tracer.sp, req.URL.String())

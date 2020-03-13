@@ -2,6 +2,7 @@ package errors
 
 import (
 	"fmt"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -57,7 +58,7 @@ func LogErrorInRawSpan(rawSpan *tracer.RawSpan, err **errors.Error) {
 }
 
 // Gets the current stack frames array
-func GetCurrentStackFrames(skip int) []StackFrames {
+func getCurrentStackFrames(skip int) []StackFrames {
 	skip = skip + 1
 	err := errors.New(nil)
 	errStack := err.StackFrames()
@@ -65,18 +66,34 @@ func GetCurrentStackFrames(skip int) []StackFrames {
 	if nLength < 0 {
 		return nil
 	}
-	stackFrames := make([]StackFrames, nLength)
+	stackFrames := make([]StackFrames, 0)
 	for idx, frame := range errStack {
 		if idx >= skip {
-			stackFrames[idx-skip] = StackFrames{
-				File:       frame.File,
+			stackFrames = append(stackFrames, StackFrames{
+				File:       filepath.Clean(frame.File),
 				LineNumber: frame.LineNumber,
 				Name:       frame.Name,
 				Package:    frame.Package,
-			}
+			})
 		}
 	}
 	return stackFrames
+}
+
+// Gets the current stacktrace
+func GetCurrentStackTrace(skip int) map[string]interface{} {
+	var exFrames []map[string]interface{}
+	for _, frame := range getCurrentStackFrames(skip + 1) {
+		exFrames = append(exFrames, map[string]interface{}{
+			"name":   frame.Name,
+			"module": frame.Package,
+			"file":   frame.File,
+			"line":   frame.LineNumber,
+		})
+	}
+	return map[string]interface{}{
+		"frames": exFrames,
+	}
 }
 
 // Get the current error with the fixed stacktrace
@@ -138,7 +155,7 @@ func getExceptionFrameData(errMessage string, errStack []errors.StackFrame) map[
 		exFrames = append(exFrames, map[string]interface{}{
 			"name":   frame.Name,
 			"module": frame.Package,
-			"file":   frame.File,
+			"file":   filepath.Clean(frame.File),
 			"line":   frame.LineNumber,
 		})
 	}
