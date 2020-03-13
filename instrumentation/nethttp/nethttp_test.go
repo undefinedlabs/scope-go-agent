@@ -1,6 +1,7 @@
 package nethttp
 
 import (
+	"bytes"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -15,7 +16,7 @@ import (
 var r *tracer.InMemorySpanRecorder
 
 func TestMain(m *testing.M) {
-	PatchHttpDefaultClient()
+	PatchHttpDefaultClient(WithPayloadInstrumentation())
 
 	// Test tracer
 	r = tracer.NewInMemoryRecorder()
@@ -64,10 +65,10 @@ func TestHttpServer(t *testing.T) {
 			return
 		}
 	})
-	server := httptest.NewServer(Middleware(nil))
+	server := httptest.NewServer(Middleware(nil, MWPayloadInstrumentation()))
 
 	url := fmt.Sprintf("%s/hello", server.URL)
-	req, err := http.NewRequest("GET", url, nil)
+	req, err := http.NewRequest("POST", url, bytes.NewReader([]byte("Hello world request")))
 	if err != nil {
 		t.Fatalf("%+v", err)
 	}
@@ -87,18 +88,22 @@ func TestHttpServer(t *testing.T) {
 		t.Fatalf("there aren't the right number of spans: %d", len(spans))
 	}
 	checkTags(t, spans[0].Tags, map[string]string{
-		"component":        "net/http",
-		"http.method":      "GET",
-		"http.url":         "/hello",
-		"span.kind":        "server",
-		"http.status_code": "200",
+		"component":             "net/http",
+		"http.method":           "POST",
+		"http.url":              "/hello",
+		"span.kind":             "server",
+		"http.status_code":      "200",
+		"http.request_payload":  "Hello world request",
+		"http.response_payload": "Hello world",
 	})
 	checkTags(t, spans[1].Tags, map[string]string{
-		"component":   "net/http",
-		"http.method": "GET",
-		"http.url":    url,
-		"peer.ipv4":   "127.0.0.1",
-		"span.kind":   "client",
+		"component":             "net/http",
+		"http.method":           "POST",
+		"http.url":              url,
+		"peer.ipv4":             "127.0.0.1",
+		"span.kind":             "client",
+		"http.request_payload":  "Hello world request",
+		"http.response_payload": "Hello world",
 	})
 }
 
