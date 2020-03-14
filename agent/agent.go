@@ -297,9 +297,15 @@ func NewAgent(options ...Option) (*Agent, error) {
 		cSRoot := sRoot.(string)
 		cSRoot = filepath.Clean(cSRoot)
 		if sRootEx, err := homedir.Expand(cSRoot); err == nil {
-			sourceRoot = sRootEx
-			agent.metadata[tags.SourceRoot] = sRootEx
+			cSRoot = sRootEx
 		}
+		if cSRoot == "" {
+			cSRoot = filepath.Dir("/")
+		}
+		sourceRoot = cSRoot
+		agent.metadata[tags.SourceRoot] = sourceRoot
+	} else {
+		agent.metadata[tags.SourceRoot] = filepath.Dir("/")
 	}
 
 	if !agent.testingMode {
