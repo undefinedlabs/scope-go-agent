@@ -299,14 +299,12 @@ func NewAgent(options ...Option) (*Agent, error) {
 		if sRootEx, err := homedir.Expand(cSRoot); err == nil {
 			cSRoot = sRootEx
 		}
-		if cSRoot == "" {
-			cSRoot = getGoModDir()
-		}
 		sourceRoot = cSRoot
-		agent.metadata[tags.SourceRoot] = sourceRoot
-	} else {
-		agent.metadata[tags.SourceRoot] = getGoModDir()
 	}
+	if sourceRoot == "" {
+		sourceRoot = getGoModDir()
+	}
+	agent.metadata[tags.SourceRoot] = sourceRoot
 
 	if !agent.testingMode {
 		if env.ScopeTestingMode.IsSet {
