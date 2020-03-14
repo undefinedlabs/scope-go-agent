@@ -2,11 +2,13 @@ package agent
 
 import (
 	"bufio"
+	"os"
 	"os/exec"
 	"strconv"
 	"strings"
 
 	"github.com/google/uuid"
+	"gopkg.in/src-d/go-git.v4"
 
 	"go.undefinedlabs.com/scopeagent/env"
 	"go.undefinedlabs.com/scopeagent/tags"
@@ -37,20 +39,29 @@ type DiffFileItem struct {
 func getGitData() *GitData {
 	var repository, commit, sourceRoot, branch string
 
-	if repoBytes, err := exec.Command("git", "remote", "get-url", "origin").Output(); err == nil {
-		repository = strings.TrimSuffix(string(repoBytes), "\n")
+	wd, err := os.Getwd()
+	if err != nil {
+		return nil
+	}
+	repo, err := git.PlainOpenWithOptions(wd, &git.PlainOpenOptions{DetectDotGit: true})
+	if err != nil {
+		return nil
 	}
 
-	if commitBytes, err := exec.Command("git", "rev-parse", "HEAD").Output(); err == nil {
-		commit = strings.TrimSuffix(string(commitBytes), "\n")
+	if remote, err := repo.Remote("origin"); err == nil {
+		urls := remote.Config().URLs
+		if len(urls) > 0 {
+			repository = urls[0]
+		}
 	}
 
-	if sourceRootBytes, err := exec.Command("git", "rev-parse", "--show-toplevel").Output(); err == nil {
-		sourceRoot = strings.TrimSuffix(string(sourceRootBytes), "\n")
+	if head, err := repo.Head(); err == nil {
+		commit = head.Hash().String()
+		branch = head.Name().Short()
 	}
 
-	if branchBytes, err := exec.Command("git", "rev-parse", "--abbrev-ref", "HEAD").Output(); err == nil {
-		branch = strings.TrimSuffix(string(branchBytes), "\n")
+	if tree, err := repo.Worktree(); err == nil {
+		sourceRoot = tree.Filesystem.Root()
 	}
 
 	return &GitData{
@@ -63,6 +74,7 @@ func getGitData() *GitData {
 
 func getGitDiff() *GitDiff {
 	var diff string
+	// Git diff with numstat is not supported by "gopkg.in/src-d/go-git.v4"
 	if diffBytes, err := exec.Command("git", "diff", "--numstat").Output(); err == nil {
 		diff = string(diffBytes)
 	} else {
@@ -135,7 +147,10 @@ func getGitInfoFromEnv() map[string]interface{} {
 		gitInfo[tags.Commit] = commit
 	}
 	if sourceRoot, set := env.ScopeSourceRoot.Tuple(); set && sourceRoot != "" {
-		gitInfo[tags.SourceRoot] = sourceRoot
+		// We check if is a valid and existing folder
+		if fInfo, err := os.Stat(sourceRoot); err == nil && fInfo.IsDir() {
+			gitInfo[tags.SourceRoot] = sourceRoot
+		}
 	}
 	if branch, set := env.ScopeBranch.Tuple(); set && branch != "" {
 		gitInfo[tags.Branch] = branch

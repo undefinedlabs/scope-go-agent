@@ -25,7 +25,7 @@ func getCIMetadata() map[string]interface{} {
 			os.Getenv("TRAVIS_REPO_SLUG"),
 		)
 		ciMetadata[tags.Commit] = os.Getenv("TRAVIS_COMMIT")
-		ciMetadata[tags.SourceRoot] = os.Getenv("TRAVIS_BUILD_DIR")
+		ciMetadata[tags.SourceRoot] = getSourceRootFromEnv("TRAVIS_BUILD_DIR")
 	} else if _, set := os.LookupEnv("CIRCLECI"); set {
 		ciMetadata[tags.CI] = true
 		ciMetadata[tags.CIProvider] = "CircleCI"
@@ -33,7 +33,7 @@ func getCIMetadata() map[string]interface{} {
 		ciMetadata[tags.CIBuildUrl] = os.Getenv("CIRCLE_BUILD_URL")
 		ciMetadata[tags.Repository] = os.Getenv("CIRCLE_REPOSITORY_URL")
 		ciMetadata[tags.Commit] = os.Getenv("CIRCLE_SHA1")
-		ciMetadata[tags.SourceRoot] = os.Getenv("CIRCLE_WORKING_DIRECTORY")
+		ciMetadata[tags.SourceRoot] = getSourceRootFromEnv("CIRCLE_WORKING_DIRECTORY")
 	} else if _, set := os.LookupEnv("JENKINS_URL"); set {
 		ciMetadata[tags.CI] = true
 		ciMetadata[tags.CIProvider] = "Jenkins"
@@ -42,7 +42,7 @@ func getCIMetadata() map[string]interface{} {
 		ciMetadata[tags.CIBuildUrl] = os.Getenv("BUILD_URL")
 		ciMetadata[tags.Repository] = os.Getenv("GIT_URL")
 		ciMetadata[tags.Commit] = os.Getenv("GIT_COMMIT")
-		ciMetadata[tags.SourceRoot] = os.Getenv("WORKSPACE")
+		ciMetadata[tags.SourceRoot] = getSourceRootFromEnv("WORKSPACE")
 	} else if _, set := os.LookupEnv("GITLAB_CI"); set {
 		ciMetadata[tags.CI] = true
 		ciMetadata[tags.CIProvider] = "gitLab"
@@ -50,7 +50,7 @@ func getCIMetadata() map[string]interface{} {
 		ciMetadata[tags.CIBuildUrl] = os.Getenv("CI_JOB_URL")
 		ciMetadata[tags.Repository] = os.Getenv("CI_REPOSITORY_URL")
 		ciMetadata[tags.Commit] = os.Getenv("CI_COMMIT_SHA")
-		ciMetadata[tags.SourceRoot] = os.Getenv("CI_PROJECT_DIR")
+		ciMetadata[tags.SourceRoot] = getSourceRootFromEnv("CI_PROJECT_DIR")
 	} else if _, set := os.LookupEnv("APPVEYOR"); set {
 		buildId := os.Getenv("APPVEYOR_BUILD_ID")
 		ciMetadata[tags.CI] = true
@@ -64,7 +64,7 @@ func getCIMetadata() map[string]interface{} {
 		)
 		ciMetadata[tags.Repository] = os.Getenv("APPVEYOR_REPO_NAME")
 		ciMetadata[tags.Commit] = os.Getenv("APPVEYOR_REPO_COMMIT")
-		ciMetadata[tags.SourceRoot] = os.Getenv("APPVEYOR_BUILD_FOLDER")
+		ciMetadata[tags.SourceRoot] = getSourceRootFromEnv("APPVEYOR_BUILD_FOLDER")
 	} else if _, set := os.LookupEnv("TF_BUILD"); set {
 		buildId := os.Getenv("Build.BuildId")
 		ciMetadata[tags.CI] = true
@@ -79,14 +79,14 @@ func getCIMetadata() map[string]interface{} {
 		)
 		ciMetadata[tags.Repository] = os.Getenv("Build.Repository.Uri")
 		ciMetadata[tags.Commit] = os.Getenv("Build.SourceVersion")
-		ciMetadata[tags.SourceRoot] = os.Getenv("Build.SourcesDirectory")
+		ciMetadata[tags.SourceRoot] = getSourceRootFromEnv("Build.SourcesDirectory")
 	} else if sha, set := os.LookupEnv("BITBUCKET_COMMIT"); set {
 		ciMetadata[tags.CI] = true
 		ciMetadata[tags.CIProvider] = "Bitbucket Pipelines"
 		ciMetadata[tags.CIBuildNumber] = os.Getenv("BITBUCKET_BUILD_NUMBER")
 		ciMetadata[tags.Repository] = os.Getenv("BITBUCKET_GIT_SSH_ORIGIN")
 		ciMetadata[tags.Commit] = sha
-		ciMetadata[tags.SourceRoot] = os.Getenv("BITBUCKET_CLONE_DIR")
+		ciMetadata[tags.SourceRoot] = getSourceRootFromEnv("BITBUCKET_CLONE_DIR")
 	} else if sha, set := os.LookupEnv("GITHUB_SHA"); set {
 		repo := os.Getenv("GITHUB_REPOSITORY")
 		ciMetadata[tags.CI] = true
@@ -101,7 +101,7 @@ func getCIMetadata() map[string]interface{} {
 			repo,
 		)
 		ciMetadata[tags.Commit] = sha
-		ciMetadata[tags.SourceRoot] = os.Getenv("GITHUB_WORKSPACE")
+		ciMetadata[tags.SourceRoot] = getSourceRootFromEnv("GITHUB_WORKSPACE")
 		ciMetadata[tags.CIBuildId] = os.Getenv("GITHUB_RUN_ID")
 		ciMetadata[tags.CIBuildNumber] = os.Getenv("GITHUB_RUN_NUMBER")
 	} else if _, set := os.LookupEnv("TEAMCITY_VERSION"); set {
@@ -110,7 +110,7 @@ func getCIMetadata() map[string]interface{} {
 		ciMetadata[tags.CIProvider] = "TeamCity"
 		ciMetadata[tags.Repository] = os.Getenv("BUILD_VCS_URL")
 		ciMetadata[tags.Commit] = os.Getenv("BUILD_VCS_NUMBER")
-		ciMetadata[tags.SourceRoot] = os.Getenv("BUILD_CHECKOUTDIR")
+		ciMetadata[tags.SourceRoot] = getSourceRootFromEnv("BUILD_CHECKOUTDIR")
 		ciMetadata[tags.CIBuildId] = buildId
 		ciMetadata[tags.CIBuildNumber] = os.Getenv("BUILD_NUMBER")
 		ciMetadata[tags.CIBuildUrl] = fmt.Sprintf(
@@ -126,7 +126,7 @@ func getCIMetadata() map[string]interface{} {
 		ciMetadata[tags.CIBuildUrl] = os.Getenv("BUILDKITE_BUILD_URL")
 		ciMetadata[tags.Repository] = os.Getenv("BUILDKITE_REPO")
 		ciMetadata[tags.Commit] = os.Getenv("BUILDKITE_COMMIT")
-		ciMetadata[tags.SourceRoot] = os.Getenv("BUILDKITE_BUILD_CHECKOUT_PATH")
+		ciMetadata[tags.SourceRoot] = getSourceRootFromEnv("BUILDKITE_BUILD_CHECKOUT_PATH")
 	}
 
 	return ciMetadata
