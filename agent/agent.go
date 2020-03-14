@@ -300,12 +300,12 @@ func NewAgent(options ...Option) (*Agent, error) {
 			cSRoot = sRootEx
 		}
 		if cSRoot == "" {
-			cSRoot = filepath.Dir("/")
+			cSRoot = getGoModDir()
 		}
 		sourceRoot = cSRoot
 		agent.metadata[tags.SourceRoot] = sourceRoot
 	} else {
-		agent.metadata[tags.SourceRoot] = filepath.Dir("/")
+		agent.metadata[tags.SourceRoot] = getGoModDir()
 	}
 
 	if !agent.testingMode {
@@ -353,6 +353,26 @@ func NewAgent(options ...Option) (*Agent, error) {
 	}
 
 	return agent, nil
+}
+
+func getGoModDir() string {
+	dir, err := os.Getwd()
+	if err != nil {
+		return filepath.Dir("/")
+	}
+	for {
+		rel, _ := filepath.Rel("/", dir)
+		// Exit the loop once we reach the basePath.
+		if rel == "." {
+			return filepath.Dir("/")
+		}
+		modPath := fmt.Sprintf("%v/go2.mod", dir)
+		if _, err := os.Stat(modPath); err == nil {
+			return dir
+		}
+		// Going up!
+		dir += "/.."
+	}
 }
 
 func (a *Agent) setupLogging() error {
