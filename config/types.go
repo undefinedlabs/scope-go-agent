@@ -36,14 +36,14 @@ type (
 	}
 	InstrumentationDatabaseConfig struct {
 		StatementValues *bool `yaml:"statement_values" env:"SCOPE_INSTRUMENTATION_DB_STATEMENT_VALUES" default:"false"`
-		Stacktrace *bool `yaml:"stacktrace" env:"SCOPE_INSTRUMENTATION_DB_STACKTRACE" default:"false"`
+		Stacktrace      *bool `yaml:"stacktrace" env:"SCOPE_INSTRUMENTATION_DB_STACKTRACE" default:"false"`
 	}
 	InstrumentationHttpConfig struct {
-		Client   *bool    `yaml:"client" env:"SCOPE_INSTRUMENTATION_HTTP_CLIENT" default:"true"`
-		Server   *bool    `yaml:"server" env:"SCOPE_INSTRUMENTATION_HTTP_SERVER" default:"true"`
-		Payloads *bool    `yaml:"payloads" env:"SCOPE_INSTRUMENTATION_HTTP_PAYLOADS" default:"false"`
-		Stacktrace *bool `yaml:"stacktrace" env:"SCOPE_INSTRUMENTATION_HTTP_STACKTRACE" default:"false"`
-		Headers  []string `yaml:"headers" env:"SCOPE_INSTRUMENTATION_HTTP_HEADERS"`
+		Client     *bool    `yaml:"client" env:"SCOPE_INSTRUMENTATION_HTTP_CLIENT" default:"true"`
+		Server     *bool    `yaml:"server" env:"SCOPE_INSTRUMENTATION_HTTP_SERVER" default:"true"`
+		Payloads   *bool    `yaml:"payloads" env:"SCOPE_INSTRUMENTATION_HTTP_PAYLOADS" default:"false"`
+		Stacktrace *bool    `yaml:"stacktrace" env:"SCOPE_INSTRUMENTATION_HTTP_STACKTRACE" default:"false"`
+		Headers    []string `yaml:"headers" env:"SCOPE_INSTRUMENTATION_HTTP_HEADERS"`
 	}
 	InstrumentationLoggerConfig struct {
 		StandardLogger *bool `yaml:"standard_logger" env:"SCOPE_INSTRUMENTATION_LOGGER_STANDARD_LOGGER" default:"true"`
