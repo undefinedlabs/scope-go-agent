@@ -2,10 +2,14 @@ package testing
 
 import (
 	"fmt"
-	"github.com/opentracing/opentracing-go/log"
-	"go.undefinedlabs.com/scopeagent/tags"
 	"path/filepath"
 	"runtime"
+
+	"github.com/opentracing/opentracing-go/log"
+
+	"go.undefinedlabs.com/scopeagent/errors"
+	"go.undefinedlabs.com/scopeagent/instrumentation"
+	"go.undefinedlabs.com/scopeagent/tags"
 )
 
 // ***************************
@@ -217,15 +221,19 @@ func (test *Test) Helper() {
 	test.t.Helper()
 }
 
+// Log panic data with stacktrace
+func (test *Test) LogPanic(recoverData interface{}, skipFrames int) {
+	errors.LogPanic(test.ctx, recoverData, skipFrames+1)
+}
+
 func getSourceFileAndNumber() string {
 	var source string
-	if pc, file, line, ok := runtime.Caller(2); ok == true {
+	if pc, file, line, ok := instrumentation.GetCallerInsideSourceRoot(2); ok == true {
 		pcEntry := runtime.FuncForPC(pc).Entry()
 		// Try to detect the patch function
 		if isAPatchPointer(pcEntry) {
 			// The monkey patching version adds 4 frames to the stack.
-			if _, file, line, ok := runtime.Caller(6); ok == true {
-				file = filepath.Clean(file)
+			if _, file, line, ok := instrumentation.GetCallerInsideSourceRoot(6); ok == true {
 				source = fmt.Sprintf("%s:%d", file, line)
 			}
 		} else {

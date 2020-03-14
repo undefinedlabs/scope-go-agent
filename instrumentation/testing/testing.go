@@ -172,10 +172,7 @@ func (test *Test) end() {
 
 	if r := recover(); r != nil {
 		test.span.SetTag("test.status", tags.TestStatus_FAIL)
-		test.span.SetTag("error", true)
-		if r != errors.MarkSpanAsError {
-			errors.LogError(test.span, r, 1)
-		}
+		errors.WriteExceptionEvent(test.span, r, 1)
 		test.span.FinishWithOptions(finishOptions)
 		panic(r)
 	}
@@ -262,8 +259,7 @@ func PanicAllRunningTests(e interface{}, skip int) {
 	for _, v := range tmp {
 		delete(autoInstrumentedTests, v.t)
 		v.t.Fail()
-		v.span.SetTag("error", true)
-		errors.LogError(v.span, e, 1+skip)
+		errors.WriteExceptionEvent(v.span, e, 1+skip)
 		v.end()
 	}
 }

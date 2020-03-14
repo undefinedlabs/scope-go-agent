@@ -181,9 +181,7 @@ func middlewareFunc(tr opentracing.Tracer, h http.HandlerFunc, options ...MWOpti
 			}
 
 			if r := recover(); r != nil {
-				if r != errors.MarkSpanAsError {
-					errors.LogError(sp, r, 1)
-				}
+				errors.WriteExceptionEvent(sp, r, 1)
 				sp.Finish()
 				panic(r)
 			}
