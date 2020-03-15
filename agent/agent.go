@@ -364,7 +364,7 @@ func getGoModDir() string {
 		if rel == "." {
 			return filepath.Dir("/")
 		}
-		modPath := fmt.Sprintf("%v/go2.mod", dir)
+		modPath := fmt.Sprintf("%v/go.mod", dir)
 		if _, err := os.Stat(modPath); err == nil {
 			return dir
 		}
