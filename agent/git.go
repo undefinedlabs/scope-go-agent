@@ -40,8 +40,8 @@ type (
 )
 
 var (
-	remoteRegex = regexp.MustCompile(`(?m)^\[remote \"(\w*)\"\]$`)
-	branchRegex = regexp.MustCompile(`(?m)^\[branch \"(\w*)\"\]$`)
+	remoteRegex = regexp.MustCompile(`(?m)^\[remote \"(.*)\"\]$`)
+	branchRegex = regexp.MustCompile(`(?m)^\[branch \"(.*)\"\]$`)
 	urlRegex    = regexp.MustCompile(`(?m)url[ ]?=[ ]?(.*)$`)
 	mergeRegex  = regexp.MustCompile(`(?m)merge[ ]?=[ ]?(.*)$`)
 )
@@ -121,9 +121,9 @@ func getGitData() *GitData {
 					mergeMatch := mergeRegex.FindStringSubmatch(line)
 					if len(mergeMatch) == 2 {
 						mergeData := strings.TrimSpace(mergeMatch[1])
+						intoBranchBlock = false
 						if mergeData == mergePath {
 							branch = tmpBranch
-							intoBranchBlock = false
 							continue
 						}
 					}
