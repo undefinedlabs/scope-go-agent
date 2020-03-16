@@ -40,10 +40,10 @@ type (
 )
 
 var (
-	remoteRegex = regexp.MustCompile(`(?m)^\[remote \"(.*)\"\]$`)
-	branchRegex = regexp.MustCompile(`(?m)^\[branch \"(.*)\"\]$`)
-	urlRegex    = regexp.MustCompile(`(?m)url[ ]?=[ ]?(.*)$`)
-	mergeRegex  = regexp.MustCompile(`(?m)merge[ ]?=[ ]?(.*)$`)
+	remoteRegex = regexp.MustCompile(`(?m)^\[remote[ ]*\"(.*)\"\]$`)
+	branchRegex = regexp.MustCompile(`(?m)^\[branch[ ]*\"(.*)\"\]$`)
+	urlRegex    = regexp.MustCompile(`(?m)url[ ]*=[ ]*(.*)$`)
+	mergeRegex  = regexp.MustCompile(`(?m)merge[ ]*=[ ]*(.*)$`)
 )
 
 // Gets the current git data
