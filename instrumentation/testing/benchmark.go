@@ -114,18 +114,23 @@ func startBenchmark(b *testing.B, pc uintptr, benchFunc func(b *testing.B)) {
 	if packageName == "" {
 		packageName = getPackageName(pc, fullTestName)
 	}
-	testCode := getTestCodeBoundaries(pc, fullTestName)
 
-	var startOptions []opentracing.StartSpanOption
-	startOptions = append(startOptions, opentracing.Tags{
+	oTags := opentracing.Tags{
 		"span.kind":      "test",
 		"test.name":      fullTestName,
 		"test.suite":     packageName,
-		"test.code":      testCode,
 		"test.framework": "testing",
 		"test.language":  "go",
 		"test.type":      "benchmark",
-	}, opentracing.StartTime(startTime))
+	}
+
+	testCode := getTestCodeBoundaries(pc, fullTestName)
+	if testCode != "" {
+		oTags["test.code"] = testCode
+	}
+
+	var startOptions []opentracing.StartSpanOption
+	startOptions = append(startOptions, oTags, opentracing.StartTime(startTime))
 
 	span, _ := opentracing.StartSpanFromContextWithTracer(context.Background(), instrumentation.Tracer(), fullTestName, startOptions...)
 	span.SetBaggageItem("trace.kind", "test")
