@@ -219,7 +219,6 @@ func (t *Transport) doRoundTrip(req *http.Request) (*http.Response, error) {
 	if resp.StatusCode >= http.StatusBadRequest {
 		ext.Error.Set(tracer.sp, true)
 	}
-	ext.PeerService.Set(tracer.sp, req.URL.Path)
 	if req.Method == "HEAD" {
 		tracer.sp.Finish()
 	} else {
