@@ -1,6 +1,7 @@
 package logging
 
 import (
+	"context"
 	"fmt"
 	"io"
 	stdlog "log"
@@ -25,6 +26,7 @@ type (
 		logRecordsMutex sync.RWMutex
 		logRecords      []opentracing.LogRecord
 		regex           *regexp.Regexp
+		ctx             context.Context
 	}
 	logItem struct {
 		time       time.Time
@@ -33,21 +35,21 @@ type (
 		message    string
 	}
 	loggerPatchInfo struct {
-		current  io.Writer
+		current  *otWriter
 		previous io.Writer
 	}
 )
 
 var (
 	patchedLoggersMutex sync.Mutex
-	patchedLoggers      = map[*stdlog.Logger]loggerPatchInfo{}
+	patchedLoggers      = map[io.Writer]loggerPatchInfo{}
 	stdLoggerWriter     io.Writer
 )
 
 // Patch the standard logger
 func PatchStandardLogger() {
 	stdLoggerWriter := getStdLoggerWriter()
-	otWriter := newInstrumentedWriter(stdlog.Prefix(), stdlog.Flags())
+	otWriter := &otWriter{regex: regexp.MustCompile(fmt.Sprintf(logRegexTemplate, stdlog.Prefix()))}
 	stdlog.SetOutput(io.MultiWriter(stdLoggerWriter, otWriter))
 	recorders = append(recorders, otWriter)
 }
@@ -59,36 +61,19 @@ func UnpatchStandardLogger() {
 
 // Patch a logger
 func PatchLogger(logger *stdlog.Logger) {
-	patchedLoggersMutex.Lock()
-	defer patchedLoggersMutex.Unlock()
-	if _, ok := patchedLoggers[logger]; ok {
-		return
-	}
-	currentWriter := getLoggerWriter(logger)
-	otWriter := newInstrumentedWriter(logger.Prefix(), logger.Flags())
-	logger.SetOutput(io.MultiWriter(currentWriter, otWriter))
-	recorders = append(recorders, otWriter)
-	patchedLoggers[logger] = loggerPatchInfo{
-		current:  otWriter,
-		previous: currentWriter,
-	}
+	patchLogger(logger, nil)
 }
 
 // Unpatch a logger
 func UnpatchLogger(logger *stdlog.Logger) {
-	patchedLoggersMutex.Lock()
-	defer patchedLoggersMutex.Unlock()
-	if logInfo, ok := patchedLoggers[logger]; ok {
-		logger.SetOutput(logInfo.previous)
-		delete(patchedLoggers, logger)
-	}
+	unpatchLogger(logger)
 }
 
-// Create a new instrumented writer for loggers
-func newInstrumentedWriter(prefix string, flag int) *otWriter {
-	return &otWriter{
-		regex: regexp.MustCompile(fmt.Sprintf(logRegexTemplate, prefix)),
-	}
+// Create a new logger with a context
+func WithContext(logger *stdlog.Logger, ctx context.Context) *stdlog.Logger {
+	rLogger := stdlog.New(getLoggerWriter(logger), logger.Prefix(), logger.Flags())
+	patchLogger(rLogger, ctx)
+	return rLogger
 }
 
 // Write data to the channel and the base writer
@@ -110,6 +95,42 @@ func (w *otWriter) GetRecords() []opentracing.LogRecord {
 	defer w.Reset()
 	defer w.logRecordsMutex.RUnlock()
 	return w.logRecords
+}
+
+// Patch logger with optional context
+func patchLogger(logger *stdlog.Logger, ctx context.Context) {
+	unpatchLogger(logger)
+
+	patchedLoggersMutex.Lock()
+	defer patchedLoggersMutex.Unlock()
+
+	otWriter := &otWriter{
+		regex: regexp.MustCompile(fmt.Sprintf(logRegexTemplate, logger.Prefix())),
+		ctx:   ctx,
+	}
+
+	currentWriter := getLoggerWriter(logger)
+	newWriter := io.MultiWriter(currentWriter, otWriter)
+	patchedLoggers[newWriter] = loggerPatchInfo{
+		current:  otWriter,
+		previous: currentWriter,
+	}
+
+	recorders = append(recorders, otWriter)
+	logger.SetOutput(newWriter)
+}
+
+// Unpatch logger
+func unpatchLogger(logger *stdlog.Logger) {
+	patchedLoggersMutex.Lock()
+	defer patchedLoggersMutex.Unlock()
+
+	currentWriter := getLoggerWriter(logger)
+
+	if logInfo, ok := patchedLoggers[currentWriter]; ok {
+		logger.SetOutput(logInfo.previous)
+		delete(patchedLoggers, currentWriter)
+	}
 }
 
 // Process bytes and create new log items struct to store
@@ -159,8 +180,6 @@ func (w *otWriter) process(p []byte) {
 
 // Stores a new log record from the logItem
 func (w *otWriter) storeLogRecord(item *logItem) {
-	w.logRecordsMutex.Lock()
-	defer w.logRecordsMutex.Unlock()
 	fields := []log.Field{
 		log.String(tags.EventType, tags.LogEvent),
 		log.String(tags.LogEventLevel, tags.LogLevel_VERBOSE),
@@ -171,6 +190,18 @@ func (w *otWriter) storeLogRecord(item *logItem) {
 		item.file = filepath.Clean(item.file)
 		fields = append(fields, log.String(tags.EventSource, fmt.Sprintf("%s:%s", item.file, item.lineNumber)))
 	}
+
+	// If context is found, we try to find the a span from the context and write the logs
+	if w.ctx != nil {
+		if span := opentracing.SpanFromContext(w.ctx); span != nil {
+			span.LogFields(fields...)
+			return
+		}
+	}
+
+	// If no context, we store the log records for future extraction
+	w.logRecordsMutex.Lock()
+	defer w.logRecordsMutex.Unlock()
 	w.logRecords = append(w.logRecords, opentracing.LogRecord{
 		Timestamp: item.time,
 		Fields:    fields,
