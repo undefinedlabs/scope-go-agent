@@ -2,6 +2,24 @@ package agent
 
 import "testing"
 
+func TestRefRegex(t *testing.T) {
+	tests := map[string]string{
+		"ref: refs/heads/git-alternative":     "refs/heads/git-alternative",
+		"ref:    refs/heads/git-alternative":  "refs/heads/git-alternative",
+		"    ref: refs/heads/git-alternative": "refs/heads/git-alternative",
+		"ref: a.b_c:d|e-f%g$h(i)/j\\k":        "a.b_c:d|e-f%g$h(i)/j\\k",
+	}
+	for k, v := range tests {
+		match := refRegex.FindStringSubmatch(k)
+		if match == nil {
+			t.Fatalf("match for '%s' is nil", k)
+		}
+		if match[1] != v {
+			t.Fatalf("match for '%s' is '%s', but '%s' was expected", k, match[1], v)
+		}
+	}
+}
+
 func TestRemoteRegex(t *testing.T) {
 	tests := map[string]string{
 		"[remote \"origin\"]":      "origin",

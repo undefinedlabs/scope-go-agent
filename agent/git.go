@@ -40,6 +40,7 @@ type (
 )
 
 var (
+	refRegex    = regexp.MustCompile(`(?m)ref:[ ]*(.*)$`)
 	remoteRegex = regexp.MustCompile(`(?m)^\[remote[ ]*\"(.*)\"[ ]*\]$`)
 	branchRegex = regexp.MustCompile(`(?m)^\[branch[ ]*\"(.*)\"[ ]*\]$`)
 	urlRegex    = regexp.MustCompile(`(?m)url[ ]*=[ ]*(.*)$`)
@@ -65,9 +66,10 @@ func getGitData() *GitData {
 		if headBytes, err := ioutil.ReadAll(headFile); err == nil {
 			head := string(headBytes)
 			// HEAD data:  https://git-scm.com/book/en/v2/Git-Internals-Git-References
-			if strings.Index(head, "ref:") == 0 {
+			refMatch := refRegex.FindStringSubmatch(head)
+			if len(refMatch) == 2 {
 				// Symbolic reference
-				mergePath = strings.TrimSpace(head[4:])
+				mergePath = strings.TrimSpace(refMatch[1])
 				if refFile, err := os.Open(filepath.Join(gitFolder, mergePath)); err == nil {
 					defer refFile.Close()
 					if refBytes, err := ioutil.ReadAll(refFile); err == nil {
