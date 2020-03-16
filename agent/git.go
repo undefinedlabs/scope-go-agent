@@ -40,8 +40,8 @@ type (
 )
 
 var (
-	remoteRegex = regexp.MustCompile(`(?m)^\[remote[ ]*\"(.*)\"\]$`)
-	branchRegex = regexp.MustCompile(`(?m)^\[branch[ ]*\"(.*)\"\]$`)
+	remoteRegex = regexp.MustCompile(`(?m)^\[remote[ ]*\"(.*)\"[ ]*\]$`)
+	branchRegex = regexp.MustCompile(`(?m)^\[branch[ ]*\"(.*)\"[ ]*\]$`)
 	urlRegex    = regexp.MustCompile(`(?m)url[ ]*=[ ]*(.*)$`)
 	mergeRegex  = regexp.MustCompile(`(?m)merge[ ]*=[ ]*(.*)$`)
 )
