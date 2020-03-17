@@ -2,66 +2,137 @@ package agent
 
 import (
 	"bufio"
+	"errors"
+	"fmt"
+	"io/ioutil"
 	"os"
 	"os/exec"
+	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
 
 	"github.com/google/uuid"
-	"gopkg.in/src-d/go-git.v4"
-
 	"go.undefinedlabs.com/scopeagent/env"
 	"go.undefinedlabs.com/scopeagent/tags"
 )
 
-type GitData struct {
-	Repository string
-	Commit     string
-	SourceRoot string
-	Branch     string
-}
+type (
+	GitData struct {
+		Repository string
+		Commit     string
+		SourceRoot string
+		Branch     string
+	}
+	GitDiff struct {
+		Type    string         `json:"type" msgpack:"type"`
+		Version string         `json:"version" msgpack:"version"`
+		Uuid    string         `json:"uuid" msgpack:"uuid"`
+		Files   []DiffFileItem `json:"files" msgpack:"files"`
+	}
+	DiffFileItem struct {
+		Path         string  `json:"path" msgpack:"path"`
+		Added        int     `json:"added" msgpack:"added"`
+		Removed      int     `json:"removed" msgpack:"removed"`
+		Status       string  `json:"status" msgpack:"status"`
+		PreviousPath *string `json:"previousPath" msgpack:"previousPath"`
+	}
+)
 
-type GitDiff struct {
-	Type    string         `json:"type" msgpack:"type"`
-	Version string         `json:"version" msgpack:"version"`
-	Uuid    string         `json:"uuid" msgpack:"uuid"`
-	Files   []DiffFileItem `json:"files" msgpack:"files"`
-}
-type DiffFileItem struct {
-	Path         string  `json:"path" msgpack:"path"`
-	Added        int     `json:"added" msgpack:"added"`
-	Removed      int     `json:"removed" msgpack:"removed"`
-	Status       string  `json:"status" msgpack:"status"`
-	PreviousPath *string `json:"previousPath" msgpack:"previousPath"`
-}
+var (
+	refRegex    = regexp.MustCompile(`(?m)ref:[ ]*(.*)$`)
+	remoteRegex = regexp.MustCompile(`(?m)^\[remote[ ]*\"(.*)\"[ ]*\]$`)
+	branchRegex = regexp.MustCompile(`(?m)^\[branch[ ]*\"(.*)\"[ ]*\]$`)
+	urlRegex    = regexp.MustCompile(`(?m)url[ ]*=[ ]*(.*)$`)
+	mergeRegex  = regexp.MustCompile(`(?m)merge[ ]*=[ ]*(.*)$`)
+)
 
 // Gets the current git data
 func getGitData() *GitData {
+	gitFolder, err := getGitFolder()
+	if err != nil {
+		return nil
+	}
+
 	var repository, commit, sourceRoot, branch string
 
-	wd, err := os.Getwd()
-	if err != nil {
-		return nil
-	}
-	repo, err := git.PlainOpenWithOptions(wd, &git.PlainOpenOptions{DetectDotGit: true})
-	if err != nil {
-		return nil
-	}
+	// Get source root
+	sourceRoot = filepath.Dir(gitFolder)
 
-	if remote, err := repo.Remote("origin"); err == nil {
-		urls := remote.Config().URLs
-		if len(urls) > 0 {
-			repository = urls[0]
+	// Get commit hash
+	var mergePath string
+	if headFile, err := os.Open(filepath.Join(gitFolder, "HEAD")); err == nil {
+		defer headFile.Close()
+		if headBytes, err := ioutil.ReadAll(headFile); err == nil {
+			head := string(headBytes)
+			// HEAD data:  https://git-scm.com/book/en/v2/Git-Internals-Git-References
+			refMatch := refRegex.FindStringSubmatch(head)
+			if len(refMatch) == 2 {
+				// Symbolic reference
+				mergePath = strings.TrimSpace(refMatch[1])
+				if refFile, err := os.Open(filepath.Join(gitFolder, mergePath)); err == nil {
+					defer refFile.Close()
+					if refBytes, err := ioutil.ReadAll(refFile); err == nil {
+						commit = strings.TrimSpace(string(refBytes))
+					}
+				}
+			} else {
+				// Detached head (Plain hash)
+				commit = strings.TrimSpace(head)
+				branch = "HEAD"
+			}
 		}
 	}
 
-	if head, err := repo.Head(); err == nil {
-		commit = head.Hash().String()
-		branch = head.Name().Short()
-	}
+	// Get repository and branch
+	if configFile, err := os.Open(filepath.Join(gitFolder, "config")); err == nil {
+		defer configFile.Close()
+		reader := bufio.NewReader(configFile)
+		scanner := bufio.NewScanner(reader)
 
-	if tree, err := repo.Worktree(); err == nil {
-		sourceRoot = tree.Filesystem.Root()
+		var tmpBranch string
+		var intoRemoteBlock, intoBranchBlock bool
+		for scanner.Scan() {
+			line := scanner.Text()
+
+			if repository == "" {
+				if !intoRemoteBlock {
+					remoteMatch := remoteRegex.FindStringSubmatch(line)
+					if len(remoteMatch) == 2 {
+						intoRemoteBlock = remoteMatch[1] == "origin"
+						continue
+					}
+				} else {
+					urlMatch := urlRegex.FindStringSubmatch(line)
+					if len(urlMatch) == 2 {
+						repository = strings.TrimSpace(urlMatch[1])
+						intoRemoteBlock = false
+						continue
+					}
+				}
+			}
+
+			if branch == "" {
+				if !intoBranchBlock {
+					branchMatch := branchRegex.FindStringSubmatch(line)
+					if len(branchMatch) == 2 {
+						tmpBranch = branchMatch[1]
+						intoBranchBlock = true
+						continue
+					}
+				} else {
+					mergeMatch := mergeRegex.FindStringSubmatch(line)
+					if len(mergeMatch) == 2 {
+						mergeData := strings.TrimSpace(mergeMatch[1])
+						intoBranchBlock = false
+						if mergeData == mergePath {
+							branch = tmpBranch
+							continue
+						}
+					}
+				}
+			}
+		}
 	}
 
 	return &GitData{
@@ -72,9 +143,28 @@ func getGitData() *GitData {
 	}
 }
 
+func getGitFolder() (string, error) {
+	dir, err := os.Getwd()
+	if err != nil {
+		return "", nil
+	}
+	for {
+		rel, _ := filepath.Rel("/", dir)
+		// Exit the loop once we reach the basePath.
+		if rel == "." {
+			return "", errors.New("git folder not found")
+		}
+		gitPath := fmt.Sprintf("%v/.git", dir)
+		if pInfo, err := os.Stat(gitPath); err == nil && pInfo.IsDir() {
+			return gitPath, nil
+		}
+		// Going up!
+		dir += "/.."
+	}
+}
+
 func getGitDiff() *GitDiff {
 	var diff string
-	// Git diff with numstat is not supported by "gopkg.in/src-d/go-git.v4"
 	if diffBytes, err := exec.Command("git", "diff", "--numstat").Output(); err == nil {
 		diff = string(diffBytes)
 	} else {
