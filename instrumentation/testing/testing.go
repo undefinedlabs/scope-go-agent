@@ -2,7 +2,6 @@ package testing
 
 import (
 	"context"
-	"fmt"
 	"reflect"
 	"regexp"
 	"runtime"
@@ -14,7 +13,6 @@ import (
 
 	"github.com/opentracing/opentracing-go"
 
-	"go.undefinedlabs.com/scopeagent/ast"
 	"go.undefinedlabs.com/scopeagent/errors"
 	"go.undefinedlabs.com/scopeagent/instrumentation"
 	"go.undefinedlabs.com/scopeagent/instrumentation/logging"
@@ -71,21 +69,10 @@ func StartTestFromCaller(t *testing.T, pc uintptr, opts ...Option) *Test {
 		opt(test)
 	}
 
-	// Extracting the benchmark func name (by removing any possible sub-benchmark suffix `{bench_func}/{sub_benchmark}`)
+	// Extracting the testing func name (by removing any possible sub-test suffix `{test_func}/{sub_test}`)
 	// to search the func source code bounds and to calculate the package name.
 	fullTestName := runner.GetOriginalTestName(t.Name())
-	testNameSlash := strings.IndexByte(fullTestName, '/')
-	funcName := fullTestName
-	if testNameSlash >= 0 {
-		funcName = fullTestName[:testNameSlash]
-	}
-
-	funcFullName := runtime.FuncForPC(pc).Name()
-	funcNameIndex := strings.LastIndex(funcFullName, funcName)
-	if funcNameIndex < 1 {
-		funcNameIndex = len(funcFullName)
-	}
-	packageName := funcFullName[:funcNameIndex-1]
+	packageName := getPackageName(pc, fullTestName)
 
 	testTags := opentracing.Tags{
 		"span.kind":      "test",
@@ -94,12 +81,10 @@ func StartTestFromCaller(t *testing.T, pc uintptr, opts ...Option) *Test {
 		"test.framework": "testing",
 		"test.language":  "go",
 	}
-	sourceBounds, sErr := ast.GetFuncSourceForName(pc, funcName)
-	if sErr != nil {
-		instrumentation.Logger().Printf("error calculating the source boundaries for '%s [%s]': %v", funcName, funcFullName, sErr)
-	}
-	if sourceBounds != nil {
-		testTags["test.code"] = fmt.Sprintf("%s:%d:%d", sourceBounds.File, sourceBounds.Start.Line, sourceBounds.End.Line)
+
+	testCode := getTestCodeBoundaries(pc, fullTestName)
+	if testCode != "" {
+		testTags["test.code"] = testCode
 	}
 
 	if test.ctx == nil {

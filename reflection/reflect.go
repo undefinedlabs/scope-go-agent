@@ -46,3 +46,60 @@ func GetIsParallel(t *testing.T) bool {
 	}
 	return false
 }
+
+func GetBenchmarkMutex(b *testing.B) *sync.RWMutex {
+	if ptr, err := GetFieldPointerOf(b, "mu"); err == nil {
+		return (*sync.RWMutex)(ptr)
+	}
+	return nil
+}
+
+func GetParentBenchmark(b *testing.B) *testing.B {
+	mu := GetBenchmarkMutex(b)
+	if mu != nil {
+		mu.Lock()
+		defer mu.Unlock()
+	}
+	if ptr, err := GetFieldPointerOf(b, "parent"); err == nil {
+		return *(**testing.B)(ptr)
+	}
+	return nil
+}
+
+func GetBenchmarkSuiteName(b *testing.B) string {
+	mu := GetBenchmarkMutex(b)
+	if mu != nil {
+		mu.Lock()
+		defer mu.Unlock()
+	}
+	if ptr, err := GetFieldPointerOf(b, "importPath"); err == nil {
+		return *(*string)(ptr)
+	}
+	return ""
+}
+
+func GetBenchmarkHasSub(b *testing.B) int32 {
+	mu := GetBenchmarkMutex(b)
+	if mu != nil {
+		mu.Lock()
+		defer mu.Unlock()
+	}
+	if ptr, err := GetFieldPointerOf(b, "hasSub"); err == nil {
+		return *(*int32)(ptr)
+	}
+	return 0
+}
+
+//Get benchmark result from the private result field in testing.B
+func GetBenchmarkResult(b *testing.B) (*testing.BenchmarkResult, error) {
+	mu := GetBenchmarkMutex(b)
+	if mu != nil {
+		mu.Lock()
+		defer mu.Unlock()
+	}
+	if ptr, err := GetFieldPointerOf(b, "result"); err == nil {
+		return (*testing.BenchmarkResult)(ptr), nil
+	} else {
+		return nil, err
+	}
+}
