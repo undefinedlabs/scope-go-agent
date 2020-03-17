@@ -184,7 +184,7 @@ func (r *SpanRecorder) sendSpans() (error, bool) {
 		jobs++
 
 		if len(r.workerResults) > 0 {
-			// We check if a previous result call the cancellation of the send
+			// We check if a previous result to check if we need to cancel all
 			result := <-r.workerResults
 			lastError = result.error
 			jobs--
