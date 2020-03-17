@@ -297,10 +297,14 @@ func NewAgent(options ...Option) (*Agent, error) {
 		cSRoot := sRoot.(string)
 		cSRoot = filepath.Clean(cSRoot)
 		if sRootEx, err := homedir.Expand(cSRoot); err == nil {
-			sourceRoot = sRootEx
-			agent.metadata[tags.SourceRoot] = sRootEx
+			cSRoot = sRootEx
 		}
+		sourceRoot = cSRoot
 	}
+	if sourceRoot == "" {
+		sourceRoot = getGoModDir()
+	}
+	agent.metadata[tags.SourceRoot] = sourceRoot
 
 	if !agent.testingMode {
 		if env.ScopeTestingMode.IsSet {
@@ -347,6 +351,26 @@ func NewAgent(options ...Option) (*Agent, error) {
 	}
 
 	return agent, nil
+}
+
+func getGoModDir() string {
+	dir, err := os.Getwd()
+	if err != nil {
+		return filepath.Dir("/")
+	}
+	for {
+		rel, _ := filepath.Rel("/", dir)
+		// Exit the loop once we reach the basePath.
+		if rel == "." {
+			return filepath.Dir("/")
+		}
+		modPath := fmt.Sprintf("%v/go.mod", dir)
+		if _, err := os.Stat(modPath); err == nil {
+			return dir
+		}
+		// Going up!
+		dir += "/.."
+	}
 }
 
 func (a *Agent) setupLogging() error {
