@@ -79,6 +79,7 @@ func getGitData() *GitData {
 			} else {
 				// Detached head (Plain hash)
 				commit = strings.TrimSpace(head)
+				branch = "HEAD"
 			}
 		}
 	}
