@@ -101,6 +101,13 @@ func NewSpanRecorder(agent *Agent) *SpanRecorder {
 	r.stats = &RecorderStats{}
 	r.logger.Printf("recorder frequency: %v", agent.flushFrequency)
 	r.logger.Printf("recorder concurrency level: %v", agent.concurrencyLevel)
+
+	// start workers
+	r.workerJobs = make(chan *workerJob, r.concurrencyLevel)
+	r.workerResults = make(chan *workerResult, r.concurrencyLevel)
+	for i := 0; i < r.concurrencyLevel; i++ {
+		go r.worker(i + 1)
+	}
 	r.t.Go(r.loop)
 	return r
 }
@@ -122,18 +129,8 @@ func (r *SpanRecorder) RecordSpan(span tracer.RawSpan) {
 
 func (r *SpanRecorder) loop() error {
 	defer func() {
-		close(r.workerJobs)
-		close(r.workerResults)
 		r.logger.Println("recorder has been stopped.")
 	}()
-
-	// start workers
-	r.workerJobs = make(chan *workerJob, r.concurrencyLevel)
-	r.workerResults = make(chan *workerResult, r.concurrencyLevel)
-	for i := 0; i < r.concurrencyLevel; i++ {
-		go r.worker(i + 1)
-	}
-
 	ticker := time.NewTicker(1 * time.Second)
 	cTime := time.Now()
 	for {
@@ -280,6 +277,8 @@ func (r *SpanRecorder) Stop() {
 	}
 	r.t.Kill(nil)
 	_ = r.t.Wait()
+	close(r.workerJobs)
+	close(r.workerResults)
 	if r.debugMode {
 		r.writeStats()
 	}
