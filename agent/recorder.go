@@ -48,6 +48,10 @@ type (
 		logger    *log.Logger
 		stats     *RecorderStats
 		statsOnce sync.Once
+
+		concurrencyLevel int
+		workerJobs       chan *workerJob
+		workerResults    chan *workerResult
 	}
 	RecorderStats struct {
 		totalSpans        int64
@@ -66,6 +70,18 @@ type (
 
 	PayloadSpan  map[string]interface{}
 	PayloadEvent map[string]interface{}
+
+	workerJob struct {
+		spans       []PayloadSpan
+		totalSpans  int
+		events      []PayloadEvent
+		totalEvents int
+	}
+	workerResult struct {
+		workerId   int
+		error      error
+		shouldExit bool
+	}
 )
 
 func NewSpanRecorder(agent *Agent) *SpanRecorder {
@@ -79,9 +95,12 @@ func NewSpanRecorder(agent *Agent) *SpanRecorder {
 	r.metadata = agent.metadata
 	r.logger = agent.logger
 	r.flushFrequency = agent.flushFrequency
+	r.concurrencyLevel = agent.concurrencyLevel
 	r.url = agent.getUrl("api/agent/ingest")
 	r.client = &http.Client{}
 	r.stats = &RecorderStats{}
+	r.logger.Printf("recorder frequency: %v", agent.flushFrequency)
+	r.logger.Printf("recorder concurrency level: %v", agent.concurrencyLevel)
 	r.t.Go(r.loop)
 	return r
 }
@@ -103,8 +122,18 @@ func (r *SpanRecorder) RecordSpan(span tracer.RawSpan) {
 
 func (r *SpanRecorder) loop() error {
 	defer func() {
+		close(r.workerJobs)
+		close(r.workerResults)
 		r.logger.Println("recorder has been stopped.")
 	}()
+
+	// start workers
+	r.workerJobs = make(chan *workerJob, r.concurrencyLevel)
+	r.workerResults = make(chan *workerResult, r.concurrencyLevel)
+	for i := 0; i < r.concurrencyLevel; i++ {
+		go r.worker(i + 1)
+	}
+
 	ticker := time.NewTicker(1 * time.Second)
 	cTime := time.Now()
 	for {
@@ -144,51 +173,104 @@ func (r *SpanRecorder) sendSpans() (error, bool) {
 	atomic.AddInt64(&r.stats.sendSpansCalls, 1)
 	const batchSize = 1000
 	var lastError error
+	var jobs int
 	for {
 		spans, spMore, spTotal := r.popPayloadSpan(batchSize)
 		events, evMore, evTotal := r.popPayloadEvents(batchSize)
 
-		payload := map[string]interface{}{
-			"metadata":   r.metadata,
-			"spans":      spans,
-			"events":     events,
-			tags.AgentID: r.agentId,
+		r.workerJobs <- &workerJob{
+			spans:       spans,
+			totalSpans:  spTotal,
+			events:      events,
+			totalEvents: evTotal,
 		}
-		buf, err := encodePayload(payload)
-		if err != nil {
-			atomic.AddInt64(&r.stats.sendSpansKo, 1)
-			atomic.AddInt64(&r.stats.spansNotSent, int64(len(spans)))
-			return err, false
-		}
+		jobs++
 
-		var testSpans int64
-		for _, span := range spans {
-			if isTestSpan(span) {
-				testSpans++
+		if len(r.workerResults) > 0 {
+			// We check if a previous result call the cancellation of the send
+			result := <-r.workerResults
+			lastError = result.error
+			jobs--
+			if result.shouldExit {
+				r.logger.Printf("worker %d: received a should exit response", result.workerId)
+				for i := 0; i < jobs; i++ {
+					<-r.workerResults
+				}
+				return result.error, result.shouldExit
 			}
 		}
-
-		r.logger.Printf("sending %d/%d spans with %d/%d events", len(spans), spTotal, len(events), evTotal)
-		statusCode, err := r.callIngest(buf)
-		if err != nil {
-			atomic.AddInt64(&r.stats.sendSpansKo, 1)
-			atomic.AddInt64(&r.stats.spansNotSent, int64(len(spans)))
-			atomic.AddInt64(&r.stats.testSpansNotSent, testSpans)
-		} else {
-			atomic.AddInt64(&r.stats.sendSpansOk, 1)
-			atomic.AddInt64(&r.stats.spansSent, int64(len(spans)))
-			atomic.AddInt64(&r.stats.testSpansSent, testSpans)
-		}
-		if statusCode == 401 {
-			return err, true
-		}
-		lastError = err
 
 		if !spMore && !evMore {
 			break
 		}
 	}
-	return lastError, false
+	shouldExit := false
+	for i := 0; i < jobs; i++ {
+		result := <-r.workerResults
+		lastError = result.error
+		if result.shouldExit {
+			r.logger.Printf("worker %d: received a should exit response", result.workerId)
+			shouldExit = true
+		}
+	}
+	return lastError, shouldExit
+}
+
+func (r *SpanRecorder) worker(id int) {
+	for {
+		select {
+		case j, ok := <-r.workerJobs:
+			if !ok {
+				if r.debugMode {
+					r.logger.Printf("exiting from worker: %d", id)
+				}
+				return
+			}
+
+			payload := map[string]interface{}{
+				"metadata":   r.metadata,
+				"spans":      j.spans,
+				"events":     j.events,
+				tags.AgentID: r.agentId,
+			}
+
+			buf, err := encodePayload(payload)
+			if err != nil {
+				atomic.AddInt64(&r.stats.sendSpansKo, 1)
+				atomic.AddInt64(&r.stats.spansNotSent, int64(len(j.spans)))
+				r.workerResults <- &workerResult{
+					workerId:   id,
+					error:      err,
+					shouldExit: false,
+				}
+				continue
+			}
+
+			var testSpans int64
+			for _, span := range j.spans {
+				if isTestSpan(span) {
+					testSpans++
+				}
+			}
+
+			r.logger.Printf("worker %d: sending %d/%d spans with %d/%d events", id, len(j.spans), j.totalSpans, len(j.events), j.totalEvents)
+			statusCode, err := r.callIngest(buf)
+			if err != nil {
+				atomic.AddInt64(&r.stats.sendSpansKo, 1)
+				atomic.AddInt64(&r.stats.spansNotSent, int64(len(j.spans)))
+				atomic.AddInt64(&r.stats.testSpansNotSent, testSpans)
+			} else {
+				atomic.AddInt64(&r.stats.sendSpansOk, 1)
+				atomic.AddInt64(&r.stats.spansSent, int64(len(j.spans)))
+				atomic.AddInt64(&r.stats.testSpansSent, testSpans)
+			}
+			r.workerResults <- &workerResult{
+				workerId:   id,
+				error:      err,
+				shouldExit: statusCode == 401,
+			}
+		}
+	}
 }
 
 // Stop recorder
