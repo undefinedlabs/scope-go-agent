@@ -1,40 +1,31 @@
 package agent
 
 import (
-	"bufio"
-	"os"
+	"io/ioutil"
+	"regexp"
 	"runtime"
-	"strings"
 	"sync"
 )
 
 var (
 	runningInContainerOnce sync.Once
 	runningInContainer     bool
+	containerRegex         = regexp.MustCompile(`(?m)\/docker\/|\/ecs\/|\/docker-|\/kubepods\/|\/actions_job\/|\/lxc\/`)
 )
 
 // gets if the current process is running inside a container
 func isRunningInContainer() bool {
 	runningInContainerOnce.Do(func() {
-		if runtime.GOOS == "linux" {
-			file, err := os.Open("/proc/1/cgroup")
-			if err != nil {
-				runningInContainer = false
-				return
-			}
-			defer file.Close()
-			for {
-				line, readErr := bufio.NewReader(file).ReadString('\n')
-				if readErr != nil {
-					break
-				}
-				if strings.Contains(line, "/docker/") || strings.Contains(line, "/lxc/") {
-					runningInContainer = true
-					return
-				}
-			}
+		if runtime.GOOS != "linux" {
+			runningInContainer = false
+			return
 		}
-		runningInContainer = false
+		content, err := ioutil.ReadFile("/proc/1/cgroup")
+		if err != nil {
+			runningInContainer = false
+			return
+		}
+		runningInContainer = containerRegex.Match(content)
 	})
 	return runningInContainer
 }
