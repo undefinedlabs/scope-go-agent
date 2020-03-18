@@ -3,9 +3,13 @@ package agent
 import (
 	"fmt"
 	"os"
+	"regexp"
+	"strings"
 
 	"go.undefinedlabs.com/scopeagent/tags"
 )
+
+var branchRefRegex = regexp.MustCompile(`(?m)^refs\/heads\/(.*)|refs\/(.*)$`)
 
 func getCIMetadata() map[string]interface{} {
 	ciMetadata := map[string]interface{}{tags.CI: false}
@@ -25,6 +29,11 @@ func getCIMetadata() map[string]interface{} {
 			os.Getenv("TRAVIS_REPO_SLUG"),
 		)
 		ciMetadata[tags.Commit] = os.Getenv("TRAVIS_COMMIT")
+		if branch, ok := os.LookupEnv("TRAVIS_PULL_REQUEST_BRANCH"); ok && branch != "" {
+			ciMetadata[tags.Branch] = branch
+		} else {
+			ciMetadata[tags.Branch] = os.Getenv("TRAVIS_BRANCH")
+		}
 		ciMetadata[tags.SourceRoot] = getSourceRootFromEnv("TRAVIS_BUILD_DIR")
 	} else if _, set := os.LookupEnv("CIRCLECI"); set {
 		ciMetadata[tags.CI] = true
@@ -33,6 +42,7 @@ func getCIMetadata() map[string]interface{} {
 		ciMetadata[tags.CIBuildUrl] = os.Getenv("CIRCLE_BUILD_URL")
 		ciMetadata[tags.Repository] = os.Getenv("CIRCLE_REPOSITORY_URL")
 		ciMetadata[tags.Commit] = os.Getenv("CIRCLE_SHA1")
+		ciMetadata[tags.Branch] = os.Getenv("CIRCLE_BRANCH")
 		ciMetadata[tags.SourceRoot] = getSourceRootFromEnv("CIRCLE_WORKING_DIRECTORY")
 	} else if _, set := os.LookupEnv("JENKINS_URL"); set {
 		ciMetadata[tags.CI] = true
@@ -42,6 +52,12 @@ func getCIMetadata() map[string]interface{} {
 		ciMetadata[tags.CIBuildUrl] = os.Getenv("BUILD_URL")
 		ciMetadata[tags.Repository] = os.Getenv("GIT_URL")
 		ciMetadata[tags.Commit] = os.Getenv("GIT_COMMIT")
+		branch := os.Getenv("GIT_BRANCH")
+		if strings.Index("branch", "origin/") == 0 {
+			// Removes the origin/ prefix
+			branch = branch[7:]
+		}
+		ciMetadata[tags.Branch] = branch
 		ciMetadata[tags.SourceRoot] = getSourceRootFromEnv("WORKSPACE")
 	} else if _, set := os.LookupEnv("GITLAB_CI"); set {
 		ciMetadata[tags.CI] = true
@@ -50,6 +66,11 @@ func getCIMetadata() map[string]interface{} {
 		ciMetadata[tags.CIBuildUrl] = os.Getenv("CI_JOB_URL")
 		ciMetadata[tags.Repository] = os.Getenv("CI_REPOSITORY_URL")
 		ciMetadata[tags.Commit] = os.Getenv("CI_COMMIT_SHA")
+		if branch, ok := os.LookupEnv("CI_COMMIT_BRANCH"); ok && branch != "" {
+			ciMetadata[tags.Branch] = branch
+		} else {
+			ciMetadata[tags.Branch] = os.Getenv("CI_COMMIT_REF_NAME")
+		}
 		ciMetadata[tags.SourceRoot] = getSourceRootFromEnv("CI_PROJECT_DIR")
 	} else if _, set := os.LookupEnv("APPVEYOR"); set {
 		buildId := os.Getenv("APPVEYOR_BUILD_ID")
@@ -64,6 +85,11 @@ func getCIMetadata() map[string]interface{} {
 		)
 		ciMetadata[tags.Repository] = os.Getenv("APPVEYOR_REPO_NAME")
 		ciMetadata[tags.Commit] = os.Getenv("APPVEYOR_REPO_COMMIT")
+		if branch, ok := os.LookupEnv("APPVEYOR_PULL_REQUEST_HEAD_REPO_BRANCH"); ok && branch != "" {
+			ciMetadata[tags.Branch] = branch
+		} else {
+			ciMetadata[tags.Branch] = os.Getenv("APPVEYOR_REPO_BRANCH")
+		}
 		ciMetadata[tags.SourceRoot] = getSourceRootFromEnv("APPVEYOR_BUILD_FOLDER")
 	} else if _, set := os.LookupEnv("TF_BUILD"); set {
 		buildId := os.Getenv("Build.BuildId")
@@ -79,6 +105,11 @@ func getCIMetadata() map[string]interface{} {
 		)
 		ciMetadata[tags.Repository] = os.Getenv("Build.Repository.Uri")
 		ciMetadata[tags.Commit] = os.Getenv("Build.SourceVersion")
+		if branch, ok := os.LookupEnv("Build.SourceBranchName"); ok && branch != "" {
+			ciMetadata[tags.Branch] = branch
+		} else {
+			ciMetadata[tags.Branch] = os.Getenv("Build.SourceBranch")
+		}
 		ciMetadata[tags.SourceRoot] = getSourceRootFromEnv("Build.SourcesDirectory")
 	} else if sha, set := os.LookupEnv("BITBUCKET_COMMIT"); set {
 		ciMetadata[tags.CI] = true
@@ -86,6 +117,7 @@ func getCIMetadata() map[string]interface{} {
 		ciMetadata[tags.CIBuildNumber] = os.Getenv("BITBUCKET_BUILD_NUMBER")
 		ciMetadata[tags.Repository] = os.Getenv("BITBUCKET_GIT_SSH_ORIGIN")
 		ciMetadata[tags.Commit] = sha
+		ciMetadata[tags.Branch] = os.Getenv("BITBUCKET_BRANCH")
 		ciMetadata[tags.SourceRoot] = getSourceRootFromEnv("BITBUCKET_CLONE_DIR")
 	} else if sha, set := os.LookupEnv("GITHUB_SHA"); set {
 		repo := os.Getenv("GITHUB_REPOSITORY")
@@ -101,6 +133,7 @@ func getCIMetadata() map[string]interface{} {
 			repo,
 		)
 		ciMetadata[tags.Commit] = sha
+		ciMetadata[tags.Branch] = os.Getenv("GITHUB_REF")
 		ciMetadata[tags.SourceRoot] = getSourceRootFromEnv("GITHUB_WORKSPACE")
 		ciMetadata[tags.CIBuildId] = os.Getenv("GITHUB_RUN_ID")
 		ciMetadata[tags.CIBuildNumber] = os.Getenv("GITHUB_RUN_NUMBER")
@@ -126,7 +159,19 @@ func getCIMetadata() map[string]interface{} {
 		ciMetadata[tags.CIBuildUrl] = os.Getenv("BUILDKITE_BUILD_URL")
 		ciMetadata[tags.Repository] = os.Getenv("BUILDKITE_REPO")
 		ciMetadata[tags.Commit] = os.Getenv("BUILDKITE_COMMIT")
+		ciMetadata[tags.Branch] = os.Getenv("BUILDKITE_BRANCH")
 		ciMetadata[tags.SourceRoot] = getSourceRootFromEnv("BUILDKITE_BUILD_CHECKOUT_PATH")
+	}
+
+	if branchValue, ok := ciMetadata[tags.Branch]; ok {
+		match := branchRefRegex.FindStringSubmatch(branchValue.(string))
+		if len(match) == 3 {
+			if len(match[1]) > 0 {
+				ciMetadata[tags.Branch] = match[1]
+			} else {
+				ciMetadata[tags.Branch] = match[2]
+			}
+		}
 	}
 
 	return ciMetadata
