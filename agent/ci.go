@@ -165,7 +165,7 @@ func getCIMetadata() map[string]interface{} {
 
 	if branchValue, ok := ciMetadata[tags.Branch]; ok {
 		match := branchRefRegex.FindStringSubmatch(branchValue.(string))
-		if len(match) == 2 {
+		if len(match) == 3 {
 			if len(match[1]) > 0 {
 				ciMetadata[tags.Branch] = match[1]
 			} else {
