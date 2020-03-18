@@ -9,7 +9,7 @@ import (
 	"go.undefinedlabs.com/scopeagent/tags"
 )
 
-var branchRefRegex = regexp.MustCompile(`(?m)^refs\/heads\/(.*)|refs\/pull\/.*\/(.*)$`)
+var branchRefRegex = regexp.MustCompile(`(?m)^refs\/heads\/(.*)|refs\/(.*)$`)
 
 func getCIMetadata() map[string]interface{} {
 	ciMetadata := map[string]interface{}{tags.CI: false}
