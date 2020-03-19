@@ -3,7 +3,6 @@ package testing
 import (
 	"flag"
 	"reflect"
-	"runtime"
 	"testing"
 
 	"github.com/undefinedlabs/go-mpatch"
@@ -78,7 +77,7 @@ func PatchTRun() {
 	}
 
 	_, err := mpatch.PatchMethodByReflect(tRunMethod, func(t *testing.T, name string, f func(t *testing.T)) bool {
-		pc, _, _, _ := runtime.Caller(1)
+		pc := reflect.ValueOf(f).Pointer()
 		gT := FromTestingT(t)
 		return gT.Run(name, func(childT *testing.T) {
 			addAutoInstrumentedTest(childT)
@@ -103,7 +102,7 @@ func PatchBRun() {
 	}
 
 	_, err := mpatch.PatchMethodByReflect(bRunMethod, func(b *testing.B, name string, f func(b *testing.B)) bool {
-		pc, _, _, _ := runtime.Caller(1)
+		pc := reflect.ValueOf(f).Pointer()
 		return FromTestingB(b).Run(name, func(b *testing.B) {
 			StartBenchmark(b, pc, f)
 		})
