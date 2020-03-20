@@ -75,6 +75,16 @@ func GetContextFromTest(t *testing.T) context.Context {
 	return context.TODO()
 }
 
+// Sets the test code from the caller of this func
+func SetTestCodeFromCaller(t *testing.T) {
+	test := GetTest(t)
+	if test == nil {
+		return
+	}
+	pc, _, _, _ := runtime.Caller(1)
+	test.SetTestCode(pc)
+}
+
 // Gets the *Benchmark from a *testing.B
 func GetBenchmark(b *testing.B) *scopetesting.Benchmark {
 	return scopetesting.GetBenchmark(b)

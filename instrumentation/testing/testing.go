@@ -24,9 +24,10 @@ import (
 type (
 	Test struct {
 		testing.TB
-		ctx  context.Context
-		span opentracing.Span
-		t    *testing.T
+		ctx    context.Context
+		span   opentracing.Span
+		t      *testing.T
+		codePC uintptr
 	}
 
 	Option func(*Test)
@@ -64,6 +65,7 @@ func StartTestFromCaller(t *testing.T, pc uintptr, opts ...Option) *Test {
 		// If there is already one we want to replace it, so we clear the context
 		test.ctx = context.Background()
 	}
+	test.codePC = pc
 
 	for _, opt := range opts {
 		opt(test)
@@ -72,17 +74,16 @@ func StartTestFromCaller(t *testing.T, pc uintptr, opts ...Option) *Test {
 	// Extracting the testing func name (by removing any possible sub-test suffix `{test_func}/{sub_test}`)
 	// to search the func source code bounds and to calculate the package name.
 	fullTestName := runner.GetOriginalTestName(t.Name())
-	packageName := getPackageName(pc, fullTestName)
+	pName, _, testCode := getPackageAndNameAndBoundaries(pc)
 
 	testTags := opentracing.Tags{
 		"span.kind":      "test",
 		"test.name":      fullTestName,
-		"test.suite":     packageName,
+		"test.suite":     pName,
 		"test.framework": "testing",
 		"test.language":  "go",
 	}
 
-	testCode := getTestCodeBoundaries(pc, fullTestName)
 	if testCode != "" {
 		testTags["test.code"] = testCode
 	}
@@ -100,6 +101,15 @@ func StartTestFromCaller(t *testing.T, pc uintptr, opts ...Option) *Test {
 	startCoverage()
 
 	return test
+}
+
+// Set test code
+func (test *Test) SetTestCode(pc uintptr) {
+	pName, _, fBoundaries := getPackageAndNameAndBoundaries(pc)
+	test.span.SetTag("test.suite", pName)
+	if fBoundaries != "" {
+		test.span.SetTag("test.code", fBoundaries)
+	}
 }
 
 // Ends the current test
