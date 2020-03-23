@@ -3,7 +3,7 @@ module go.undefinedlabs.com/scopeagent
 go 1.13
 
 require (
-	github.com/beevik/ntp v0.2.0
+	github.com/beevik/ntp v0.3.0
 	github.com/davecgh/go-spew v1.1.1
 	github.com/go-errors/errors v1.0.1
 	github.com/gogo/protobuf v1.3.1
