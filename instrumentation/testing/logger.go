@@ -53,6 +53,7 @@ func UnpatchTestingLogger() {
 
 func patchError() {
 	patch("Error", func(test *Test, argsValues []reflect.Value) {
+		test.t.Helper()
 		args := getArgs(argsValues[0])
 		test.Error(args...)
 	})
@@ -60,6 +61,7 @@ func patchError() {
 
 func patchErrorf() {
 	patch("Errorf", func(test *Test, argsValues []reflect.Value) {
+		test.t.Helper()
 		format := argsValues[0].String()
 		args := getArgs(argsValues[1])
 		test.Errorf(format, args...)
@@ -68,6 +70,7 @@ func patchErrorf() {
 
 func patchFatal() {
 	patch("Fatal", func(test *Test, argsValues []reflect.Value) {
+		test.t.Helper()
 		args := getArgs(argsValues[0])
 		test.Fatal(args...)
 	})
@@ -75,6 +78,7 @@ func patchFatal() {
 
 func patchFatalf() {
 	patch("Fatalf", func(test *Test, argsValues []reflect.Value) {
+		test.t.Helper()
 		format := argsValues[0].String()
 		args := getArgs(argsValues[1])
 		test.Fatalf(format, args...)
@@ -83,6 +87,7 @@ func patchFatalf() {
 
 func patchLog() {
 	patch("Log", func(test *Test, argsValues []reflect.Value) {
+		test.t.Helper()
 		args := getArgs(argsValues[0])
 		test.Log(args...)
 	})
@@ -90,6 +95,7 @@ func patchLog() {
 
 func patchLogf() {
 	patch("Logf", func(test *Test, argsValues []reflect.Value) {
+		test.t.Helper()
 		format := argsValues[0].String()
 		args := getArgs(argsValues[1])
 		test.Logf(format, args...)
@@ -98,6 +104,7 @@ func patchLogf() {
 
 func patchSkip() {
 	patch("Skip", func(test *Test, argsValues []reflect.Value) {
+		test.t.Helper()
 		args := getArgs(argsValues[0])
 		test.Skip(args...)
 	})
@@ -105,6 +112,7 @@ func patchSkip() {
 
 func patchSkipf() {
 	patch("Skipf", func(test *Test, argsValues []reflect.Value) {
+		test.t.Helper()
 		format := argsValues[0].String()
 		args := getArgs(argsValues[1])
 		test.Skipf(format, args...)
@@ -141,6 +149,13 @@ func patch(methodName string, methodBody func(test *Test, argsValues []reflect.V
 			instrumentation.Logger().Println("testing.T is nil")
 			return nil
 		}
+
+		t.Helper()
+		reflection.AddToHelpersMap(t, []string{
+			"reflect.callReflect",
+			"reflect.makeFuncStub",
+		})
+
 		test := GetTest(t)
 		if test == nil {
 			instrumentation.Logger().Printf("test struct for %v doesn't exist\n", t.Name())

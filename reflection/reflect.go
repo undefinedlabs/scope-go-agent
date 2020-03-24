@@ -35,6 +35,25 @@ func GetTestMutex(t *testing.T) *sync.RWMutex {
 	return nil
 }
 
+func AddToHelpersMap(t *testing.T, frameFnNames []string) {
+	t.Helper()
+	mu := GetTestMutex(t)
+	if mu != nil {
+		mu.Lock()
+		defer mu.Unlock()
+	}
+
+	pointer, err := GetFieldPointerOf(t, "helpers")
+	if err != nil {
+		return
+	}
+
+	helpers := *(*map[string]struct{})(pointer)
+	for _, fnName := range frameFnNames {
+		helpers[fnName] = struct{}{}
+	}
+}
+
 func GetIsParallel(t *testing.T) bool {
 	mu := GetTestMutex(t)
 	if mu != nil {
