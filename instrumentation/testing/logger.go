@@ -145,16 +145,17 @@ func patch(methodName string, methodBody func(test *Test, argsValues []reflect.V
 	var err error
 	methodPatch, err = mpatch.PatchMethodWithMakeFunc(method, func(in []reflect.Value) []reflect.Value {
 		t := (*testing.T)(unsafe.Pointer(in[0].Pointer()))
+		if t == nil {
+			instrumentation.Logger().Println("testing.T is nil")
+			return nil
+		}
+
 		t.Helper()
 		reflection.AddToHelpersMap(t, []string{
 			"reflect.callReflect",
 			"reflect.makeFuncStub",
 		})
 
-		if t == nil {
-			instrumentation.Logger().Println("testing.T is nil")
-			return nil
-		}
 		test := GetTest(t)
 		if test == nil {
 			instrumentation.Logger().Printf("test struct for %v doesn't exist\n", t.Name())

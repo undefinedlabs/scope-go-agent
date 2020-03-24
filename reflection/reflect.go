@@ -35,31 +35,20 @@ func GetTestMutex(t *testing.T) *sync.RWMutex {
 	return nil
 }
 
-func GetHelpersMap(t *testing.T) map[string]struct{} {
-	t.Helper() // Ensure map creation before accessing it
+func AddToHelpersMap(t *testing.T, frameFnNames []string) {
+	t.Helper()
 	mu := GetTestMutex(t)
 	if mu != nil {
 		mu.Lock()
 		defer mu.Unlock()
 	}
-	if pointer, err := GetFieldPointerOf(t, "helpers"); err == nil {
-		return *(*map[string]struct{})(pointer)
-	}
-	return nil
-}
 
-func AddToHelpersMap(t *testing.T, frameFnNames []string) {
-	helpers := GetHelpersMap(t)
-	if helpers == nil {
+	pointer, err := GetFieldPointerOf(t, "helpers")
+	if err != nil {
 		return
 	}
 
-	mu := GetTestMutex(t)
-	if mu != nil {
-		mu.Lock()
-		defer mu.Unlock()
-	}
-
+	helpers := *(*map[string]struct{})(pointer)
 	for _, fnName := range frameFnNames {
 		helpers[fnName] = struct{}{}
 	}
