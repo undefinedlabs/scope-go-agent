@@ -146,7 +146,10 @@ func patch(methodName string, methodBody func(test *Test, argsValues []reflect.V
 	methodPatch, err = mpatch.PatchMethodWithMakeFunc(method, func(in []reflect.Value) []reflect.Value {
 		t := (*testing.T)(unsafe.Pointer(in[0].Pointer()))
 		t.Helper()
-		reflection.AddToHelpersMap(t, []string{"reflect.callReflect"})
+		reflection.AddToHelpersMap(t, []string{
+			"reflect.callReflect",
+			"reflect.makeFuncStub",
+		})
 
 		if t == nil {
 			instrumentation.Logger().Println("testing.T is nil")
