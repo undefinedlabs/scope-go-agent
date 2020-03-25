@@ -11,11 +11,9 @@ import (
 	"testing"
 
 	"go.undefinedlabs.com/scopeagent/agent"
-	"go.undefinedlabs.com/scopeagent/errors"
 	"go.undefinedlabs.com/scopeagent/instrumentation"
 	"go.undefinedlabs.com/scopeagent/instrumentation/logging"
 	scopetesting "go.undefinedlabs.com/scopeagent/instrumentation/testing"
-	"go.undefinedlabs.com/scopeagent/reflection"
 )
 
 var (
@@ -52,15 +50,6 @@ func Run(m *testing.M, opts ...agent.Option) int {
 		newAgent.Stop()
 		os.Exit(1)
 	}()
-	reflection.AddPanicHandler(func(e interface{}) {
-		instrumentation.Logger().Printf("Panic handler triggered by: %v.\nFlushing agent, sending partial results...", errors.GetCurrentError(e).ErrorStack())
-		newAgent.Flush()
-	})
-	reflection.AddOnPanicExitHandler(func(e interface{}) {
-		instrumentation.Logger().Printf("Process is going to end by: %v,\nStopping agent...", errors.GetCurrentError(e).ErrorStack())
-		scopetesting.PanicAllRunningTests(e, 3)
-		newAgent.Stop()
-	})
 
 	defaultAgent = newAgent
 	return newAgent.Run(m)
