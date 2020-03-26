@@ -22,6 +22,8 @@ import (
 	"go.undefinedlabs.com/scopeagent/env"
 	scopeError "go.undefinedlabs.com/scopeagent/errors"
 	"go.undefinedlabs.com/scopeagent/instrumentation"
+	scopetesting "go.undefinedlabs.com/scopeagent/instrumentation/testing"
+	"go.undefinedlabs.com/scopeagent/reflection"
 	"go.undefinedlabs.com/scopeagent/runner"
 	"go.undefinedlabs.com/scopeagent/tags"
 	"go.undefinedlabs.com/scopeagent/tracer"
@@ -173,6 +175,20 @@ func WithHandlePanicAsFail() Option {
 func WithRecorders(recorders ...tracer.SpanRecorder) Option {
 	return func(agent *Agent) {
 		agent.optionalRecorders = recorders
+	}
+}
+
+func WithGlobalPanicHandler() Option {
+	return func(agent *Agent) {
+		reflection.AddPanicHandler(func(e interface{}) {
+			instrumentation.Logger().Printf("Panic handler triggered by: %v.\nFlushing agent, sending partial results...", scopeError.GetCurrentError(e).ErrorStack())
+			agent.Flush()
+		})
+		reflection.AddOnPanicExitHandler(func(e interface{}) {
+			instrumentation.Logger().Printf("Process is going to end by: %v,\nStopping agent...", scopeError.GetCurrentError(e).ErrorStack())
+			scopetesting.PanicAllRunningTests(e, 3)
+			agent.Stop()
+		})
 	}
 }
 

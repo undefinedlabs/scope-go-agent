@@ -8,6 +8,7 @@ import (
 	"github.com/undefinedlabs/go-mpatch"
 
 	"go.undefinedlabs.com/scopeagent"
+	"go.undefinedlabs.com/scopeagent/agent"
 	"go.undefinedlabs.com/scopeagent/instrumentation"
 	scopetesting "go.undefinedlabs.com/scopeagent/instrumentation/testing"
 )
@@ -35,7 +36,7 @@ func init() {
 			}()
 			scopetesting.PatchTestingLogger()
 			defer scopetesting.UnpatchTestingLogger()
-			return scopeagent.Run(m)
+			return scopeagent.Run(m, agent.WithGlobalPanicHandler())
 		})
 		logOnError(err)
 	})
