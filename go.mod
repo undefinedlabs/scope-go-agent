@@ -13,12 +13,15 @@ require (
 	github.com/opentracing/basictracer-go v1.0.0
 	github.com/opentracing/opentracing-go v1.1.0
 	github.com/stretchr/testify v1.5.1
-	github.com/undefinedlabs/go-mpatch v0.0.0-20200122175732-0044123dbb98
+	github.com/undefinedlabs/go-mpatch v0.0.0-20200326085307-1a86426f42a6
 	github.com/vmihailenco/msgpack v4.0.4+incompatible
+	golang.org/x/lint v0.0.0-20190313153728-d0100b6bd8b3 // indirect
 	golang.org/x/net v0.0.0-20200301022130-244492dfa37a
 	golang.org/x/sys v0.0.0-20200302150141-5c8b2ff67527 // indirect
+	golang.org/x/tools v0.0.0-20190524140312-2c0ae7006135 // indirect
 	google.golang.org/appengine v1.6.5 // indirect
 	google.golang.org/grpc v1.27.1
 	gopkg.in/check.v1 v1.0.0-20190902080502-41f04d3bba15 // indirect
 	gopkg.in/tomb.v2 v2.0.0-20161208151619-d5d1b5820637
+	honnef.co/go/tools v0.0.0-20190523083050-ea95bdfd59fc // indirect
 )
