@@ -2,6 +2,7 @@ package testing
 
 import (
 	"context"
+	"go.undefinedlabs.com/scopeagent/tracer"
 	"reflect"
 	"regexp"
 	"runtime"
@@ -144,6 +145,15 @@ func (test *Test) Run(name string, f func(t *testing.T)) bool {
 // Ends the current test (this method is called from the auto-instrumentation)
 func (test *Test) end() {
 	finishTime := time.Now()
+
+	// If we have our own implementation of the span, we can set the exact start time from the test
+	if ownSpan, ok := test.span.(tracer.Span); ok {
+		if startTime, err := reflection.GetTestStartTime(test.t); err == nil {
+			ownSpan.SetStart(startTime)
+		} else {
+			instrumentation.Logger().Printf("error: %v", err)
+		}
+	}
 
 	// Remove the Test struct from the hash map, so a call to Start while we end this instance will create a new struct
 	removeTest(test.t)

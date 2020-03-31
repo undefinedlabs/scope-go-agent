@@ -5,6 +5,7 @@ import (
 	"reflect"
 	"sync"
 	"testing"
+	"time"
 	"unsafe"
 )
 
@@ -64,6 +65,32 @@ func GetIsParallel(t *testing.T) bool {
 		return *(*bool)(pointer)
 	}
 	return false
+}
+
+func GetTestStartTime(t *testing.T) (time.Time, error) {
+	mu := GetTestMutex(t)
+	if mu != nil {
+		mu.Lock()
+		defer mu.Unlock()
+	}
+	if pointer, err := GetFieldPointerOf(t, "start"); err == nil {
+		return *(*time.Time)(pointer), nil
+	} else {
+		return time.Time{}, err
+	}
+}
+
+func GetTestDuration(t *testing.T) (time.Duration, error) {
+	mu := GetTestMutex(t)
+	if mu != nil {
+		mu.Lock()
+		defer mu.Unlock()
+	}
+	if pointer, err := GetFieldPointerOf(t, "duration"); err == nil {
+		return *(*time.Duration)(pointer), nil
+	} else {
+		return 0, err
+	}
 }
 
 func GetBenchmarkMutex(b *testing.B) *sync.RWMutex {
