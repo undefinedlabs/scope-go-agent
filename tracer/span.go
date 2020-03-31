@@ -22,6 +22,9 @@ type Span interface {
 
 	// Start indicates when the span began
 	Start() time.Time
+
+	// Sets the start time
+	SetStart(start time.Time) opentracing.Span
 }
 
 // Implements the `Span` interface. Created via tracerImpl (see
@@ -70,6 +73,13 @@ func (s *spanImpl) SetOperationName(operationName string) opentracing.Span {
 
 func (s *spanImpl) trim() bool {
 	return !s.raw.Context.Sampled && s.tracer.options.TrimUnsampledSpans
+}
+
+func (s *spanImpl) SetStart(start time.Time) opentracing.Span {
+	s.Lock()
+	defer s.Unlock()
+	s.raw.Start = start
+	return s
 }
 
 func (s *spanImpl) SetTag(key string, value interface{}) opentracing.Span {
