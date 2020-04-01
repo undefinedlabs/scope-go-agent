@@ -19,11 +19,7 @@ func getCIMetadata() map[string]interface{} {
 		ciMetadata[tags.CIProvider] = "Travis"
 		ciMetadata[tags.CIBuildId] = os.Getenv("TRAVIS_BUILD_ID")
 		ciMetadata[tags.CIBuildNumber] = os.Getenv("TRAVIS_BUILD_NUMBER")
-		ciMetadata[tags.CIBuildUrl] = fmt.Sprintf(
-			"https://travis-ci.com/%s/builds/%s",
-			os.Getenv("TRAVIS_REPO_SLUG"),
-			os.Getenv("TRAVIS_BUILD_ID"),
-		)
+		ciMetadata[tags.CIBuildUrl] = os.Getenv("TRAVIS_BUILD_WEB_URL")
 		ciMetadata[tags.Repository] = fmt.Sprintf(
 			"https://github.com/%s.git",
 			os.Getenv("TRAVIS_REPO_SLUG"),
