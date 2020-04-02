@@ -50,3 +50,10 @@ func BenchmarkTestInit(b *testing.B) {
 		Init(testing.MainStart(nil, tests, benchmarks, nil))
 	}
 }
+
+func BenchmarkLoggerPatcher(b *testing.B) {
+	for i:=0; i < b.N; i++ {
+		PatchTestingLogger()
+		UnpatchTestingLogger()
+	}
+}
