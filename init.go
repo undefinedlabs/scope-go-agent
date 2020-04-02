@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"reflect"
 	"runtime"
 	"sync"
 	"syscall"
@@ -77,11 +78,27 @@ func GetContextFromTest(t *testing.T) context.Context {
 
 // Sets the test code from the caller of this func
 func SetTestCodeFromCaller(t *testing.T) {
+	SetTestCodeFromCallerSkip(t, 1)
+}
+
+// Sets the test code from the caller of this func
+func SetTestCodeFromCallerSkip(t *testing.T, skip int) {
 	test := GetTest(t)
 	if test == nil {
 		return
 	}
-	pc, _, _, _ := runtime.Caller(1)
+	pc, _, _, _ := runtime.Caller(skip + 1)
+	test.SetTestCode(pc)
+}
+
+// Sets the test code from a func
+func SetTestCodeFromFunc(t *testing.T, fn interface{}) {
+	test := GetTest(t)
+	if test == nil {
+		return
+	}
+	value := reflect.ValueOf(fn)
+	pc := value.Pointer()
 	test.SetTestCode(pc)
 }
 

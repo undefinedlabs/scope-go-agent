@@ -144,8 +144,9 @@ func TestTildeExpandRaceMetadata(t *testing.T) {
 }
 
 var a *Agent
+
 func BenchmarkNewAgent(b *testing.B) {
-	for i:=0; i < b.N; i++ {
+	for i := 0; i < b.N; i++ {
 		var err error
 		a, err = NewAgent(WithTestingModeEnabled(),
 			WithHandlePanicAsFail(),
