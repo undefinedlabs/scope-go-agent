@@ -1,8 +1,10 @@
 package testing
 
 import (
+	"go.undefinedlabs.com/scopeagent/reflection"
 	"sync"
 	"testing"
+	"time"
 )
 
 func TestLogBufferRegex(t *testing.T) {
@@ -60,6 +62,7 @@ func BenchmarkLoggerPatcher(b *testing.B) {
 }
 
 func TestLoggerPatcher(t *testing.T) {
+	tm := time.Now()
 	PatchTestingLogger()
 	wg := sync.WaitGroup{}
 	for i := 0; i < 1000; i++ {
@@ -71,4 +74,22 @@ func TestLoggerPatcher(t *testing.T) {
 	}
 	wg.Wait()
 	UnpatchTestingLogger()
+	if time.Since(tm) > time.Second {
+		t.Fatal("Test is too slow")
+	}
+}
+
+func TestIsParallelByReflection(t *testing.T) {
+	t.Parallel()
+	tm := time.Now()
+	isParallel := false
+	for i := 0; i < 10000; i++ {
+		isParallel = reflection.GetIsParallel(t)
+	}
+	if !isParallel {
+		t.Fatal("test should be parallel")
+	}
+	if time.Since(tm) > time.Second {
+		t.Fatal("Test is too slow")
+	}
 }
