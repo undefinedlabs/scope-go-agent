@@ -108,3 +108,18 @@ func TestMergeRegex(t *testing.T) {
 		}
 	}
 }
+
+var data *GitData
+var diff *GitDiff
+
+func BenchmarkGetGitData(b *testing.B) {
+	for i:=0; i < b.N; i++ {
+		data = getGitData()
+	}
+}
+
+func BenchmarkGetGitDiff(b *testing.B) {
+	for i:=0; i < b.N; i++ {
+		diff = getGitDiff()
+	}
+}
