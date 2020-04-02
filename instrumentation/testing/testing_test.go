@@ -83,9 +83,15 @@ func TestIsParallelByReflection(t *testing.T) {
 	t.Parallel()
 	tm := time.Now()
 	isParallel := false
+	wg := sync.WaitGroup{}
 	for i := 0; i < 10000; i++ {
-		isParallel = reflection.GetIsParallel(t)
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			isParallel = reflection.GetIsParallel(t)
+		}()
 	}
+	wg.Wait()
 	if !isParallel {
 		t.Fatal("test should be parallel")
 	}
