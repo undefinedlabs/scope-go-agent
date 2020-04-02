@@ -143,9 +143,11 @@ func TestTildeExpandRaceMetadata(t *testing.T) {
 	agent.Stop()
 }
 
+var a *Agent
 func BenchmarkNewAgent(b *testing.B) {
 	for i:=0; i < b.N; i++ {
-		a, err := NewAgent(WithTestingModeEnabled(),
+		var err error
+		a, err = NewAgent(WithTestingModeEnabled(),
 			WithHandlePanicAsFail(),
 			WithRetriesOnFail(3),
 			WithSetGlobalTracer())

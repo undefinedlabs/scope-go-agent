@@ -132,3 +132,19 @@ func checkMessage(msg string, records []opentracing.LogRecord) bool {
 	}
 	return false
 }
+
+func BenchmarkPatchStandardLogger(b *testing.B) {
+	for i:=0; i < b.N; i++ {
+		PatchStandardLogger()
+		UnpatchStandardLogger()
+	}
+}
+
+var lg *stdlog.Logger
+func BenchmarkPatchLogger(b *testing.B) {
+	for i:=0; i < b.N; i++ {
+		lg = stdlog.New(os.Stdout, "", stdlog.Llongfile | stdlog.Lmicroseconds)
+		PatchLogger(lg)
+		UnpatchLogger(lg)
+	}
+}
