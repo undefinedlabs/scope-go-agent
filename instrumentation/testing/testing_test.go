@@ -1,6 +1,7 @@
 package testing
 
 import (
+	"fmt"
 	"go.undefinedlabs.com/scopeagent/reflection"
 	"sync"
 	"testing"
@@ -67,10 +68,10 @@ func TestLoggerPatcher(t *testing.T) {
 	wg := sync.WaitGroup{}
 	for i := 0; i < 1000; i++ {
 		wg.Add(1)
-		go func() {
+		go func(x int) {
 			defer wg.Done()
-			t.Log("Hello world")
-		}()
+			t.Log(fmt.Sprintf("Hello world %d", x))
+		}(i)
 	}
 	wg.Wait()
 	UnpatchTestingLogger()
