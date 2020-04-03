@@ -2,7 +2,6 @@ package testing
 
 import (
 	"context"
-	"go.undefinedlabs.com/scopeagent/tracer"
 	"reflect"
 	"regexp"
 	"runtime"
@@ -20,6 +19,7 @@ import (
 	"go.undefinedlabs.com/scopeagent/reflection"
 	"go.undefinedlabs.com/scopeagent/runner"
 	"go.undefinedlabs.com/scopeagent/tags"
+	"go.undefinedlabs.com/scopeagent/tracer"
 )
 
 type (

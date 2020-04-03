@@ -11,7 +11,10 @@ import (
 )
 
 func getPackageAndName(pc uintptr) (string, string) {
-	funcFullName := runtime.FuncForPC(pc).Name()
+	return splitPackageAndName(runtime.FuncForPC(pc).Name())
+}
+
+func splitPackageAndName(funcFullName string) (string, string) {
 	lastSlash := strings.LastIndexByte(funcFullName, '/')
 	if lastSlash < 0 {
 		lastSlash = 0
