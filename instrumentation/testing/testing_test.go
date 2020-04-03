@@ -2,10 +2,11 @@ package testing
 
 import (
 	"fmt"
-	"go.undefinedlabs.com/scopeagent/reflection"
 	"sync"
 	"testing"
 	"time"
+
+	"go.undefinedlabs.com/scopeagent/reflection"
 )
 
 func TestLogBufferRegex(t *testing.T) {
@@ -75,7 +76,7 @@ func TestLoggerPatcher(t *testing.T) {
 	}
 	wg.Wait()
 	UnpatchTestingLogger()
-	if time.Since(tm) > time.Second {
+	if time.Since(tm) > 2*time.Second {
 		t.Fatal("Test is too slow")
 	}
 }

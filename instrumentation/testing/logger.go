@@ -1,11 +1,12 @@
 package testing
 
 import (
-	"github.com/undefinedlabs/go-mpatch"
 	"reflect"
 	"sync"
 	"testing"
 	"unsafe"
+
+	"github.com/undefinedlabs/go-mpatch"
 
 	"go.undefinedlabs.com/scopeagent/instrumentation"
 	"go.undefinedlabs.com/scopeagent/reflection"
@@ -61,8 +62,7 @@ func patchErrorf() {
 	patch("Errorf", func(test *Test, args []interface{}) {
 		test.t.Helper()
 		format := args[0].(string)
-		args = args[1:]
-		test.Errorf(format, args...)
+		test.Errorf(format, args[1:]...)
 	})
 }
 
@@ -77,8 +77,7 @@ func patchFatalf() {
 	patch("Fatalf", func(test *Test, args []interface{}) {
 		test.t.Helper()
 		format := args[0].(string)
-		args = args[1:]
-		test.Fatalf(format, args...)
+		test.Fatalf(format, args[1:]...)
 	})
 }
 
@@ -93,8 +92,7 @@ func patchLogf() {
 	patch("Logf", func(test *Test, args []interface{}) {
 		test.t.Helper()
 		format := args[0].(string)
-		args = args[1:]
-		test.Logf(format, args...)
+		test.Logf(format, args[1:]...)
 	})
 }
 
@@ -109,8 +107,7 @@ func patchSkipf() {
 	patch("Skipf", func(test *Test, args []interface{}) {
 		test.t.Helper()
 		format := args[0].(string)
-		args = args[1:]
-		test.Skipf(format, args...)
+		test.Skipf(format, args[1:]...)
 	})
 }
 
