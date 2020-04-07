@@ -19,7 +19,7 @@ import (
 	"github.com/mitchellh/go-homedir"
 	"github.com/opentracing/opentracing-go"
 
-	"go.undefinedlabs.com/scopeagent/env"
+	"go.undefinedlabs.com/scopeagent/config"
 	scopeError "go.undefinedlabs.com/scopeagent/errors"
 	"go.undefinedlabs.com/scopeagent/instrumentation"
 	scopetesting "go.undefinedlabs.com/scopeagent/instrumentation/testing"
@@ -66,6 +66,8 @@ var (
 
 	testingModeFrequency    = time.Second
 	nonTestingModeFrequency = time.Minute
+
+	cfg = config.Get()
 )
 
 func WithApiKey(apiKey string) Option {
@@ -210,13 +212,13 @@ func NewAgent(options ...Option) (*Agent, error) {
 		agent.logger = log.New(ioutil.Discard, "", 0)
 	}
 
-	agent.debugMode = agent.debugMode || env.ScopeDebug.Value
+	agent.debugMode = agent.debugMode || *cfg.Debug
 
 	configProfile := GetConfigCurrentProfile()
 
 	if agent.apiKey == "" || agent.apiEndpoint == "" {
-		if dsn, set := env.ScopeDsn.Tuple(); set && dsn != "" {
-			dsnApiKey, dsnApiEndpoint, dsnErr := parseDSN(dsn)
+		if cfg.Dsn != nil && *cfg.Dsn != "" {
+			dsnApiKey, dsnApiEndpoint, dsnErr := parseDSN(*cfg.Dsn)
 			if dsnErr != nil {
 				agent.logger.Printf("Error parsing dsn value: %v\n", dsnErr)
 			} else {
@@ -229,8 +231,8 @@ func NewAgent(options ...Option) (*Agent, error) {
 	}
 
 	if agent.apiKey == "" {
-		if apiKey, set := env.ScopeApiKey.Tuple(); set && apiKey != "" {
-			agent.apiKey = apiKey
+		if cfg.ApiKey != nil && *cfg.ApiKey != "" {
+			agent.apiKey = *cfg.ApiKey
 		} else if configProfile != nil {
 			agent.logger.Println("API key found in the native app configuration")
 			agent.apiKey = configProfile.ApiKey
@@ -242,12 +244,13 @@ func NewAgent(options ...Option) (*Agent, error) {
 	}
 
 	if agent.apiEndpoint == "" {
-		if endpoint, set := env.ScopeApiEndpoint.Tuple(); set && endpoint != "" {
-			agent.apiEndpoint = endpoint
+		if cfg.ApiEndpoint != nil && *cfg.ApiEndpoint != "" {
+			agent.apiEndpoint = *cfg.ApiEndpoint
 		} else if configProfile != nil {
 			agent.logger.Println("API endpoint found in the native app configuration")
 			agent.apiEndpoint = configProfile.ApiEndpoint
 		} else {
+			endpoint := "https://app.scope.dev"
 			agent.logger.Printf("using default endpoint: %v\n", endpoint)
 			agent.apiEndpoint = endpoint
 		}
@@ -287,13 +290,19 @@ func NewAgent(options ...Option) (*Agent, error) {
 	agent.metadata[tags.GoVersion] = runtime.Version()
 
 	// Service name
-	addElementToMapIfEmpty(agent.metadata, tags.Service, env.ScopeService.Value)
+	if cfg.Service != nil {
+		addElementToMapIfEmpty(agent.metadata, tags.Service, *cfg.Service)
+	}
 
 	// Configurations
-	addElementToMapIfEmpty(agent.metadata, tags.ConfigurationKeys, env.ScopeConfiguration.Value)
+	if cfg.Configuration != nil {
+		addElementToMapIfEmpty(agent.metadata, tags.ConfigurationKeys, cfg.Configuration)
+	}
 
 	// Metadata
-	addToMapIfEmpty(agent.metadata, env.ScopeMetadata.Value)
+	if cfg.Metadata != nil {
+		addToMapIfEmpty(agent.metadata, cfg.Metadata)
+	}
 
 	// Git data
 	addToMapIfEmpty(agent.metadata, getGitInfoFromEnv())
@@ -323,17 +332,19 @@ func NewAgent(options ...Option) (*Agent, error) {
 	agent.metadata[tags.SourceRoot] = sourceRoot
 
 	if !agent.testingMode {
-		if env.ScopeTestingMode.IsSet {
-			agent.testingMode = env.ScopeTestingMode.Value
+		if cfg.TestingMode != nil {
+			agent.testingMode = *cfg.TestingMode
 		} else {
 			agent.testingMode = agent.metadata[tags.CI].(bool)
 		}
 	}
 
-	if agent.failRetriesCount == 0 {
-		agent.failRetriesCount = env.ScopeTestingFailRetries.Value
+	if agent.failRetriesCount == 0 && cfg.Instrumentation.TestsFrameworks.FailRetries != nil {
+		agent.failRetriesCount = *cfg.Instrumentation.TestsFrameworks.FailRetries
 	}
-	agent.panicAsFail = agent.panicAsFail || env.ScopeTestingPanicAsFail.Value
+	if cfg.Instrumentation.TestsFrameworks.PanicAsFail != nil {
+		agent.panicAsFail = agent.panicAsFail || *cfg.Instrumentation.TestsFrameworks.PanicAsFail
+	}
 
 	if agent.debugMode {
 		agent.logMetadata()
@@ -362,7 +373,7 @@ func NewAgent(options ...Option) (*Agent, error) {
 	instrumentation.SetTracer(agent.tracer)
 	instrumentation.SetLogger(agent.logger)
 	instrumentation.SetSourceRoot(sourceRoot)
-	if agent.setGlobalTracer || env.ScopeTracerGlobal.Value {
+	if agent.setGlobalTracer || (cfg.Tracer.Global != nil && *cfg.Tracer.Global) {
 		opentracing.SetGlobalTracer(agent.Tracer())
 	}
 
@@ -457,8 +468,8 @@ func generateAgentID() string {
 }
 
 func getLogPath() (string, error) {
-	if env.ScopeLoggerRoot.IsSet {
-		return env.ScopeLoggerRoot.Value, nil
+	if cfg.Logger.Root != nil {
+		return *cfg.Logger.Root, nil
 	}
 
 	logFolder := ""

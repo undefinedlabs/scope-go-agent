@@ -1,0 +1,40 @@
+#service: 'service-name'                                           #SCOPE_SERVICE
+#logger:
+#  root: '/home/user/projects/scope/log'                           #SCOPE_LOGGER_ROOT
+metadata:                                                         #SCOPE_METADATA
+  sample.key1: $SAMPLE_VAR1
+  sample.key2: $PATH
+  sample.key3: sampleValue3
+#configuration:                                                    #SCOPE_CONFIGURATION
+#  - sample.key1
+#  - sample.key2
+#  - sample.key3
+instrumentation:
+  diff_summary: true                                              #SCOPE_INSTRUMENTATION_DIFF_SUMMARY
+  tests_frameworks:
+    fail_retries: 4                                               #SCOPE_INSTRUMENTATION_TESTS_FRAMEWORKS_FAIL_RETRIES
+    panic_as_fail: true                                           #SCOPE_INSTRUMENTATION_TESTS_FRAMEWORKS_PANIC_AS_FAIL
+  db:
+    statement_values: true                                        #SCOPE_INSTRUMENTATION_DB_STATEMENT_VALUES
+  http:
+    client: true                                                  #SCOPE_INSTRUMENTATION_HTTP_CLIENT
+    server: true                                                  #SCOPE_INSTRUMENTATION_HTTP_SERVER
+    payloads: true                                                #SCOPE_INSTRUMENTATION_HTTP_PAYLOADS
+    headers:                                                      #SCOPE_INSTRUMENTATION_HTTP_HEADERS
+      - Authorization
+      - My-Header-One
+      - My-Header-Two
+  logger:
+    standard_logger: true                                         #SCOPE_INSTRUMENTATION_LOGGER_STANDARD_LOGGER
+    standard_output: false                                        #SCOPE_INSTRUMENTATION_LOGGER_STANDARD_OUTPUT
+    standard_error: false                                         #SCOPE_INSTRUMENTATION_LOGGER_STANDARD_ERROR
+tracer:
+  global: true                                                    #SCOPE_TRACER_GLOBAL
+  dispatcher:
+    healthcheck_frecuency: 60000                                  #SCOPE_TRACER_DISPATCHER_HEALTHCHECK_FRECUENCY
+    healthcheck_frecuency_in_testmode: 1000                       #SCOPE_TRACER_DISPATCHER_HEALTHCHECK_FRECUENCY_IN_TESTMODE
+    concurrency_level: 5                                          #SCOPE_TRACER_DISPATCHER_CONCURRENCY_LEVEL
+    spans:
+      max_payload_size: 1000                                      #SCOPE_TRACER_DISPATCHER_SPANS_MAX_PAYLOAD_SIZE
+    events:
+      max_payload_size: 1000                                      #SCOPE_TRACER_DISPATCHER_EVENTS_MAX_PAYLOAD_SIZE

@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"go.undefinedlabs.com/scopeagent/env"
+	"go.undefinedlabs.com/scopeagent/config"
 	"go.undefinedlabs.com/scopeagent/tags"
 )
 
@@ -134,7 +134,9 @@ func sameElements(a, b []string) bool {
 }
 
 func TestTildeExpandRaceMetadata(t *testing.T) {
-	env.ScopeSourceRoot.Value = "~/scope"
+	cfg := config.Get()
+	sroot := "~/scope"
+	cfg.SourceRoot = &sroot
 	agent, err := NewAgent(WithApiKey("123"), WithTestingModeEnabled())
 	if err != nil {
 		t.Fatal(err)

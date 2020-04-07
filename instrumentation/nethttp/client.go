@@ -14,6 +14,7 @@ import (
 	"github.com/opentracing/opentracing-go/ext"
 	"github.com/opentracing/opentracing-go/log"
 
+	"go.undefinedlabs.com/scopeagent/config"
 	scopeerrors "go.undefinedlabs.com/scopeagent/errors"
 	"go.undefinedlabs.com/scopeagent/instrumentation"
 )
@@ -48,6 +49,8 @@ type clientOptions struct {
 	disableInjectSpanContext bool
 	spanObserver             func(span opentracing.Span, r *http.Request)
 }
+
+var cfg = config.Get()
 
 // ClientOption controls the behavior of TraceRequest.
 type ClientOption func(*clientOptions)
@@ -158,7 +161,7 @@ func TracerFromRequest(req *http.Request) *Tracer {
 func (t *Transport) RoundTrip(req *http.Request) (*http.Response, error) {
 	// Only trace outgoing requests that are inside an active trace
 	parent := opentracing.SpanFromContext(req.Context())
-	if parent == nil {
+	if parent == nil || (cfg.Instrumentation.Http.Client != nil && !*cfg.Instrumentation.Http.Client) {
 		rt := t.RoundTripper
 		if rt == nil {
 			rt = http.DefaultTransport

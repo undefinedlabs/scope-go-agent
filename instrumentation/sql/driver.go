@@ -10,7 +10,7 @@ import (
 
 	"github.com/opentracing/opentracing-go"
 
-	"go.undefinedlabs.com/scopeagent/env"
+	"go.undefinedlabs.com/scopeagent/config"
 	scopeerrors "go.undefinedlabs.com/scopeagent/errors"
 	"go.undefinedlabs.com/scopeagent/instrumentation"
 )
@@ -64,8 +64,9 @@ func WrapDriver(d driver.Driver, options ...Option) driver.Driver {
 	for _, option := range options {
 		option(wrapper)
 	}
-	wrapper.configuration.statementValues = wrapper.configuration.statementValues || env.ScopeInstrumentationDbStatementValues.Value
-	wrapper.configuration.stacktrace = wrapper.configuration.stacktrace || env.ScopeInstrumentationDbStacktrace.Value
+	cfg := config.Get()
+	wrapper.configuration.statementValues = wrapper.configuration.statementValues || (cfg.Instrumentation.DB.StatementValues != nil && *cfg.Instrumentation.DB.StatementValues)
+	wrapper.configuration.stacktrace = wrapper.configuration.stacktrace || (cfg.Instrumentation.DB.StatementValues != nil && *cfg.Instrumentation.DB.StatementValues)
 	return wrapper
 }
 
