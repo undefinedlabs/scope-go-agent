@@ -22,6 +22,7 @@ type (
 		RecordSpan(span tracer.RawSpan)
 		Stop()
 		Stats() RecorderStats
+		Flush() error
 	}
 	RecorderStats interface {
 		Write()
@@ -53,7 +54,7 @@ type (
 )
 
 func NewScopeSpanRecorder(agent *Agent) ScopeSpanRecorder {
-	if val, ok := os.LookupEnv("SCOPE_CLI_UNIX_SOCKET"); ok && val != ""{
+	if val, ok := os.LookupEnv("SCOPE_CLI_UNIX_SOCKET"); ok && val != "" {
 		return newWrapperSpanRecorder(agent, true)
 	}
 	if val, ok := os.LookupEnv("SCOPE_CLI_TCP"); ok && val != "" {
@@ -82,8 +83,8 @@ func encodePayload(payload map[string]interface{}) (*bytes.Buffer, error) {
 	return &buf, nil
 }
 
-func isTestSpan(span tracer.RawSpan) bool {
-	return span.Tags["span.kind"] == "test"
+func isTestSpan(spanTags map[string]interface{}) bool {
+	return spanTags["span.kind"] == "test"
 }
 
 func (s *recorderStats) Write() {

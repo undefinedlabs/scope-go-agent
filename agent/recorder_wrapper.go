@@ -91,7 +91,7 @@ func newWrapperSpanRecorder(agent *Agent, unixSocket bool) ScopeSpanRecorder {
 func (r *wrapperSpanRecorder) RecordSpan(span tracer.RawSpan) {
 	atomic.AddInt64(&r.stats.sendSpansCalls, 1)
 	atomic.AddInt64(&r.stats.totalSpans, 1)
-	isTest := isTestSpan(span)
+	isTest := isTestSpan(span.Tags)
 	if isTest {
 		atomic.AddInt64(&r.stats.totalTestSpans, 1)
 	}
@@ -146,6 +146,10 @@ func (r *wrapperSpanRecorder) sendOk(isTest bool) {
 
 func (r *wrapperSpanRecorder) Stop() {
 	r.stats.Write()
+}
+
+func (r *wrapperSpanRecorder) Flush() error {
+	return nil
 }
 
 func (r *wrapperSpanRecorder) Stats() RecorderStats {
