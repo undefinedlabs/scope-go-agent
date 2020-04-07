@@ -63,6 +63,16 @@ func NewScopeSpanRecorder(agent *Agent) ScopeSpanRecorder {
 	return newInProcSpanRecorder(agent)
 }
 
+func hasWrapper() bool {
+	if _, ok := os.LookupEnv("SCOPE_CLI_UNIX_SOCKET"); ok {
+		return true
+	} else if _, ok := os.LookupEnv("SCOPE_CLI_TCP"); ok {
+		return true
+	} else {
+		return false
+	}
+}
+
 // Encodes `payload` using msgpack and compress it with gzip
 func encodePayload(payload map[string]interface{}) (*bytes.Buffer, error) {
 	binaryPayload, err := msgpack.Marshal(payload)

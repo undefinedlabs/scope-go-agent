@@ -300,12 +300,16 @@ func NewAgent(options ...Option) (*Agent, error) {
 	addToMapIfEmpty(agent.metadata, getCIMetadata())
 	addToMapIfEmpty(agent.metadata, getGitInfoFromGitFolder())
 
-	agent.metadata[tags.Diff] = getGitDiff()
+	if !hasWrapper() {
+		// Git diff
+		agent.metadata[tags.Diff] = getGitDiff()
 
-	agent.metadata[tags.InContainer] = isRunningInContainer()
+		// Container detector
+		agent.metadata[tags.InContainer] = isRunningInContainer()
 
-	// Dependencies
-	agent.metadata[tags.Dependencies] = getDependencyMap()
+		// Dependencies
+		agent.metadata[tags.Dependencies] = getDependencyMap()
+	}
 
 	// Expand '~' in source root
 	var sourceRoot string
