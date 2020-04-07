@@ -111,8 +111,10 @@ func startBenchmark(b *testing.B, pc uintptr, benchFunc func(b *testing.B)) {
 		fullTestName = strings.Join(nameSegments, "/")
 	}
 	packageName := reflection.GetBenchmarkSuiteName(b)
+	pName, _, tCode := getPackageAndNameAndBoundaries(pc)
+
 	if packageName == "" {
-		packageName = getPackageName(pc, fullTestName)
+		packageName = pName
 	}
 
 	oTags := opentracing.Tags{
@@ -124,9 +126,8 @@ func startBenchmark(b *testing.B, pc uintptr, benchFunc func(b *testing.B)) {
 		"test.type":      "benchmark",
 	}
 
-	testCode := getTestCodeBoundaries(pc, fullTestName)
-	if testCode != "" {
-		oTags["test.code"] = testCode
+	if tCode != "" {
+		oTags["test.code"] = tCode
 	}
 
 	var startOptions []opentracing.StartSpanOption

@@ -5,6 +5,7 @@ import (
 	"os/exec"
 	"reflect"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -140,4 +141,28 @@ func TestTildeExpandRaceMetadata(t *testing.T) {
 	}
 	<-time.After(5 * time.Second)
 	agent.Stop()
+}
+
+var a *Agent
+
+func BenchmarkNewAgent(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		var err error
+		a, err = NewAgent(WithTestingModeEnabled(),
+			WithHandlePanicAsFail(),
+			WithRetriesOnFail(3),
+			WithSetGlobalTracer())
+		if err != nil {
+			b.Fatal(err)
+		}
+		span := a.Tracer().StartSpan("Test")
+		span.SetTag("span.kind", "test")
+		span.SetTag("test.name", "BenchNewAgent")
+		span.SetTag("test.suite", "root")
+		span.SetTag("test.status", tags.TestStatus_PASS)
+		span.SetBaggageItem("trace.kind", "test")
+		span.Finish()
+		once = sync.Once{}
+		a.Stop()
+	}
 }

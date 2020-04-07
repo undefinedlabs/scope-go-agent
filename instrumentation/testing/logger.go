@@ -52,84 +52,82 @@ func UnpatchTestingLogger() {
 }
 
 func patchError() {
-	patch("Error", func(test *Test, argsValues []reflect.Value) {
+	patch("Error", func(test *Test, args []interface{}) {
 		test.t.Helper()
-		args := getArgs(argsValues[0])
 		test.Error(args...)
 	})
 }
 
 func patchErrorf() {
-	patch("Errorf", func(test *Test, argsValues []reflect.Value) {
+	patch("Errorf", func(test *Test, args []interface{}) {
 		test.t.Helper()
-		format := argsValues[0].String()
-		args := getArgs(argsValues[1])
-		test.Errorf(format, args...)
+		format := args[0].(string)
+		test.Errorf(format, args[1:]...)
 	})
 }
 
 func patchFatal() {
-	patch("Fatal", func(test *Test, argsValues []reflect.Value) {
+	patch("Fatal", func(test *Test, args []interface{}) {
 		test.t.Helper()
-		args := getArgs(argsValues[0])
 		test.Fatal(args...)
 	})
 }
 
 func patchFatalf() {
-	patch("Fatalf", func(test *Test, argsValues []reflect.Value) {
+	patch("Fatalf", func(test *Test, args []interface{}) {
 		test.t.Helper()
-		format := argsValues[0].String()
-		args := getArgs(argsValues[1])
-		test.Fatalf(format, args...)
+		format := args[0].(string)
+		test.Fatalf(format, args[1:]...)
 	})
 }
 
 func patchLog() {
-	patch("Log", func(test *Test, argsValues []reflect.Value) {
+	patch("Log", func(test *Test, args []interface{}) {
 		test.t.Helper()
-		args := getArgs(argsValues[0])
 		test.Log(args...)
 	})
 }
 
 func patchLogf() {
-	patch("Logf", func(test *Test, argsValues []reflect.Value) {
+	patch("Logf", func(test *Test, args []interface{}) {
 		test.t.Helper()
-		format := argsValues[0].String()
-		args := getArgs(argsValues[1])
-		test.Logf(format, args...)
+		format := args[0].(string)
+		test.Logf(format, args[1:]...)
 	})
 }
 
 func patchSkip() {
-	patch("Skip", func(test *Test, argsValues []reflect.Value) {
+	patch("Skip", func(test *Test, args []interface{}) {
 		test.t.Helper()
-		args := getArgs(argsValues[0])
 		test.Skip(args...)
 	})
 }
 
 func patchSkipf() {
-	patch("Skipf", func(test *Test, argsValues []reflect.Value) {
+	patch("Skipf", func(test *Test, args []interface{}) {
 		test.t.Helper()
-		format := argsValues[0].String()
-		args := getArgs(argsValues[1])
-		test.Skipf(format, args...)
+		format := args[0].(string)
+		test.Skipf(format, args[1:]...)
 	})
 }
 
-func getArgs(in reflect.Value) []interface{} {
+func createArgs(in []reflect.Value) []interface{} {
 	var args []interface{}
-	if in.Kind() == reflect.Slice {
-		for i := 0; i < in.Len(); i++ {
-			args = append(args, in.Index(i).Interface())
+	for _, item := range in {
+		if item.Kind() == reflect.Slice {
+			var itemArg []interface{}
+			for i := 0; i < item.Len(); i++ {
+				itemArg = append(itemArg, item.Index(i).Interface())
+			}
+			args = append(args, itemArg)
+		} else {
+			args = append(args, item.Interface())
 		}
 	}
 	return args
 }
 
-func patch(methodName string, methodBody func(test *Test, argsValues []reflect.Value)) {
+func patch(methodName string, methodBody func(test *Test, argsValues []interface{})) {
 	patchesMutex.Lock()
 	defer patchesMutex.Unlock()
 	patchPointersMutex.Lock()
@@ -144,6 +142,7 @@ func patch(methodName string, methodBody func(test *Test, argsValues []reflect.V
 	var methodPatch *mpatch.Patch
 	var err error
 	methodPatch, err = mpatch.PatchMethodWithMakeFunc(method, func(in []reflect.Value) []reflect.Value {
+		argIn := createArgs(in[1:])
 		t := (*testing.T)(unsafe.Pointer(in[0].Pointer()))
 		if t == nil {
 			instrumentation.Logger().Println("testing.T is nil")
@@ -161,7 +160,7 @@ func patch(methodName string, methodBody func(test *Test, argsValues []reflect.V
 			instrumentation.Logger().Printf("test struct for %v doesn't exist\n", t.Name())
 			return nil
 		}
-		methodBody(test, in[1:])
+		methodBody(test, argIn)
 		return nil
 	})
 	logOnError(err)

@@ -19,14 +19,16 @@ import (
 	"go.undefinedlabs.com/scopeagent/reflection"
 	"go.undefinedlabs.com/scopeagent/runner"
 	"go.undefinedlabs.com/scopeagent/tags"
+	"go.undefinedlabs.com/scopeagent/tracer"
 )
 
 type (
 	Test struct {
 		testing.TB
-		ctx  context.Context
-		span opentracing.Span
-		t    *testing.T
+		ctx    context.Context
+		span   opentracing.Span
+		t      *testing.T
+		codePC uintptr
 	}
 
 	Option func(*Test)
@@ -64,6 +66,7 @@ func StartTestFromCaller(t *testing.T, pc uintptr, opts ...Option) *Test {
 		// If there is already one we want to replace it, so we clear the context
 		test.ctx = context.Background()
 	}
+	test.codePC = pc
 
 	for _, opt := range opts {
 		opt(test)
@@ -72,17 +75,16 @@ func StartTestFromCaller(t *testing.T, pc uintptr, opts ...Option) *Test {
 	// Extracting the testing func name (by removing any possible sub-test suffix `{test_func}/{sub_test}`)
 	// to search the func source code bounds and to calculate the package name.
 	fullTestName := runner.GetOriginalTestName(t.Name())
-	packageName := getPackageName(pc, fullTestName)
+	pName, _, testCode := getPackageAndNameAndBoundaries(pc)
 
 	testTags := opentracing.Tags{
 		"span.kind":      "test",
 		"test.name":      fullTestName,
-		"test.suite":     packageName,
+		"test.suite":     pName,
 		"test.framework": "testing",
 		"test.language":  "go",
 	}
 
-	testCode := getTestCodeBoundaries(pc, fullTestName)
 	if testCode != "" {
 		testTags["test.code"] = testCode
 	}
@@ -100,6 +102,15 @@ func StartTestFromCaller(t *testing.T, pc uintptr, opts ...Option) *Test {
 	startCoverage()
 
 	return test
+}
+
+// Set test code
+func (test *Test) SetTestCode(pc uintptr) {
+	pName, _, fBoundaries := getPackageAndNameAndBoundaries(pc)
+	test.span.SetTag("test.suite", pName)
+	if fBoundaries != "" {
+		test.span.SetTag("test.code", fBoundaries)
+	}
 }
 
 // Ends the current test
@@ -134,6 +145,15 @@ func (test *Test) Run(name string, f func(t *testing.T)) bool {
 // Ends the current test (this method is called from the auto-instrumentation)
 func (test *Test) end() {
 	finishTime := time.Now()
+
+	// If we have our own implementation of the span, we can set the exact start time from the test
+	if ownSpan, ok := test.span.(tracer.Span); ok {
+		if startTime, err := reflection.GetTestStartTime(test.t); err == nil {
+			ownSpan.SetStart(startTime)
+		} else {
+			instrumentation.Logger().Printf("error: %v", err)
+		}
+	}
 
 	// Remove the Test struct from the hash map, so a call to Start while we end this instance will create a new struct
 	removeTest(test.t)
