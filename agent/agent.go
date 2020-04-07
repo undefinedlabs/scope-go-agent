@@ -352,7 +352,7 @@ func NewAgent(options ...Option) (*Agent, error) {
 
 	agent.tracer = tracer.NewWithOptions(tracer.Options{
 		Recorder: recorder,
-		ShouldSample: func(traceID uint64) bool {
+		ShouldSample: func(traceID uuid.UUID) bool {
 			return true
 		},
 		MaxLogsPerSpan: 10000,

@@ -1,5 +1,10 @@
 package wire
 
+import (
+	"encoding/binary"
+	"github.com/google/uuid"
+)
+
 // ProtobufCarrier is a DelegatingCarrier that uses protocol buffers as the
 // the underlying datastructure. The reason for implementing DelagatingCarrier
 // is to allow for end users to serialize the underlying protocol buffers using
@@ -7,15 +12,21 @@ package wire
 type ProtobufCarrier TracerState
 
 // SetState set's the tracer state.
-func (p *ProtobufCarrier) SetState(traceID, spanID uint64, sampled bool) {
-	p.TraceId = traceID
+func (p *ProtobufCarrier) SetState(traceID uuid.UUID, spanID uint64, sampled bool) {
+	bytes, _ := traceID.MarshalBinary()
+	p.TraceIdHi = binary.LittleEndian.Uint64(bytes[:8])
+	p.TraceIdLo = binary.LittleEndian.Uint64(bytes[8:])
 	p.SpanId = spanID
 	p.Sampled = sampled
 }
 
 // State returns the tracer state.
-func (p *ProtobufCarrier) State() (traceID, spanID uint64, sampled bool) {
-	traceID = p.TraceId
+func (p *ProtobufCarrier) State() (traceID uuid.UUID, spanID uint64, sampled bool) {
+	traceIdBytes := make([]byte, 16)
+	binary.LittleEndian.PutUint64(traceIdBytes[:8], p.TraceIdHi)
+	binary.LittleEndian.PutUint64(traceIdBytes[8:], p.TraceIdLo)
+	tId, _ := uuid.FromBytes(traceIdBytes)
+	traceID = tId
 	spanID = p.SpanId
 	sampled = p.Sampled
 	return traceID, spanID, sampled

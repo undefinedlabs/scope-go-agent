@@ -2,6 +2,7 @@ package tracer_test
 
 import (
 	"bytes"
+	"github.com/google/uuid"
 	"net/http"
 	"reflect"
 	"testing"
@@ -29,11 +30,11 @@ func (vc *verbatimCarrier) GetBaggage(f func(string, string)) {
 	}
 }
 
-func (vc *verbatimCarrier) SetState(tID, sID uint64, sampled bool) {
+func (vc *verbatimCarrier) SetState(tID uuid.UUID, sID uint64, sampled bool) {
 	vc.SpanContext = tracer.SpanContext{TraceID: tID, SpanID: sID, Sampled: sampled}
 }
 
-func (vc *verbatimCarrier) State() (traceID, spanID uint64, sampled bool) {
+func (vc *verbatimCarrier) State() (traceID uuid.UUID, spanID uint64, sampled bool) {
 	return vc.SpanContext.TraceID, vc.SpanContext.SpanID, vc.SpanContext.Sampled
 }
 

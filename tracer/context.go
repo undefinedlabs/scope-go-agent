@@ -1,9 +1,11 @@
 package tracer
 
+import "github.com/google/uuid"
+
 // SpanContext holds the basic Span metadata.
 type SpanContext struct {
 	// A probabilistically unique identifier for a [multi-span] trace.
-	TraceID uint64
+	TraceID uuid.UUID
 
 	// A probabilistically unique identifier for a span.
 	SpanID uint64
