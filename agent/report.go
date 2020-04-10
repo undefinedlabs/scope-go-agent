@@ -7,7 +7,7 @@ import (
 
 func (a *Agent) PrintReport() {
 	a.printReportOnce.Do(func() {
-		if a.testingMode && a.recorder.stats.totalTestSpans > 0 {
+		if a.recorder != nil && a.testingMode && a.recorder.stats.totalTestSpans > 0 {
 			fmt.Printf("\n** Scope Test Report **\n")
 			if a.recorder.stats.testSpansNotSent == 0 && a.recorder.stats.testSpansRejected == 0 {
 				fmt.Println("Access the detailed test report for this build at:")

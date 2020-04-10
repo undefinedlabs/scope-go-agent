@@ -435,16 +435,19 @@ func (a *Agent) Run(m *testing.M) int {
 // Stops the agent
 func (a *Agent) Stop() {
 	a.logger.Println("Scope agent is stopping gracefully...")
-	a.recorder.Stop()
+	if a.recorder != nil {
+		a.recorder.Stop()
+	}
 	a.PrintReport()
 }
 
 // Flush agent buffer
 func (a *Agent) Flush() {
 	a.logger.Println("Flushing agent buffer...")
-	err := a.recorder.Flush()
-	if err != nil {
-		a.logger.Println(err)
+	if a.recorder != nil {
+		if err := a.recorder.Flush(); err != nil {
+			a.logger.Println(err)
+		}
 	}
 }
 
