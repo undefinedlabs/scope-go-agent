@@ -62,7 +62,7 @@ type (
 )
 
 var (
-	version = "0.1.16-pre2"
+	version = "0.2.0"
 
 	testingModeFrequency    = time.Second
 	nonTestingModeFrequency = time.Minute
