@@ -106,6 +106,10 @@ func StartTestFromCaller(t *testing.T, pc uintptr, opts ...Option) *Test {
 
 // Set test code
 func (test *Test) SetTestCode(pc uintptr) {
+	test.codePC = pc
+	if test.span == nil {
+		return
+	}
 	pName, _, fBoundaries := getPackageAndNameAndBoundaries(pc)
 	test.span.SetTag("test.suite", pName)
 	if fBoundaries != "" {
