@@ -25,6 +25,9 @@ type Span interface {
 
 	// Sets the start time
 	SetStart(start time.Time) opentracing.Span
+
+	// Log fields with timestamp
+	LogFieldsWithTimestamp(t time.Time, fields ...log.Field)
 }
 
 // Implements the `Span` interface. Created via tracerImpl (see
@@ -130,6 +133,23 @@ func (s *spanImpl) appendLog(lr opentracing.LogRecord) {
 func (s *spanImpl) LogFields(fields ...log.Field) {
 	lr := opentracing.LogRecord{
 		Fields: fields,
+	}
+	defer s.onLogFields(lr)
+	s.Lock()
+	defer s.Unlock()
+	if s.trim() || s.tracer.options.DropAllLogs {
+		return
+	}
+	if lr.Timestamp.IsZero() {
+		lr.Timestamp = time.Now()
+	}
+	s.appendLog(lr)
+}
+
+func (s *spanImpl) LogFieldsWithTimestamp(t time.Time, fields ...log.Field) {
+	lr := opentracing.LogRecord{
+		Timestamp: t,
+		Fields:    fields,
 	}
 	defer s.onLogFields(lr)
 	s.Lock()

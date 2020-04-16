@@ -12,6 +12,7 @@ require (
 	github.com/mitchellh/go-homedir v1.1.0
 	github.com/opentracing/basictracer-go v1.0.0
 	github.com/opentracing/opentracing-go v1.1.0
+	github.com/sirupsen/logrus v1.5.0
 	github.com/stretchr/testify v1.5.1
 	github.com/undefinedlabs/go-mpatch v0.0.0-20200326085307-1a86426f42a6
 	github.com/vmihailenco/msgpack v4.0.4+incompatible
