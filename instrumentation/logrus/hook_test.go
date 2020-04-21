@@ -25,7 +25,7 @@ func TestLogrus(t *testing.T) {
 	logger := logrus.New()
 	logger.SetLevel(logrus.TraceLevel)
 	logger.SetReportCaller(true)
-	logger.AddHook(&ScopeHook{})
+	AddScopeHook(logger)
 
 	logger.WithContext(ctx).WithField("Data", "Value").Error("Error message")
 	logger.WithContext(ctx).WithField("Data", "Value").Warn("Warning message")

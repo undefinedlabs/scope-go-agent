@@ -19,6 +19,21 @@ type (
 	}
 )
 
+var scopeHook = &ScopeHook{}
+
+// Adds an scope hook in the logger if is not already added.
+func AddScopeHook(logger *log.Logger) {
+	// We check first if the logger already contains a ScopeHook instance
+	for _, hooks := range logger.Hooks {
+		for _, hook := range hooks {
+			if _, ok := hook.(*ScopeHook); ok {
+				return
+			}
+		}
+	}
+	logger.AddHook(scopeHook)
+}
+
 // Fire will be called when some logging function is called with current hook
 // It will format log entry to string and write it to appropriate writer
 func (hook *ScopeHook) Fire(entry *log.Entry) error {
