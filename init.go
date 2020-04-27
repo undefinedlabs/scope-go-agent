@@ -12,6 +12,7 @@ import (
 	"testing"
 
 	"go.undefinedlabs.com/scopeagent/agent"
+	"go.undefinedlabs.com/scopeagent/env"
 	"go.undefinedlabs.com/scopeagent/instrumentation"
 	"go.undefinedlabs.com/scopeagent/instrumentation/logging"
 	scopetesting "go.undefinedlabs.com/scopeagent/instrumentation/testing"
@@ -34,7 +35,9 @@ func Run(m *testing.M, opts ...agent.Option) int {
 	newAgent, err := agent.NewAgent(opts...)
 	if err != nil {
 		res := m.Run()
-		fmt.Printf("\n%v\n", err)
+		if env.ScopeDebug.Value {
+			fmt.Printf("\n%v\n", err)
+		}
 		return res
 	}
 
@@ -47,8 +50,10 @@ func Run(m *testing.M, opts ...agent.Option) int {
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
 	go func() {
 		<-sigs
-		instrumentation.Logger().Println("Terminating agent, sending partial results...")
-		newAgent.Stop()
+		if newAgent != nil {
+			instrumentation.Logger().Println("Terminating agent, sending partial results...")
+			newAgent.Stop()
+		}
 		os.Exit(1)
 	}()
 

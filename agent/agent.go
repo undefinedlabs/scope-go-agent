@@ -237,7 +237,7 @@ func NewAgent(options ...Option) (*Agent, error) {
 		} else {
 			agent.logger.Println("API key not found, agent can't be started")
 			return nil, errors.New(fmt.Sprintf("There was a problem initializing Scope.\n"+
-				"Check the agent logs at %s for more information.\n", agent.recorderFilename))
+				"Check the agent logs at %s for more information.\n\nAPI key not found, agent can't be started", agent.recorderFilename))
 		}
 	}
 
