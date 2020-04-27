@@ -11,7 +11,7 @@ require (
 	github.com/google/uuid v1.1.1
 	github.com/kr/pretty v0.2.0 // indirect
 	github.com/mitchellh/go-homedir v1.1.0
-	github.com/opentracing/basictracer-go v1.0.0
+	github.com/opentracing/basictracer-go v1.1.0
 	github.com/opentracing/opentracing-go v1.1.0
 	github.com/sirupsen/logrus v1.5.0
 	github.com/stretchr/testify v1.5.1
