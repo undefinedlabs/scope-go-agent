@@ -139,14 +139,14 @@ func (test *Test) Run(name string, f func(t *testing.T)) bool {
 	pc, _, _, _ := runtime.Caller(1)
 	if test.span == nil { // No span = not instrumented
 		return test.t.Run(name, func(cT *testing.T) {
-			if shouldSkipTest(cT, pc) {
+			if isTestCached(cT, pc) {
 				return
 			}
 			f(cT)
 		})
 	}
 	return test.t.Run(name, func(childT *testing.T) {
-		if shouldSkipTest(childT, pc) {
+		if isTestCached(childT, pc) {
 			return
 		}
 		addAutoInstrumentedTest(childT)
@@ -290,8 +290,8 @@ func addAutoInstrumentedTest(t *testing.T) {
 	autoInstrumentedTests[t] = true
 }
 
-// Should skip test
-func shouldSkipTest(t *testing.T, pc uintptr) bool {
+// Get if the test is cached
+func isTestCached(t *testing.T, pc uintptr) bool {
 	fullTestName := runner.GetOriginalTestName(t.Name())
 	testNameSlash := strings.IndexByte(fullTestName, '/')
 	funcName := fullTestName
@@ -307,8 +307,8 @@ func shouldSkipTest(t *testing.T, pc uintptr) bool {
 	packageName := funcFullName[:funcNameIndex-1]
 
 	fqn := fmt.Sprintf("%s.%s", packageName, fullTestName)
-	skipMap := config.GetSkipMap()
-	if _, ok := skipMap[fqn]; ok {
+	cachedMap := config.GetCachedTestsMap()
+	if _, ok := cachedMap[fqn]; ok {
 		reflection.SkipAndFinishTest(t)
 		return true
 	}

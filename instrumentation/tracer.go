@@ -12,9 +12,10 @@ import (
 )
 
 var (
-	tracer     opentracing.Tracer = opentracing.NoopTracer{}
-	logger                        = log.New(ioutil.Discard, "", 0)
-	sourceRoot                    = ""
+	tracer       opentracing.Tracer = opentracing.NoopTracer{}
+	logger                          = log.New(ioutil.Discard, "", 0)
+	sourceRoot                      = ""
+	remoteConfig                    = map[string]interface{}{}
 
 	m sync.RWMutex
 )
@@ -59,6 +60,20 @@ func GetSourceRoot() string {
 	defer m.RUnlock()
 
 	return sourceRoot
+}
+
+func SetRemoteConfiguration(config map[string]interface{}) {
+	m.Lock()
+	defer m.Unlock()
+
+	remoteConfig = config
+}
+
+func GetRemoteConfiguration() map[string]interface{} {
+	m.RLock()
+	defer m.RUnlock()
+
+	return remoteConfig
 }
 
 //go:noinline

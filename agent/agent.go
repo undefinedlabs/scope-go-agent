@@ -361,12 +361,10 @@ func NewAgent(options ...Option) (*Agent, error) {
 	instrumentation.SetTracer(agent.tracer)
 	instrumentation.SetLogger(agent.logger)
 	instrumentation.SetSourceRoot(sourceRoot)
+	instrumentation.SetRemoteConfiguration(agent.loadRemoteConfiguration())
 	if agent.setGlobalTracer || env.ScopeTracerGlobal.Value {
 		opentracing.SetGlobalTracer(agent.Tracer())
 	}
-
-	cfg := agent.loadRemoteConfig()
-	_ = cfg
 
 	return agent, nil
 }

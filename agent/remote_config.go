@@ -7,8 +7,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/mitchellh/go-homedir"
-	"go.undefinedlabs.com/scopeagent/tags"
 	"io/ioutil"
 	"net/http"
 	"net/url"
@@ -16,47 +14,37 @@ import (
 	"path/filepath"
 	"runtime"
 	"time"
+
+	"github.com/mitchellh/go-homedir"
+
+	"go.undefinedlabs.com/scopeagent/tags"
 )
 
-func (a *Agent) loadRemoteConfig() map[string]interface{} {
+func (a *Agent) loadRemoteConfiguration() map[string]interface{} {
 	if a == nil || a.metadata == nil {
 		return nil
 	}
-
-	var (
-		path          string
-		err           error
-		configRequest = map[string]interface{}{}
-	)
+	configRequest := map[string]interface{}{}
 	addElementToMapIfEmpty(configRequest, tags.Repository, a.metadata[tags.Repository])
 	addElementToMapIfEmpty(configRequest, tags.Commit, a.metadata[tags.Commit])
+	addElementToMapIfEmpty(configRequest, tags.Branch, a.metadata[tags.Branch])
 	addElementToMapIfEmpty(configRequest, tags.Service, a.metadata[tags.Service])
 	addElementToMapIfEmpty(configRequest, tags.Dependencies, a.metadata[tags.Dependencies])
-	path, err = getLocalConfigurationPath(configRequest)
-	if err == nil {
-		file, lerr := os.Open(path)
-		err = lerr
-		if lerr == nil {
-			defer file.Close()
-			fileBytes, lerr := ioutil.ReadAll(file)
-			err = lerr
-			if lerr == nil {
-				var res map[string]interface{}
-				if lerr = json.Unmarshal(fileBytes, &res); lerr == nil {
-					return res
-				} else {
-					err = lerr
-				}
-			}
+	if cKeys, ok := a.metadata[tags.ConfigurationKeys]; ok {
+		cfgKeys := cKeys.([]string)
+		configRequest[tags.ConfigurationKeys] = cfgKeys
+		for _, item := range cfgKeys {
+			addElementToMapIfEmpty(configRequest, item, a.metadata[item])
 		}
 	}
-	if err != nil {
-		a.logger.Printf("Error loading local configuration: %v", err)
-	}
 
+	return a.getOrSetRemoteConfigurationCache(configRequest, a.getRemoteConfiguration)
+}
+
+func (a *Agent) getRemoteConfiguration(cfgRequest map[string]interface{}) map[string]interface{} {
 	client := &http.Client{}
 	curl := a.getUrl("api/agent/config")
-	payload, err := encodePayload(configRequest)
+	payload, err := encodePayload(cfgRequest)
 	if err != nil {
 		a.logger.Printf("Error encoding payload: %v", err)
 	}
@@ -138,20 +126,65 @@ func (a *Agent) loadRemoteConfig() map[string]interface{} {
 	if statusCode != 0 && statusCode < 400 && lastError == nil {
 		var resp map[string]interface{}
 		if err := json.Unmarshal(bodyData, &resp); err == nil {
-			if path != "" {
-				if err := ioutil.WriteFile(path, bodyData, 0755); err != nil {
-					a.logger.Printf("Error writing json file: %v", err)
-				}
-			}
 			return resp
 		} else {
-			a.logger.Printf("Error unmarshalling msgpack: %v", err)
+			a.logger.Printf("Error unmarshalling json: %v", err)
 		}
 	}
 	return nil
 }
 
-func getLocalConfigurationPath(metadata map[string]interface{}) (string, error) {
+func (a *Agent) getOrSetRemoteConfigurationCache(metadata map[string]interface{}, fn func(map[string]interface{}) map[string]interface{}) map[string]interface{} {
+	if metadata == nil {
+		return nil
+	}
+	var (
+		path string
+		err  error
+	)
+	path, err = getRemoteConfigurationCachePath(metadata)
+	if err == nil {
+		// We try to load the cached version of the remote configuration
+		file, lerr := os.Open(path)
+		err = lerr
+		if lerr == nil {
+			defer file.Close()
+			fileBytes, lerr := ioutil.ReadAll(file)
+			err = lerr
+			if lerr == nil {
+				var res map[string]interface{}
+				if lerr = json.Unmarshal(fileBytes, &res); lerr == nil {
+					a.logger.Printf("Remote configuration cache: %v", file)
+					return res
+				} else {
+					err = lerr
+				}
+			}
+		}
+	}
+	if err != nil {
+		a.logger.Printf("Remote configuration cache: %v", err)
+	}
+
+	if fn == nil {
+		return nil
+	}
+
+	// Call the loader
+	resp := fn(metadata)
+
+	if resp != nil && path != "" {
+		// Save a local cache for the response
+		if data, err := json.Marshal(&resp); err == nil {
+			if err := ioutil.WriteFile(path, data, 0755); err != nil {
+				a.logger.Printf("Error writing json file: %v", err)
+			}
+		}
+	}
+	return resp
+}
+
+func getRemoteConfigurationCachePath(metadata map[string]interface{}) (string, error) {
 	homeDir, err := homedir.Dir()
 	if err != nil {
 		return "", err

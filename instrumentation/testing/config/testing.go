@@ -1,28 +1,34 @@
 package config
 
 import (
+	"fmt"
+	"go.undefinedlabs.com/scopeagent/instrumentation"
 	"sync"
 )
 
 var (
 	testsToSkip map[string]struct{}
 
-	m sync.RWMutex
+	m sync.Mutex
 )
 
-func SetFqnToSkip(fqns ...string) {
+func GetCachedTestsMap() map[string]struct{} {
 	m.Lock()
 	defer m.Unlock()
 
-	testsToSkip = map[string]struct{}{}
-	for _, val := range fqns {
-		testsToSkip[val] = struct{}{}
+	if testsToSkip != nil {
+		return testsToSkip
 	}
-}
 
-func GetSkipMap() map[string]struct{} {
-	m.RLock()
-	defer m.RUnlock()
-
+	config := instrumentation.GetRemoteConfiguration()
+	testsToSkip = map[string]struct{}{}
+	if iCached, ok := config["cached"]; ok {
+		cachedTests := iCached.([]interface{})
+		for _, item := range cachedTests {
+			testItem := item.(map[string]interface{})
+			testFqn := fmt.Sprintf("%v.%v", testItem["test_suite"], testItem["test_name"])
+			testsToSkip[testFqn] = struct{}{}
+		}
+	}
 	return testsToSkip
 }
