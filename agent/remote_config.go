@@ -154,7 +154,11 @@ func (a *Agent) getOrSetRemoteConfigurationCache(metadata map[string]interface{}
 			if lerr == nil {
 				var res map[string]interface{}
 				if lerr = json.Unmarshal(fileBytes, &res); lerr == nil {
-					a.logger.Printf("Remote configuration cache: %v", file)
+					if a.debugMode {
+						a.logger.Printf("Remote configuration cache: %v", string(fileBytes))
+					} else {
+						a.logger.Printf("Remote configuration cache: %v", path)
+					}
 					return res
 				} else {
 					err = lerr
@@ -176,6 +180,9 @@ func (a *Agent) getOrSetRemoteConfigurationCache(metadata map[string]interface{}
 	if resp != nil && path != "" {
 		// Save a local cache for the response
 		if data, err := json.Marshal(&resp); err == nil {
+			if a.debugMode {
+				a.logger.Printf("Saving Remote configuration cache: %v", string(data))
+			}
 			if err := ioutil.WriteFile(path, data, 0755); err != nil {
 				a.logger.Printf("Error writing json file: %v", err)
 			}
