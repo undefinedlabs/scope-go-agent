@@ -1,50 +1,183 @@
 package agent
 
 import (
-	"log"
+	"bytes"
+	"crypto/sha1"
+	"crypto/x509"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"github.com/mitchellh/go-homedir"
+	"go.undefinedlabs.com/scopeagent/tags"
+	"io/ioutil"
 	"net/http"
+	"net/url"
+	"os"
+	"path/filepath"
+	"runtime"
+	"time"
 )
 
-type (
-	RemoteConfig struct {
-		request     remoteConfigRequest
-		response    *remoteConfigResponse
-		apiKey      string
-		apiEndpoint string
-		version     string
-		userAgent   string
-		debugMode   bool
-		url         string
-		client      *http.Client
-		logger      *log.Logger
+func (a *Agent) loadRemoteConfig() map[string]interface{} {
+	if a == nil || a.metadata == nil {
+		return nil
 	}
 
+	var (
+		path          string
+		err           error
+		configRequest = map[string]interface{}{}
+	)
+	addElementToMapIfEmpty(configRequest, tags.Repository, a.metadata[tags.Repository])
+	addElementToMapIfEmpty(configRequest, tags.Commit, a.metadata[tags.Commit])
+	addElementToMapIfEmpty(configRequest, tags.Service, a.metadata[tags.Service])
+	addElementToMapIfEmpty(configRequest, tags.Dependencies, a.metadata[tags.Dependencies])
+	path, err = getLocalConfigurationPath(configRequest)
+	if err == nil {
+		file, lerr := os.Open(path)
+		err = lerr
+		if lerr == nil {
+			defer file.Close()
+			fileBytes, lerr := ioutil.ReadAll(file)
+			err = lerr
+			if lerr == nil {
+				var res map[string]interface{}
+				if lerr = json.Unmarshal(fileBytes, &res); lerr == nil {
+					return res
+				} else {
+					err = lerr
+				}
+			}
+		}
+	}
+	if err != nil {
+		a.logger.Printf("Error loading local configuration: %v", err)
+	}
 
-	remoteConfigRequest struct {
-		Repository   string            `json:"repository" msgpack:"repository"`
-		Commit       string            `json:"commit" msgpack:"commit"`
-		Service      string            `json:"service" msgpack:"service"`
-		Dependencies map[string]string `json:"dependencies" msgpack:"dependencies"`
+	client := &http.Client{}
+	curl := a.getUrl("api/agent/config")
+	payload, err := encodePayload(configRequest)
+	if err != nil {
+		a.logger.Printf("Error encoding payload: %v", err)
 	}
-	remoteConfigResponse struct {
-		Cached []CachedTests `json:"cached" msgpack:"cached"`
-	}
-	CachedTests struct {
-		TestSuite string `json:"test_suite" msgpack:"test_suite"`
-		TestName  string `json:"test_name" msgpack:"test_name"`
-	}
-)
+	payloadBytes := payload.Bytes()
 
-func NewRemoteConfig(agent *Agent) *RemoteConfig {
-	r := new(RemoteConfig)
-	//r.request.Repository = agent.repos
-	r.apiEndpoint = agent.apiEndpoint
-	r.apiKey = agent.apiKey
-	r.version = agent.version
-	r.userAgent = agent.userAgent
-	r.debugMode = agent.debugMode
-	r.logger = agent.logger
-	r.url = agent.getUrl("api/agent/config")
-	r.client = &http.Client{}
-	return r
+	var (
+		lastError  error
+		status     string
+		statusCode int
+		bodyData   []byte
+	)
+	for i := 0; i <= numOfRetries; i++ {
+		req, err := http.NewRequest("POST", curl, bytes.NewBuffer(payloadBytes))
+		if err != nil {
+			a.logger.Printf("Error creating new request: %v", err)
+			return nil
+		}
+		req.Header.Set("User-Agent", a.userAgent)
+		req.Header.Set("Content-Type", "application/msgpack")
+		req.Header.Set("Content-Encoding", "gzip")
+		req.Header.Set("X-Scope-ApiKey", a.apiKey)
+
+		if a.debugMode {
+			if i == 0 {
+				a.logger.Println("sending payload")
+			} else {
+				a.logger.Printf("sending payload [retry %d]", i)
+			}
+		}
+
+		resp, err := client.Do(req)
+		if err != nil {
+			if v, ok := err.(*url.Error); ok {
+				// Don't retry if the error was due to TLS cert verification failure.
+				if _, ok := v.Err.(x509.UnknownAuthorityError); ok {
+					a.logger.Printf("error: http client returns: %s", err.Error())
+					return nil
+				}
+			}
+
+			lastError = err
+			a.logger.Printf("client error '%s', retrying in %d seconds", err.Error(), retryBackoff/time.Second)
+			time.Sleep(retryBackoff)
+			continue
+		}
+
+		statusCode = resp.StatusCode
+		status = resp.Status
+		if resp.Body != nil && resp.Body != http.NoBody {
+			body, err := ioutil.ReadAll(resp.Body)
+			if err == nil {
+				bodyData = body
+			}
+		}
+		if err := resp.Body.Close(); err != nil { // We can't defer inside a for loop
+			a.logger.Printf("error: closing the response body. %s", err.Error())
+		}
+
+		if statusCode == 0 || statusCode >= 400 {
+			lastError = errors.New(fmt.Sprintf("error from API [status: %s]: %s", status, string(bodyData)))
+		}
+
+		// Check the response code. We retry on 500-range responses to allow
+		// the server time to recover, as 500's are typically not permanent
+		// errors and may relate to outages on the server side. This will catch
+		// invalid response codes as well, like 0 and 999.
+		if statusCode == 0 || (statusCode >= 500 && statusCode != 501) {
+			a.logger.Printf("error: [status code: %d], retrying in %d seconds", statusCode, retryBackoff/time.Second)
+			time.Sleep(retryBackoff)
+			continue
+		}
+
+		if i > 0 {
+			a.logger.Printf("payload was sent successfully after retry.")
+		}
+		break
+	}
+
+	if statusCode != 0 && statusCode < 400 && lastError == nil {
+		var resp map[string]interface{}
+		if err := json.Unmarshal(bodyData, &resp); err == nil {
+			if path != "" {
+				if err := ioutil.WriteFile(path, bodyData, 0755); err != nil {
+					a.logger.Printf("Error writing json file: %v", err)
+				}
+			}
+			return resp
+		} else {
+			a.logger.Printf("Error unmarshalling msgpack: %v", err)
+		}
+	}
+	return nil
+}
+
+func getLocalConfigurationPath(metadata map[string]interface{}) (string, error) {
+	homeDir, err := homedir.Dir()
+	if err != nil {
+		return "", err
+	}
+	data, err := json.Marshal(metadata)
+	if err != nil {
+		return "", err
+	}
+	hash := fmt.Sprintf("%x", sha1.Sum(data))
+
+	var folder string
+	if runtime.GOOS == "windows" {
+		folder = fmt.Sprintf("%s/AppData/Roaming/scope/cache", homeDir)
+	} else {
+		folder = fmt.Sprintf("%s/.scope/cache", homeDir)
+	}
+
+	if _, err := os.Stat(folder); err == nil {
+		return filepath.Join(folder, hash), nil
+	} else if os.IsNotExist(err) {
+		err = os.MkdirAll(folder, 0755)
+		if err != nil {
+			return "", err
+		}
+		return filepath.Join(folder, hash), nil
+	} else {
+		return "", err
+	}
 }

@@ -365,6 +365,9 @@ func NewAgent(options ...Option) (*Agent, error) {
 		opentracing.SetGlobalTracer(agent.Tracer())
 	}
 
+	cfg := agent.loadRemoteConfig()
+	_ = cfg
+
 	return agent, nil
 }
 
