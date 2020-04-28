@@ -37,7 +37,9 @@ func (a *Agent) loadRemoteConfiguration() map[string]interface{} {
 			addElementToMapIfEmpty(configRequest, item, a.metadata[item])
 		}
 	}
-
+	if a.debugMode {
+		a.logger.Printf("Getting remote configuration for: %v", configRequest)
+	}
 	return a.getOrSetRemoteConfigurationCache(configRequest, a.getRemoteConfiguration)
 }
 
