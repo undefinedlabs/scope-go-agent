@@ -48,9 +48,10 @@ const (
 	LogLevel_DEBUG   = "DEBUG"
 	LogLevel_VERBOSE = "VERBOSE"
 
-	TestStatus_FAIL = "FAIL"
-	TestStatus_PASS = "PASS"
-	TestStatus_SKIP = "SKIP"
+	TestStatus_FAIL  = "FAIL"
+	TestStatus_PASS  = "PASS"
+	TestStatus_SKIP  = "SKIP"
+	TestStatus_CACHE = "CACHE"
 
 	TestingMode = "testing"
 

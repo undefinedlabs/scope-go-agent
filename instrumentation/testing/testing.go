@@ -97,6 +97,15 @@ func StartTestFromCaller(t *testing.T, pc uintptr, opts ...Option) *Test {
 
 	span, ctx := opentracing.StartSpanFromContextWithTracer(test.ctx, instrumentation.Tracer(), fullTestName, testTags)
 	span.SetBaggageItem("trace.kind", "test")
+
+	if isTestCached(t, pc) {
+		// Remove the Test struct from the hash map, so a call to Start while we end this instance will create a new struct
+		removeTest(t)
+		span.SetTag("test.status", tags.TestStatus_CACHE)
+		span.Finish()
+		t.SkipNow()
+	}
+
 	test.span = span
 	test.ctx = ctx
 
@@ -146,9 +155,6 @@ func (test *Test) Run(name string, f func(t *testing.T)) bool {
 		})
 	}
 	return test.t.Run(name, func(childT *testing.T) {
-		if isTestCached(childT, pc) {
-			return
-		}
 		addAutoInstrumentedTest(childT)
 		childTest := StartTestFromCaller(childT, pc)
 		defer childTest.end()
@@ -292,21 +298,8 @@ func addAutoInstrumentedTest(t *testing.T) {
 
 // Get if the test is cached
 func isTestCached(t *testing.T, pc uintptr) bool {
-	fullTestName := runner.GetOriginalTestName(t.Name())
-	testNameSlash := strings.IndexByte(fullTestName, '/')
-	funcName := fullTestName
-	if testNameSlash >= 0 {
-		funcName = fullTestName[:testNameSlash]
-	}
-
-	funcFullName := runtime.FuncForPC(pc).Name()
-	funcNameIndex := strings.LastIndex(funcFullName, funcName)
-	if funcNameIndex < 1 {
-		funcNameIndex = len(funcFullName)
-	}
-	packageName := funcFullName[:funcNameIndex-1]
-
-	fqn := fmt.Sprintf("%s.%s", packageName, fullTestName)
+	pkgName, testName := getPackageAndName(pc)
+	fqn := fmt.Sprintf("%s.%s", pkgName, testName)
 	cachedMap := config.GetCachedTestsMap()
 	if _, ok := cachedMap[fqn]; ok {
 		reflection.SkipAndFinishTest(t)
