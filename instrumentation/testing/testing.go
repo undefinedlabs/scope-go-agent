@@ -303,11 +303,10 @@ func isTestCached(t *testing.T, pc uintptr) bool {
 	cachedMap := config.GetCachedTestsMap()
 	if _, ok := cachedMap[fqn]; ok {
 		instrumentation.Logger().Printf("Test '%v' is cached.", fqn)
-		fmt.Print("--- CACHED ")
+		fmt.Print("[SCOPE CACHED] ")
 		reflection.SkipAndFinishTest(t)
 		return true
 	}
 	instrumentation.Logger().Printf("Test '%v' is not cached.", fqn)
-	fmt.Printf("Test '%v' is not cached.", fqn)
 	return false
 }
