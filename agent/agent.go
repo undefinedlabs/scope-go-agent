@@ -236,8 +236,7 @@ func NewAgent(options ...Option) (*Agent, error) {
 			agent.apiKey = configProfile.ApiKey
 		} else {
 			agent.logger.Println("API key not found, agent can't be started")
-			return nil, errors.New(fmt.Sprintf("There was a problem initializing Scope.\n"+
-				"Check the agent logs at %s for more information.\n\nScope DSN not found, agent can't be started", agent.recorderFilename))
+			return nil, errors.New("Scope DSN not found. Tests will run but no results will be reported to Scope. More info at https://docs.scope.dev/")
 		}
 	}
 
