@@ -3,6 +3,7 @@ package agent
 import (
 	"os/exec"
 	"regexp"
+	"sort"
 	"strings"
 )
 
@@ -24,6 +25,7 @@ func getDependencyMap() map[string]string {
 	}
 	dependencies := map[string]string{}
 	for k, v := range deps {
+		sort.Strings(v)
 		dependencies[k] = strings.Join(v, ", ")
 	}
 	return dependencies
