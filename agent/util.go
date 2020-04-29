@@ -53,3 +53,16 @@ func msgPackEncodePayload(payload map[string]interface{}) (*bytes.Buffer, error)
 
 	return &buf, nil
 }
+
+// Gets if the slice contains an item
+func sliceContains(slice []string, item string) bool {
+	if slice == nil {
+		return false
+	}
+	for _, a := range slice {
+		if a == item {
+			return true
+		}
+	}
+	return false
+}

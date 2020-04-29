@@ -368,7 +368,32 @@ func NewAgent(options ...Option) (*Agent, error) {
 	instrumentation.SetTracer(agent.tracer)
 	instrumentation.SetLogger(agent.logger)
 	instrumentation.SetSourceRoot(sourceRoot)
-	instrumentation.SetRemoteConfiguration(agent.loadRemoteConfiguration())
+	enableRemoteConfig := false
+	if env.ScopeRunnerEnabled.Value {
+		// runner is enabled
+		if env.ScopeRunnerIncludeBranches.Value == nil && env.ScopeRunnerExcludeBranches.Value == nil {
+			// both include and exclude branches are not defined
+			enableRemoteConfig = true
+		} else if iBranch, ok := agent.metadata[tags.Branch]; ok {
+			branch := iBranch.(string)
+			included := sliceContains(env.ScopeRunnerIncludeBranches.Value, branch)
+			excluded := sliceContains(env.ScopeRunnerExcludeBranches.Value, branch)
+			enableRemoteConfig = included // By default we use the value inside the include slice
+			if env.ScopeRunnerExcludeBranches.Value != nil {
+				if included && excluded {
+					// If appears in both slices, write in the logger and disable the runner configuration
+					agent.logger.Printf("The branch '%v' appears in both included and excluded branches. The branch will be excluded.", branch)
+					enableRemoteConfig = false
+				} else {
+					// We enable the remote config if is include or not excluded
+					enableRemoteConfig = included || !excluded
+				}
+			}
+		}
+	}
+	if enableRemoteConfig {
+		instrumentation.SetRemoteConfiguration(agent.loadRemoteConfiguration())
+	}
 	if agent.setGlobalTracer || env.ScopeTracerGlobal.Value {
 		opentracing.SetGlobalTracer(agent.Tracer())
 	}
