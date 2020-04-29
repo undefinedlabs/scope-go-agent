@@ -20,6 +20,7 @@ import (
 	"go.undefinedlabs.com/scopeagent/tags"
 )
 
+// Loads the remote agent configuration from local cache, if not exists then retrieve it from the server
 func (a *Agent) loadRemoteConfiguration() map[string]interface{} {
 	if a == nil || a.metadata == nil {
 		return nil
@@ -44,6 +45,7 @@ func (a *Agent) loadRemoteConfiguration() map[string]interface{} {
 	return a.getOrSetRemoteConfigurationCache(configRequest, a.getRemoteConfiguration)
 }
 
+// Gets the remote agent configuration from the endpoint + api/agent/config
 func (a *Agent) getRemoteConfiguration(cfgRequest map[string]interface{}) map[string]interface{} {
 	client := &http.Client{}
 	curl := a.getUrl("api/agent/config")
@@ -137,6 +139,7 @@ func (a *Agent) getRemoteConfiguration(cfgRequest map[string]interface{}) map[st
 	return nil
 }
 
+// Gets or sets the remote agent configuration local cache
 func (a *Agent) getOrSetRemoteConfigurationCache(metadata map[string]interface{}, fn func(map[string]interface{}) map[string]interface{}) map[string]interface{} {
 	if metadata == nil {
 		return nil
@@ -194,6 +197,7 @@ func (a *Agent) getOrSetRemoteConfigurationCache(metadata map[string]interface{}
 	return resp
 }
 
+// Gets the remote agent configuration local cache path
 func getRemoteConfigurationCachePath(metadata map[string]interface{}) (string, error) {
 	homeDir, err := homedir.Dir()
 	if err != nil {

@@ -12,6 +12,7 @@ var (
 	m sync.Mutex
 )
 
+// Gets the map of cached tests
 func GetCachedTestsMap() map[string]struct{} {
 	m.Lock()
 	defer m.Unlock()
