@@ -99,10 +99,10 @@ func StartTestFromCaller(t *testing.T, pc uintptr, opts ...Option) *Test {
 	span.SetBaggageItem("trace.kind", "test")
 
 	if isTestCached(t, pc) {
-		// Remove the Test struct from the hash map, so a call to Start while we end this instance will create a new struct
-		removeTest(t)
 		span.SetTag("test.status", tags.TestStatus_CACHE)
 		span.Finish()
+		// Remove the Test struct from the hash map, so a call to Start while we end this instance will create a new struct
+		removeTest(t)
 		t.SkipNow()
 	}
 

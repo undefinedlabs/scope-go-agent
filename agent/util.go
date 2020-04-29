@@ -1,6 +1,11 @@
 package agent
 
-import "os"
+import (
+	"bytes"
+	"compress/gzip"
+	"github.com/vmihailenco/msgpack"
+	"os"
+)
 
 func addToMapIfEmpty(dest map[string]interface{}, source map[string]interface{}) {
 	if source == nil {
@@ -27,4 +32,24 @@ func getSourceRootFromEnv(key string) string {
 		}
 	}
 	return ""
+}
+
+// Encodes `payload` using msgpack and compress it with gzip
+func msgPackEncodePayload(payload map[string]interface{}) (*bytes.Buffer, error) {
+	binaryPayload, err := msgpack.Marshal(payload)
+	if err != nil {
+		return nil, err
+	}
+
+	var buf bytes.Buffer
+	zw := gzip.NewWriter(&buf)
+	_, err = zw.Write(binaryPayload)
+	if err != nil {
+		return nil, err
+	}
+	if err := zw.Close(); err != nil {
+		return nil, err
+	}
+
+	return &buf, nil
 }

@@ -2,7 +2,6 @@ package agent
 
 import (
 	"bytes"
-	"compress/gzip"
 	"crypto/x509"
 	"errors"
 	"fmt"
@@ -15,7 +14,6 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/vmihailenco/msgpack"
 	"gopkg.in/tomb.v2"
 
 	"go.undefinedlabs.com/scopeagent/tags"
@@ -154,7 +152,7 @@ func (r *SpanRecorder) sendSpans() (error, bool) {
 			"events":     events,
 			tags.AgentID: r.agentId,
 		}
-		buf, err := encodePayload(payload)
+		buf, err := msgPackEncodePayload(payload)
 		if err != nil {
 			atomic.AddInt64(&r.stats.sendSpansKo, 1)
 			atomic.AddInt64(&r.stats.spansNotSent, int64(len(spans)))
@@ -351,26 +349,6 @@ func (r *SpanRecorder) getPayloadComponents(span tracer.RawSpan) (PayloadSpan, [
 		})
 	}
 	return payloadSpan, events
-}
-
-// Encodes `payload` using msgpack and compress it with gzip
-func encodePayload(payload map[string]interface{}) (*bytes.Buffer, error) {
-	binaryPayload, err := msgpack.Marshal(payload)
-	if err != nil {
-		return nil, err
-	}
-
-	var buf bytes.Buffer
-	zw := gzip.NewWriter(&buf)
-	_, err = zw.Write(binaryPayload)
-	if err != nil {
-		return nil, err
-	}
-	if err := zw.Close(); err != nil {
-		return nil, err
-	}
-
-	return &buf, nil
 }
 
 // Gets the current flush frequency

@@ -47,7 +47,7 @@ func (a *Agent) loadRemoteConfiguration() map[string]interface{} {
 func (a *Agent) getRemoteConfiguration(cfgRequest map[string]interface{}) map[string]interface{} {
 	client := &http.Client{}
 	curl := a.getUrl("api/agent/config")
-	payload, err := encodePayload(cfgRequest)
+	payload, err := msgPackEncodePayload(cfgRequest)
 	if err != nil {
 		a.logger.Printf("Error encoding payload: %v", err)
 	}
