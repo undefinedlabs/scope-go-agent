@@ -145,15 +145,10 @@ func (test *Test) Context() context.Context {
 
 // Runs an auto instrumented sub test
 func (test *Test) Run(name string, f func(t *testing.T)) bool {
-	pc, _, _, _ := runtime.Caller(1)
 	if test.span == nil { // No span = not instrumented
-		return test.t.Run(name, func(cT *testing.T) {
-			if isTestCached(cT, pc) {
-				return
-			}
-			f(cT)
-		})
+		return test.t.Run(name, f)
 	}
+	pc, _, _, _ := runtime.Caller(1)
 	return test.t.Run(name, func(childT *testing.T) {
 		addAutoInstrumentedTest(childT)
 		childTest := StartTestFromCaller(childT, pc)
