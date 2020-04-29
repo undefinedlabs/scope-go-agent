@@ -38,7 +38,8 @@ func (a *Agent) loadRemoteConfiguration() map[string]interface{} {
 		}
 	}
 	if a.debugMode {
-		a.logger.Printf("Getting remote configuration for: %v", configRequest)
+		jsBytes, _ := json.Marshal(configRequest)
+		a.logger.Printf("Getting remote configuration for: %v", string(jsBytes))
 	}
 	return a.getOrSetRemoteConfigurationCache(configRequest, a.getRemoteConfiguration)
 }

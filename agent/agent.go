@@ -323,7 +323,7 @@ func NewAgent(options ...Option) (*Agent, error) {
 
 	// Capabilities
 	agent.metadata[tags.Capabilities] = map[string]interface{}{
-		tags.Capabilities_CodePath:      testing.CoverMode(),
+		tags.Capabilities_CodePath:      testing.CoverMode() != "",
 		tags.Capabilities_RunnerCache:   true,
 		tags.Capabilities_RunnerRetries: agent.failRetriesCount > 0,
 	}
