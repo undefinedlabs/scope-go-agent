@@ -322,11 +322,11 @@ func NewAgent(options ...Option) (*Agent, error) {
 	agent.metadata[tags.SourceRoot] = sourceRoot
 
 	// Capabilities
-	agent.metadata[tags.Capabilities] = map[string]interface{}{
+	capabilities := map[string]interface{}{
 		tags.Capabilities_CodePath:      testing.CoverMode() != "",
-		tags.Capabilities_RunnerCache:   true,
 		tags.Capabilities_RunnerRetries: agent.failRetriesCount > 0,
 	}
+	agent.metadata[tags.Capabilities] = capabilities
 
 	if !agent.testingMode {
 		if env.ScopeTestingMode.IsSet {
@@ -391,6 +391,7 @@ func NewAgent(options ...Option) (*Agent, error) {
 			}
 		}
 	}
+	capabilities[tags.Capabilities_RunnerCache] = enableRemoteConfig
 	if enableRemoteConfig {
 		instrumentation.SetRemoteConfiguration(agent.loadRemoteConfiguration())
 	}

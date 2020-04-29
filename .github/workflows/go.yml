@@ -30,6 +30,8 @@ jobs:
           SCOPE_DSN: ${{ secrets.SCOPE_DSN }}
           SCOPE_LOGGER_ROOT: /home/runner/.scope-results
           SCOPE_DEBUG: true
+          SCOPE_RUNNER_ENABLED: true
+          SCOPE_RUNNER_EXCLUDE_BRANCHES: master
 
       - name: Upload Scope logs
         if: always()
