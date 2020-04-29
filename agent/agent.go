@@ -321,6 +321,13 @@ func NewAgent(options ...Option) (*Agent, error) {
 	}
 	agent.metadata[tags.SourceRoot] = sourceRoot
 
+	// Capabilities
+	agent.metadata[tags.Capabilities] = map[string]interface{}{
+		tags.Capabilities_CodePath:      testing.CoverMode(),
+		tags.Capabilities_RunnerCache:   true,
+		tags.Capabilities_RunnerRetries: agent.failRetriesCount > 0,
+	}
+
 	if !agent.testingMode {
 		if env.ScopeTestingMode.IsSet {
 			agent.testingMode = env.ScopeTestingMode.Value
