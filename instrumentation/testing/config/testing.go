@@ -23,12 +23,14 @@ func GetCachedTestsMap() map[string]struct{} {
 
 	config := instrumentation.GetRemoteConfiguration()
 	testsToSkip = map[string]struct{}{}
-	if iCached, ok := config["cached"]; ok {
-		cachedTests := iCached.([]interface{})
-		for _, item := range cachedTests {
-			testItem := item.(map[string]interface{})
-			testFqn := fmt.Sprintf("%v.%v", testItem["test_suite"], testItem["test_name"])
-			testsToSkip[testFqn] = struct{}{}
+	if config != nil {
+		if iCached, ok := config["cached"]; ok {
+			cachedTests := iCached.([]interface{})
+			for _, item := range cachedTests {
+				testItem := item.(map[string]interface{})
+				testFqn := fmt.Sprintf("%v.%v", testItem["test_suite"], testItem["test_name"])
+				testsToSkip[testFqn] = struct{}{}
+			}
 		}
 	}
 	return testsToSkip

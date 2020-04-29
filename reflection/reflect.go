@@ -150,6 +150,7 @@ func GetBenchmarkResult(b *testing.B) (*testing.BenchmarkResult, error) {
 	}
 }
 
+// Mark the current test as skipped and finished without exit the current goroutine
 func SkipAndFinishTest(t *testing.T) {
 	mu := GetTestMutex(t)
 	if mu != nil {
