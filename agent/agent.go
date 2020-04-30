@@ -324,6 +324,7 @@ func NewAgent(options ...Option) (*Agent, error) {
 	// Capabilities
 	capabilities := map[string]interface{}{
 		tags.Capabilities_CodePath:      testing.CoverMode() != "",
+		tags.Capabilities_RunnerCache:   false,
 		tags.Capabilities_RunnerRetries: agent.failRetriesCount > 0,
 	}
 	agent.metadata[tags.Capabilities] = capabilities
@@ -371,6 +372,7 @@ func NewAgent(options ...Option) (*Agent, error) {
 	enableRemoteConfig := false
 	if env.ScopeRunnerEnabled.Value {
 		// runner is enabled
+		capabilities[tags.Capabilities_RunnerCache] = true
 		if env.ScopeRunnerIncludeBranches.Value == nil && env.ScopeRunnerExcludeBranches.Value == nil {
 			// both include and exclude branches are not defined
 			enableRemoteConfig = true
@@ -391,7 +393,6 @@ func NewAgent(options ...Option) (*Agent, error) {
 			}
 		}
 	}
-	capabilities[tags.Capabilities_RunnerCache] = enableRemoteConfig
 	if enableRemoteConfig {
 		instrumentation.SetRemoteConfiguration(agent.loadRemoteConfiguration())
 	}
