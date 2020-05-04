@@ -23,4 +23,7 @@ var (
 	ScopeInstrumentationHttpStacktrace    = newBooleanEnvVar(false, "SCOPE_INSTRUMENTATION_HTTP_STACKTRACE")
 	ScopeInstrumentationDbStatementValues = newBooleanEnvVar(false, "SCOPE_INSTRUMENTATION_DB_STATEMENT_VALUES")
 	ScopeInstrumentationDbStacktrace      = newBooleanEnvVar(false, "SCOPE_INSTRUMENTATION_DB_STACKTRACE")
+	ScopeRunnerEnabled                    = newBooleanEnvVar(false, "SCOPE_RUNNER_ENABLED")
+	ScopeRunnerIncludeBranches            = newSliceEnvVar(nil, "SCOPE_RUNNER_INCLUDE_BRANCHES")
+	ScopeRunnerExcludeBranches            = newSliceEnvVar(nil, "SCOPE_RUNNER_EXCLUDE_BRANCHES")
 )

@@ -149,3 +149,18 @@ func GetBenchmarkResult(b *testing.B) (*testing.BenchmarkResult, error) {
 		return nil, err
 	}
 }
+
+// Mark the current test as skipped and finished without exit the current goroutine
+func SkipAndFinishTest(t *testing.T) {
+	mu := GetTestMutex(t)
+	if mu != nil {
+		mu.Lock()
+		defer mu.Unlock()
+	}
+	if pointer, err := GetFieldPointerOf(t, "skipped"); err == nil {
+		*(*bool)(pointer) = true
+	}
+	if pointer, err := GetFieldPointerOf(t, "finished"); err == nil {
+		*(*bool)(pointer) = true
+	}
+}

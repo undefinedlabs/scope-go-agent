@@ -21,10 +21,24 @@ jobs:
       - name: Get dependencies
         run: go get -v -t -d ./...
 
+      - name: Create log folder
+        run: mkdir /home/runner/.scope-results
+
       - name: Test
         run: go test -v -race -covermode=atomic ./...
         env:
           SCOPE_DSN: ${{ secrets.SCOPE_DSN }}
+          SCOPE_LOGGER_ROOT: /home/runner/.scope-results
+          SCOPE_DEBUG: true
+          SCOPE_RUNNER_ENABLED: true
+          SCOPE_RUNNER_EXCLUDE_BRANCHES: master
+
+      - name: Upload Scope logs
+        if: always()
+        uses: actions/upload-artifact@v1
+        with:
+          name: Scope for Go logs
+          path: /home/runner/.scope-results
 
   fossa:
     name: FOSSA

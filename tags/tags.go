@@ -22,6 +22,12 @@ const (
 	SourceRoot = "source.root"
 	Diff       = "diff"
 
+	Capabilities               = "capabilities"
+	Capabilities_CodePath      = "code.path"
+	Capabilities_ProcessEnd    = "process.end"
+	Capabilities_RunnerRetries = "runner.retries"
+	Capabilities_RunnerCache   = "runner.cache"
+
 	CI            = "ci.in_ci"
 	CIProvider    = "ci.provider"
 	CIBuildId     = "ci.build_id"
@@ -48,9 +54,10 @@ const (
 	LogLevel_DEBUG   = "DEBUG"
 	LogLevel_VERBOSE = "VERBOSE"
 
-	TestStatus_FAIL = "FAIL"
-	TestStatus_PASS = "PASS"
-	TestStatus_SKIP = "SKIP"
+	TestStatus_FAIL  = "FAIL"
+	TestStatus_PASS  = "PASS"
+	TestStatus_SKIP  = "SKIP"
+	TestStatus_CACHE = "CACHE"
 
 	TestingMode = "testing"
 

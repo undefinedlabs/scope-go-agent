@@ -2,6 +2,7 @@ package testing
 
 import (
 	"context"
+	"fmt"
 	"reflect"
 	"regexp"
 	"runtime"
@@ -16,6 +17,7 @@ import (
 	"go.undefinedlabs.com/scopeagent/errors"
 	"go.undefinedlabs.com/scopeagent/instrumentation"
 	"go.undefinedlabs.com/scopeagent/instrumentation/logging"
+	"go.undefinedlabs.com/scopeagent/instrumentation/testing/config"
 	"go.undefinedlabs.com/scopeagent/reflection"
 	"go.undefinedlabs.com/scopeagent/runner"
 	"go.undefinedlabs.com/scopeagent/tags"
@@ -95,6 +97,15 @@ func StartTestFromCaller(t *testing.T, pc uintptr, opts ...Option) *Test {
 
 	span, ctx := opentracing.StartSpanFromContextWithTracer(test.ctx, instrumentation.Tracer(), fullTestName, testTags)
 	span.SetBaggageItem("trace.kind", "test")
+
+	if isTestCached(t, pc) {
+		span.SetTag("test.status", tags.TestStatus_CACHE)
+		span.Finish()
+		// Remove the Test struct from the hash map, so a call to Start while we end this instance will create a new struct
+		removeTest(t)
+		t.SkipNow()
+	}
+
 	test.span = span
 	test.ctx = ctx
 
@@ -278,4 +289,19 @@ func addAutoInstrumentedTest(t *testing.T) {
 	autoInstrumentedTestsMutex.Lock()
 	defer autoInstrumentedTestsMutex.Unlock()
 	autoInstrumentedTests[t] = true
+}
+
+// Get if the test is cached
+func isTestCached(t *testing.T, pc uintptr) bool {
+	pkgName, testName := getPackageAndName(pc)
+	fqn := fmt.Sprintf("%s.%s", pkgName, testName)
+	cachedMap := config.GetCachedTestsMap()
+	if _, ok := cachedMap[fqn]; ok {
+		instrumentation.Logger().Printf("Test '%v' is cached.", fqn)
+		fmt.Print("[SCOPE CACHED] ")
+		reflection.SkipAndFinishTest(t)
+		return true
+	}
+	instrumentation.Logger().Printf("Test '%v' is not cached.", fqn)
+	return false
 }

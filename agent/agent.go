@@ -321,6 +321,14 @@ func NewAgent(options ...Option) (*Agent, error) {
 	}
 	agent.metadata[tags.SourceRoot] = sourceRoot
 
+	// Capabilities
+	capabilities := map[string]interface{}{
+		tags.Capabilities_CodePath:      testing.CoverMode() != "",
+		tags.Capabilities_RunnerCache:   false,
+		tags.Capabilities_RunnerRetries: agent.failRetriesCount > 0,
+	}
+	agent.metadata[tags.Capabilities] = capabilities
+
 	if !agent.testingMode {
 		if env.ScopeTestingMode.IsSet {
 			agent.testingMode = env.ScopeTestingMode.Value
@@ -361,6 +369,33 @@ func NewAgent(options ...Option) (*Agent, error) {
 	instrumentation.SetTracer(agent.tracer)
 	instrumentation.SetLogger(agent.logger)
 	instrumentation.SetSourceRoot(sourceRoot)
+	enableRemoteConfig := false
+	if env.ScopeRunnerEnabled.Value {
+		// runner is enabled
+		capabilities[tags.Capabilities_RunnerCache] = true
+		if env.ScopeRunnerIncludeBranches.Value == nil && env.ScopeRunnerExcludeBranches.Value == nil {
+			// both include and exclude branches are not defined
+			enableRemoteConfig = true
+		} else if iBranch, ok := agent.metadata[tags.Branch]; ok {
+			branch := iBranch.(string)
+			included := sliceContains(env.ScopeRunnerIncludeBranches.Value, branch)
+			excluded := sliceContains(env.ScopeRunnerExcludeBranches.Value, branch)
+			enableRemoteConfig = included // By default we use the value inside the include slice
+			if env.ScopeRunnerExcludeBranches.Value != nil {
+				if included && excluded {
+					// If appears in both slices, write in the logger and disable the runner configuration
+					agent.logger.Printf("The branch '%v' appears in both included and excluded branches. The branch will be excluded.", branch)
+					enableRemoteConfig = false
+				} else {
+					// We enable the remote config if is include or not excluded
+					enableRemoteConfig = included || !excluded
+				}
+			}
+		}
+	}
+	if enableRemoteConfig {
+		instrumentation.SetRemoteConfiguration(agent.loadRemoteConfiguration())
+	}
 	if agent.setGlobalTracer || env.ScopeTracerGlobal.Value {
 		opentracing.SetGlobalTracer(agent.Tracer())
 	}
