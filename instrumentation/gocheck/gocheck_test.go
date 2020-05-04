@@ -53,11 +53,18 @@ type suiteRunner struct {
 	benchMem                  bool
 }
 
-//go:linkname nSRunner gopkg.in/check.v1.newSuiteRunner
+//go:linkname nSRunner gopkg.in/check%2ev1.newSuiteRunner
 func nSRunner(suite interface{}, runConf *chk.RunConf) *suiteRunner
+//go:linkname nSRunnerRun gopkg.in/check%2ev1.(*suiteRunner).run
+func nSRunnerRun(runner *suiteRunner) *chk.Result
 
 // Hook up gocheck into the "go test" runner.
 func Test(t *testing.T) {
+
+	sr := nSRunner(&MySuite{}, &chk.RunConf{})
+	r := nSRunnerRun(sr)
+
+	_ = r
 
 	st := &struct {
 	}{}
