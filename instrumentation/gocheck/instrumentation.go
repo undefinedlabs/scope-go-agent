@@ -2,7 +2,9 @@ package gocheck
 
 import (
 	"context"
+	"go.undefinedlabs.com/scopeagent/instrumentation/coverage"
 	"reflect"
+	"testing"
 	"time"
 
 	"github.com/opentracing/opentracing-go"
@@ -58,6 +60,7 @@ func startTest(method *methodType, c *chk.C) *Test {
 	span.SetBaggageItem("trace.kind", "test")
 	test.span = span
 	test.ctx = ctx
+	coverage.StartCoverage()
 
 	return test
 }
@@ -70,6 +73,12 @@ func (test *Test) end(c *chk.C) {
 	finishOptions := opentracing.FinishOptions{
 		FinishTime: finishTime,
 		LogRecords: logRecords,
+	}
+
+	if testing.CoverMode() != "" {
+		if cov := coverage.EndCoverage(); cov != nil {
+			test.span.SetTag(tags.Coverage, *cov)
+		}
 	}
 
 	if r := recover(); r != nil {

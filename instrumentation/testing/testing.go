@@ -16,6 +16,7 @@ import (
 
 	"go.undefinedlabs.com/scopeagent/errors"
 	"go.undefinedlabs.com/scopeagent/instrumentation"
+	"go.undefinedlabs.com/scopeagent/instrumentation/coverage"
 	"go.undefinedlabs.com/scopeagent/instrumentation/logging"
 	"go.undefinedlabs.com/scopeagent/instrumentation/testing/config"
 	"go.undefinedlabs.com/scopeagent/reflection"
@@ -60,6 +61,7 @@ func StartTest(t *testing.T, opts ...Option) *Test {
 
 // Starts a new test with and uses the caller pc info for Name and Suite
 func StartTestFromCaller(t *testing.T, pc uintptr, opts ...Option) *Test {
+
 	// check if the test is cached
 	if isTestCached(t, pc) {
 
@@ -130,7 +132,7 @@ func StartTestFromCaller(t *testing.T, pc uintptr, opts ...Option) *Test {
 		test.ctx = ctx
 
 		logging.Reset()
-		startCoverage()
+		coverage.StartCoverage()
 
 		return test
 	}
@@ -205,8 +207,8 @@ func (test *Test) end() {
 		// Checks if the current test is running parallel to extract the coverage or not
 		if reflection.GetIsParallel(test.t) && parallel > 1 {
 			instrumentation.Logger().Printf("CodePath in parallel test is not supported: %v\n", test.t.Name())
-			restoreCoverageCounters()
-		} else if cov := endCoverage(); cov != nil {
+			coverage.RestoreCoverageCounters()
+		} else if cov := coverage.EndCoverage(); cov != nil {
 			test.span.SetTag(tags.Coverage, *cov)
 		}
 	}
