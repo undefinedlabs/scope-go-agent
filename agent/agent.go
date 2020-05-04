@@ -329,46 +329,6 @@ func NewAgent(options ...Option) (*Agent, error) {
 	}
 	agent.metadata[tags.Capabilities] = capabilities
 
-	if !agent.testingMode {
-		if env.ScopeTestingMode.IsSet {
-			agent.testingMode = env.ScopeTestingMode.Value
-		} else {
-			agent.testingMode = agent.metadata[tags.CI].(bool)
-		}
-	}
-
-	if agent.failRetriesCount == 0 {
-		agent.failRetriesCount = env.ScopeTestingFailRetries.Value
-	}
-	agent.panicAsFail = agent.panicAsFail || env.ScopeTestingPanicAsFail.Value
-
-	if agent.debugMode {
-		agent.logMetadata()
-	}
-
-	agent.flushFrequency = nonTestingModeFrequency
-	if agent.testingMode {
-		agent.flushFrequency = testingModeFrequency
-	}
-	agent.recorder = NewSpanRecorder(agent)
-	var recorder tracer.SpanRecorder = agent.recorder
-	if agent.optionalRecorders != nil {
-		recorders := append(agent.optionalRecorders, agent.recorder)
-		recorder = tracer.NewMultiRecorder(recorders...)
-	}
-
-	agent.tracer = tracer.NewWithOptions(tracer.Options{
-		Recorder: recorder,
-		ShouldSample: func(traceID uint64) bool {
-			return true
-		},
-		MaxLogsPerSpan: 10000,
-		// Log the error in the current span
-		OnSpanFinishPanic: scopeError.WriteExceptionEventInRawSpan,
-	})
-	instrumentation.SetTracer(agent.tracer)
-	instrumentation.SetLogger(agent.logger)
-	instrumentation.SetSourceRoot(sourceRoot)
 	enableRemoteConfig := false
 	if env.ScopeRunnerEnabled.Value {
 		// runner is enabled
@@ -393,6 +353,48 @@ func NewAgent(options ...Option) (*Agent, error) {
 			}
 		}
 	}
+
+	if !agent.testingMode {
+		if env.ScopeTestingMode.IsSet {
+			agent.testingMode = env.ScopeTestingMode.Value
+		} else {
+			agent.testingMode = agent.metadata[tags.CI].(bool)
+		}
+	}
+
+	if agent.failRetriesCount == 0 {
+		agent.failRetriesCount = env.ScopeTestingFailRetries.Value
+	}
+	agent.panicAsFail = agent.panicAsFail || env.ScopeTestingPanicAsFail.Value
+
+	agent.flushFrequency = nonTestingModeFrequency
+	if agent.testingMode {
+		agent.flushFrequency = testingModeFrequency
+	}
+
+	if agent.debugMode {
+		agent.logMetadata()
+	}
+
+	agent.recorder = NewSpanRecorder(agent)
+	var recorder tracer.SpanRecorder = agent.recorder
+	if agent.optionalRecorders != nil {
+		recorders := append(agent.optionalRecorders, agent.recorder)
+		recorder = tracer.NewMultiRecorder(recorders...)
+	}
+
+	agent.tracer = tracer.NewWithOptions(tracer.Options{
+		Recorder: recorder,
+		ShouldSample: func(traceID uint64) bool {
+			return true
+		},
+		MaxLogsPerSpan: 10000,
+		// Log the error in the current span
+		OnSpanFinishPanic: scopeError.WriteExceptionEventInRawSpan,
+	})
+	instrumentation.SetTracer(agent.tracer)
+	instrumentation.SetLogger(agent.logger)
+	instrumentation.SetSourceRoot(sourceRoot)
 	if enableRemoteConfig {
 		instrumentation.SetRemoteConfiguration(agent.loadRemoteConfiguration())
 	}
