@@ -30,6 +30,7 @@ func (s *MySuite) TestPass(c *C) {
 func (s *MySuite) TestSkip(c *C) {
 	c.Skip("My skip reason")
 }
+/*
 func (s *MySuite) TestFail(c *C) {
 	c.Fail()
 }
@@ -42,3 +43,4 @@ func (s *MySuite) TestPanic(c *C) {
 func (s *MySuite) TestExpected(c *C) {
 	c.ExpectFailure("expected failure")
 }
+*/
