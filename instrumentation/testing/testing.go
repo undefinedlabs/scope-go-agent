@@ -60,7 +60,6 @@ func StartTest(t *testing.T, opts ...Option) *Test {
 
 // Starts a new test with and uses the caller pc info for Name and Suite
 func StartTestFromCaller(t *testing.T, pc uintptr, opts ...Option) *Test {
-
 	// check if the test is cached
 	if isTestCached(t, pc) {
 
@@ -72,7 +71,7 @@ func StartTestFromCaller(t *testing.T, pc uintptr, opts ...Option) *Test {
 		// Extracting the testing func name (by removing any possible sub-test suffix `{test_func}/{sub_test}`)
 		// to search the func source code bounds and to calculate the package name.
 		fullTestName := runner.GetOriginalTestName(t.Name())
-		pName, _ := getPackageAndName(pc)
+		pName, _ := instrumentation.GetPackageAndName(pc)
 
 		testTags := opentracing.Tags{
 			"span.kind":      "test",
@@ -107,7 +106,7 @@ func StartTestFromCaller(t *testing.T, pc uintptr, opts ...Option) *Test {
 		// Extracting the testing func name (by removing any possible sub-test suffix `{test_func}/{sub_test}`)
 		// to search the func source code bounds and to calculate the package name.
 		fullTestName := runner.GetOriginalTestName(t.Name())
-		pName, _, testCode := getPackageAndNameAndBoundaries(pc)
+		pName, _, testCode := instrumentation.GetPackageAndNameAndBoundaries(pc)
 
 		testTags := opentracing.Tags{
 			"span.kind":      "test",
@@ -143,7 +142,7 @@ func (test *Test) SetTestCode(pc uintptr) {
 	if test.span == nil {
 		return
 	}
-	pName, _, fBoundaries := getPackageAndNameAndBoundaries(pc)
+	pName, _, fBoundaries := instrumentation.GetPackageAndNameAndBoundaries(pc)
 	test.span.SetTag("test.suite", pName)
 	if fBoundaries != "" {
 		test.span.SetTag("test.code", fBoundaries)
@@ -315,7 +314,7 @@ func addAutoInstrumentedTest(t *testing.T) {
 
 // Get if the test is cached
 func isTestCached(t *testing.T, pc uintptr) bool {
-	pkgName, testName := getPackageAndName(pc)
+	pkgName, testName := instrumentation.GetPackageAndName(pc)
 	fqn := fmt.Sprintf("%s.%s", pkgName, testName)
 	cachedMap := config.GetCachedTestsMap()
 	if _, ok := cachedMap[fqn]; ok {

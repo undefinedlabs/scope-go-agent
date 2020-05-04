@@ -77,8 +77,8 @@ func init() {
 		for idx := range r.tests {
 			item := r.tests[idx]
 			nFunc := func(c *chk.C) {
-				startTest(item, c)
-				defer endTest(item, c)
+				test := startTest(item, c)
+				defer test.end(c)
 				item.Call([]reflect.Value{reflect.ValueOf(c)})
 			}
 			r.tests[idx] = &methodType{reflect.ValueOf(nFunc), item.Info}

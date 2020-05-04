@@ -1,4 +1,4 @@
-package testing
+package instrumentation
 
 import (
 	"fmt"
@@ -7,10 +7,9 @@ import (
 	"strings"
 
 	"go.undefinedlabs.com/scopeagent/ast"
-	"go.undefinedlabs.com/scopeagent/instrumentation"
 )
 
-func getPackageAndName(pc uintptr) (string, string) {
+func GetPackageAndName(pc uintptr) (string, string) {
 	return splitPackageAndName(runtime.FuncForPC(pc).Name())
 }
 
@@ -23,7 +22,7 @@ func splitPackageAndName(funcFullName string) (string, string) {
 	packName := funcFullName[:firstDot]
 	// If the package has the format: _/{path...}
 	// We convert the path from absolute to relative to the source root
-	sourceRoot := instrumentation.GetSourceRoot()
+	sourceRoot := GetSourceRoot()
 	if len(packName) > 0 && packName[0] == '_' && strings.Index(packName, sourceRoot) != -1 {
 		packName = strings.Replace(packName, path.Dir(sourceRoot)+"/", "", -1)[1:]
 	}
@@ -31,17 +30,28 @@ func splitPackageAndName(funcFullName string) (string, string) {
 	return packName, funcName
 }
 
-func getPackageAndNameAndBoundaries(pc uintptr) (string, string, string) {
-	pName, fName := getPackageAndName(pc)
-	dotIndex := strings.IndexByte(fName, '.')
-	if dotIndex != -1 {
-		fName = fName[:dotIndex]
+func GetPackageAndNameAndBoundaries(pc uintptr) (string, string, string) {
+	pName, fName := GetPackageAndName(pc)
+
+	isInstanceFunc := false
+	if len(fName) > 0 {
+		pf := strings.Index(fName, ")")
+		if fName[0] == '(' && pf != -1 && pf+1 < len(fName) && fName[pf+1] == '.' {
+			isInstanceFunc = true
+		}
+	}
+
+	if !isInstanceFunc {
+		dotIndex := strings.IndexByte(fName, '.')
+		if dotIndex != -1 {
+			fName = fName[:dotIndex]
+		}
 	}
 
 	fBoundaries := ""
 	sourceBounds, err := ast.GetFuncSourceForName(pc, fName)
 	if err != nil {
-		instrumentation.Logger().Printf("error calculating the source boundaries for '%s': %v", fName, err)
+		Logger().Printf("error calculating the source boundaries for '%s': %v", fName, err)
 	}
 	if sourceBounds != nil {
 		fBoundaries = fmt.Sprintf("%s:%d:%d", sourceBounds.File, sourceBounds.Start.Line, sourceBounds.End.Line)
