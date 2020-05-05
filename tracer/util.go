@@ -17,14 +17,18 @@ var (
 )
 
 func getRandomId() uint64 {
+	ensureRandom()
+	return random.Uint64()
+}
+
+func ensureRandom() {
 	mu.Lock()
+	defer mu.Unlock()
 	if random == nil {
 		random = rand.New(&safeSource{
 			source: rand.NewSource(getSeed()),
 		})
 	}
-	mu.Unlock()
-	return random.Uint64()
 }
 
 //go:noinline
