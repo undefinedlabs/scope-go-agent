@@ -35,7 +35,7 @@ func TestGetTestCodeBoundaries(t *testing.T) {
 
 	pkg, fname, bound := GetPackageAndNameAndBoundaries(pc)
 
-	if pkg != "go.undefinedlabs.com/scopeagent/instrumentation/testing" {
+	if pkg != "go.undefinedlabs.com/scopeagent/instrumentation" {
 		t.Fatalf("value '%s' not expected", pkg)
 	}
 	if fname != testName {
