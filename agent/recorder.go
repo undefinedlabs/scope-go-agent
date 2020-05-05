@@ -147,11 +147,16 @@ func (r *SpanRecorder) sendSpans() (error, bool) {
 		events, evMore, evTotal := r.popPayloadEvents(batchSize)
 
 		payload := map[string]interface{}{
-			"metadata":   r.metadata,
 			"spans":      spans,
 			"events":     events,
 			tags.AgentID: r.agentId,
 		}
+
+		if atomic.LoadInt64(&r.stats.sendSpansOk) == 0 {
+			r.logger.Println("adding payload metadata")
+			payload["metadata"] = r.metadata
+		}
+
 		buf, err := msgPackEncodePayload(payload)
 		if err != nil {
 			atomic.AddInt64(&r.stats.sendSpansKo, 1)
