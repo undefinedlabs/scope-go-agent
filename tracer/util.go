@@ -6,6 +6,8 @@ import (
 	"math/rand"
 	"sync"
 	"time"
+
+	"go.undefinedlabs.com/scopeagent/instrumentation"
 )
 
 var (
@@ -18,6 +20,7 @@ func generateSeed() int64 {
 	var b [8]byte
 	_, err := cryptorand.Read(b[:])
 	if err != nil {
+		instrumentation.Logger().Printf("cryptorand error: %v. \n falling back to time.Now()", err)
 		// Cannot seed math/rand package with cryptographically secure random number generator
 		// Fallback to time.Now()
 		return time.Now().UnixNano()
