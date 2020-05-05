@@ -15,6 +15,12 @@ import (
 var random *rand.Rand
 
 func init() {
+	random = rand.New(&safeSource{
+		source: rand.NewSource(getSeed()),
+	})
+}
+
+func getSeed() int64 {
 	var seed int64
 	n, err := cryptorand.Int(cryptorand.Reader, big.NewInt(math.MaxInt64))
 	if err == nil {
@@ -23,17 +29,7 @@ func init() {
 		instrumentation.Logger().Printf("cryptorand error generating seed: %v. \n falling back to time.Now()", err)
 		seed = time.Now().UnixNano()
 	}
-	random = rand.New(&safeSource{
-		source: rand.NewSource(seed),
-	})
-}
-
-func randomID() uint64 {
-	return random.Uint64()
-}
-
-func randomID2() (uint64, uint64) {
-	return random.Uint64(), random.Uint64()
+	return seed
 }
 
 // safeSource holds a thread-safe implementation of rand.Source64.
