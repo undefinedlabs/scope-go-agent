@@ -2,7 +2,8 @@ package tracer
 
 import (
 	cryptorand "crypto/rand"
-	"encoding/binary"
+	"math"
+	"math/big"
 	"math/rand"
 	"sync"
 	"time"
@@ -10,33 +11,49 @@ import (
 	"go.undefinedlabs.com/scopeagent/instrumentation"
 )
 
-var (
-	seededIDGen = rand.New(rand.NewSource(generateSeed()))
-	// The golang rand generators are *not* intrinsically thread-safe.
-	seededIDLock sync.Mutex
-)
+// random holds a thread-safe source of random numbers.
+var random *rand.Rand
 
-func generateSeed() int64 {
-	var b [8]byte
-	_, err := cryptorand.Read(b[:])
-	if err != nil {
-		instrumentation.Logger().Printf("cryptorand error: %v. \n falling back to time.Now()", err)
-		// Cannot seed math/rand package with cryptographically secure random number generator
-		// Fallback to time.Now()
-		return time.Now().UnixNano()
+func init() {
+	var seed int64
+	n, err := cryptorand.Int(cryptorand.Reader, big.NewInt(math.MaxInt64))
+	if err == nil {
+		seed = n.Int64()
+	} else {
+		instrumentation.Logger().Printf("cryptorand error generating seed: %v. \n falling back to time.Now()", err)
+		seed = time.Now().UnixNano()
 	}
-
-	return int64(binary.LittleEndian.Uint64(b[:]))
+	random = rand.New(&safeSource{
+		source: rand.NewSource(seed),
+	})
 }
 
 func randomID() uint64 {
-	seededIDLock.Lock()
-	defer seededIDLock.Unlock()
-	return uint64(seededIDGen.Int63())
+	return random.Uint64()
 }
 
 func randomID2() (uint64, uint64) {
-	seededIDLock.Lock()
-	defer seededIDLock.Unlock()
-	return uint64(seededIDGen.Int63()), uint64(seededIDGen.Int63())
+	return random.Uint64(), random.Uint64()
+}
+
+// safeSource holds a thread-safe implementation of rand.Source64.
+type safeSource struct {
+	source rand.Source
+	sync.Mutex
+}
+
+func (rs *safeSource) Int63() int64 {
+	rs.Lock()
+	n := rs.source.Int63()
+	rs.Unlock()
+
+	return n
+}
+
+func (rs *safeSource) Uint64() uint64 { return uint64(rs.Int63()) }
+
+func (rs *safeSource) Seed(seed int64) {
+	rs.Lock()
+	rs.source.Seed(seed)
+	rs.Unlock()
 }
