@@ -11,13 +11,20 @@ import (
 	"go.undefinedlabs.com/scopeagent/instrumentation"
 )
 
-// random holds a thread-safe source of random numbers.
-var random *rand.Rand
+var (
+	random *rand.Rand
+	mu     sync.Mutex
+)
 
-func init() {
-	random = rand.New(&safeSource{
-		source: rand.NewSource(getSeed()),
-	})
+func getRandomId() uint64 {
+	mu.Lock()
+	if random == nil {
+		random = rand.New(&safeSource{
+			source: rand.NewSource(getSeed()),
+		})
+	}
+	mu.Unlock()
+	return random.Uint64()
 }
 
 //go:noinline
