@@ -20,6 +20,7 @@ func init() {
 	})
 }
 
+//go:noinline
 func getSeed() int64 {
 	var seed int64
 	n, err := cryptorand.Int(cryptorand.Reader, big.NewInt(math.MaxInt64))
@@ -27,8 +28,18 @@ func getSeed() int64 {
 		seed = n.Int64()
 	} else {
 		instrumentation.Logger().Printf("cryptorand error generating seed: %v. \n falling back to time.Now()", err)
-		seed = time.Now().UnixNano()
+
+		// Adding some jitter to the clock seed using golang channels and goroutines
+		jitterStart := time.Now()
+		cb := make(chan time.Time, 0)
+		go func() { cb <- <-time.After(time.Nanosecond) }()
+		now := <-cb
+		jitter := time.Since(jitterStart)
+
+		// Seed based on the clock + some jitter
+		seed = now.Add(jitter).UnixNano()
 	}
+	instrumentation.Logger().Printf("seed: %d", seed)
 	return seed
 }
 
