@@ -45,7 +45,7 @@ func TestGetDependencies(t *testing.T) {
 	deps := getDependencyMap()
 	fmt.Printf("Dependency Map: %v\n", deps)
 	fmt.Printf("Number of dependencies got: %d\n", len(deps))
-	if modGraphBytes, err := exec.Command("go", "mod", "graph").Output(); err == nil {
+	if modGraphBytes, err := exec.Command("go", "list", "-m", "all").Output(); err == nil {
 		strGraph := string(modGraphBytes)
 		lines := strings.Split(strGraph, "\n")
 		cDeps := map[string]bool{}
@@ -54,8 +54,10 @@ func TestGetDependencies(t *testing.T) {
 				continue
 			}
 			lArray := strings.Split(line, " ")
-			depName := strings.Split(lArray[1], "@")[0]
-			cDeps[depName] = true
+			if len(lArray) < 2 {
+				continue
+			}
+			cDeps[lArray[0]] = true
 		}
 		fmt.Printf("Number of dependencies expected: %d\n", len(cDeps))
 		if len(cDeps) != len(deps) {
