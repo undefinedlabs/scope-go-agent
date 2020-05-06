@@ -14,7 +14,7 @@ var tags []string
 func init() {
 	tags = make([]string, 1000)
 	for j := 0; j < len(tags); j++ {
-		tags[j] = fmt.Sprintf("%d", randomID())
+		tags[j] = fmt.Sprintf("%d", getRandomId())
 	}
 }
 

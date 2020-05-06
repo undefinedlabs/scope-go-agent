@@ -2,7 +2,8 @@ package tracer
 
 import (
 	cryptorand "crypto/rand"
-	"encoding/binary"
+	"math"
+	"math/big"
 	"math/rand"
 	"sync"
 	"time"
@@ -11,32 +12,66 @@ import (
 )
 
 var (
-	seededIDGen = rand.New(rand.NewSource(generateSeed()))
-	// The golang rand generators are *not* intrinsically thread-safe.
-	seededIDLock sync.Mutex
+	random *rand.Rand
+	mu     sync.Mutex
 )
 
-func generateSeed() int64 {
-	var b [8]byte
-	_, err := cryptorand.Read(b[:])
-	if err != nil {
-		instrumentation.Logger().Printf("cryptorand error: %v. \n falling back to time.Now()", err)
-		// Cannot seed math/rand package with cryptographically secure random number generator
-		// Fallback to time.Now()
-		return time.Now().UnixNano()
+func getRandomId() uint64 {
+	ensureRandom()
+	return random.Uint64()
+}
+
+func ensureRandom() {
+	mu.Lock()
+	defer mu.Unlock()
+	if random == nil {
+		random = rand.New(&safeSource{
+			source: rand.NewSource(getSeed()),
+		})
 	}
-
-	return int64(binary.LittleEndian.Uint64(b[:]))
 }
 
-func randomID() uint64 {
-	seededIDLock.Lock()
-	defer seededIDLock.Unlock()
-	return uint64(seededIDGen.Int63())
+//go:noinline
+func getSeed() int64 {
+	var seed int64
+	n, err := cryptorand.Int(cryptorand.Reader, big.NewInt(math.MaxInt64))
+	if err == nil {
+		seed = n.Int64()
+	} else {
+		instrumentation.Logger().Printf("cryptorand error generating seed: %v. \n falling back to time.Now()", err)
+
+		// Adding some jitter to the clock seed using golang channels and goroutines
+		jitterStart := time.Now()
+		cb := make(chan time.Time, 0)
+		go func() { cb <- <-time.After(time.Nanosecond) }()
+		now := <-cb
+		jitter := time.Since(jitterStart)
+
+		// Seed based on the clock + some jitter
+		seed = now.Add(jitter).UnixNano()
+	}
+	instrumentation.Logger().Printf("seed: %d", seed)
+	return seed
 }
 
-func randomID2() (uint64, uint64) {
-	seededIDLock.Lock()
-	defer seededIDLock.Unlock()
-	return uint64(seededIDGen.Int63()), uint64(seededIDGen.Int63())
+// safeSource holds a thread-safe implementation of rand.Source64.
+type safeSource struct {
+	source rand.Source
+	sync.Mutex
+}
+
+func (rs *safeSource) Int63() int64 {
+	rs.Lock()
+	n := rs.source.Int63()
+	rs.Unlock()
+
+	return n
+}
+
+func (rs *safeSource) Uint64() uint64 { return uint64(rs.Int63()) }
+
+func (rs *safeSource) Seed(seed int64) {
+	rs.Lock()
+	rs.source.Seed(seed)
+	rs.Unlock()
 }
