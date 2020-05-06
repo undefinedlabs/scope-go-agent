@@ -3,10 +3,10 @@ package tracer
 import (
 	"bytes"
 	"fmt"
-	"github.com/google/uuid"
 	"net/http"
 	"testing"
 
+	"github.com/google/uuid"
 	"github.com/opentracing/opentracing-go"
 )
 

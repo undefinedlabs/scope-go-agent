@@ -1,9 +1,9 @@
 package tracer
 
 import (
-	"github.com/google/uuid"
 	"testing"
 
+	"github.com/google/uuid"
 	ot "github.com/opentracing/opentracing-go"
 	"github.com/opentracing/opentracing-go/harness"
 )

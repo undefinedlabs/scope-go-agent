@@ -1,11 +1,11 @@
 package tracer
 
 import (
-	"github.com/google/uuid"
 	"reflect"
 	"strconv"
 	"testing"
 
+	"github.com/google/uuid"
 	opentracing "github.com/opentracing/opentracing-go"
 	"github.com/opentracing/opentracing-go/ext"
 	"github.com/opentracing/opentracing-go/log"

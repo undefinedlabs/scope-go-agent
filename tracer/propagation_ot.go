@@ -2,12 +2,12 @@ package tracer
 
 import (
 	"encoding/binary"
-	"github.com/google/uuid"
 	"io"
 	"strconv"
 	"strings"
 
 	"github.com/gogo/protobuf/proto"
+	"github.com/google/uuid"
 	opentracing "github.com/opentracing/opentracing-go"
 	"go.undefinedlabs.com/scopeagent/tracer/wire"
 )

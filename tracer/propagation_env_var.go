@@ -2,11 +2,12 @@ package tracer
 
 import (
 	"fmt"
-	"github.com/google/uuid"
-	"github.com/opentracing/opentracing-go"
 	"os"
 	"strconv"
 	"strings"
+
+	"github.com/google/uuid"
+	"github.com/opentracing/opentracing-go"
 )
 
 const (
