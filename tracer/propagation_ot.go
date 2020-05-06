@@ -2,6 +2,7 @@ package tracer
 
 import (
 	"encoding/binary"
+	"github.com/google/uuid"
 	"io"
 	"strconv"
 	"strings"
@@ -40,7 +41,7 @@ func (p *textMapPropagator) Inject(
 	if !ok {
 		return opentracing.ErrInvalidCarrier
 	}
-	carrier.Set(fieldNameTraceID, strconv.FormatUint(sc.TraceID, 16))
+	carrier.Set(fieldNameTraceID, UUIDToString(sc.TraceID))
 	carrier.Set(fieldNameSpanID, strconv.FormatUint(sc.SpanID, 16))
 	carrier.Set(fieldNameSampled, strconv.FormatBool(sc.Sampled))
 
@@ -58,14 +59,15 @@ func (p *textMapPropagator) Extract(
 		return nil, opentracing.ErrInvalidCarrier
 	}
 	requiredFieldCount := 0
-	var traceID, spanID uint64
+	var traceID uuid.UUID
+	var spanID uint64
 	var sampled bool
 	var err error
 	decodedBaggage := make(map[string]string)
 	err = carrier.ForeachKey(func(k, v string) error {
 		switch strings.ToLower(k) {
 		case fieldNameTraceID:
-			traceID, err = strconv.ParseUint(v, 16, 64)
+			traceID, err = StringToUUID(v)
 			if err != nil {
 				return opentracing.ErrSpanContextCorrupted
 			}
@@ -122,7 +124,8 @@ func (p *binaryPropagator) Inject(
 	}
 
 	state := wire.TracerState{}
-	state.TraceId = sc.TraceID
+	state.TraceIdHi = binary.LittleEndian.Uint64(sc.TraceID[:8])
+	state.TraceIdLo = binary.LittleEndian.Uint64(sc.TraceID[8:])
 	state.SpanId = sc.SpanID
 	state.Sampled = sc.Sampled
 	state.BaggageItems = sc.Baggage
@@ -171,8 +174,12 @@ func (p *binaryPropagator) Extract(
 		return nil, opentracing.ErrSpanContextCorrupted
 	}
 
+	traceId := uuid.UUID{}
+	binary.LittleEndian.PutUint64(traceId[:8], ctx.TraceIdHi)
+	binary.LittleEndian.PutUint64(traceId[8:], ctx.TraceIdLo)
+
 	return SpanContext{
-		TraceID: ctx.TraceId,
+		TraceID: traceId,
 		SpanID:  ctx.SpanId,
 		Sampled: ctx.Sampled,
 		Baggage: ctx.BaggageItems,

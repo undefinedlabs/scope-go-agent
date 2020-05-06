@@ -1,6 +1,7 @@
 package tracer
 
 import (
+	"github.com/google/uuid"
 	"testing"
 
 	ot "github.com/opentracing/opentracing-go"
@@ -11,7 +12,7 @@ import (
 func newTracer() (tracer ot.Tracer, closer func()) {
 	tracer = NewWithOptions(Options{
 		Recorder:     NewInMemoryRecorder(),
-		ShouldSample: func(traceID uint64) bool { return true }, // always sample
+		ShouldSample: func(traceID uuid.UUID) bool { return true }, // always sample
 	})
 	return tracer, nil
 }

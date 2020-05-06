@@ -4,8 +4,11 @@ import (
 	"time"
 
 	"github.com/go-errors/errors"
+	"github.com/google/uuid"
 	"github.com/opentracing/opentracing-go"
 )
+
+const emptyUUID = "00000000-0000-0000-0000-000000000000"
 
 // Tracer extends the opentracing.Tracer interface with methods to
 // probe implementation state, for use by basictracer consumers.
@@ -24,10 +27,9 @@ type Options struct {
 	// to allow deterministic sampling decisions to be made across different nodes.
 	// For example,
 	//
-	//   func(traceID uint64) { return traceID % 64 == 0 }
+	//   func(traceID uuid.UUID) { return true }
 	//
-	// samples every 64th trace on average.
-	ShouldSample func(traceID uint64) bool
+	ShouldSample func(traceID uuid.UUID) bool
 	// TrimUnsampledSpans turns potentially expensive operations on unsampled
 	// Spans into no-ops. More precisely, tags and log events are silently
 	// discarded. If NewSpanEventListener is set, the callbacks will still fire.
@@ -100,7 +102,7 @@ type Options struct {
 // returned object with a Tracer.
 func DefaultOptions() Options {
 	return Options{
-		ShouldSample:   func(traceID uint64) bool { return traceID%64 == 0 },
+		ShouldSample:   func(traceID uuid.UUID) bool { return true },
 		MaxLogsPerSpan: 100,
 	}
 }
@@ -195,10 +197,10 @@ ReferencesLoop:
 			break ReferencesLoop
 		}
 	}
-	if sp.raw.Context.TraceID == 0 {
+	if sp.raw.Context.TraceID.String() == emptyUUID {
 		// No parent Span found; allocate new trace and span ids and determine
 		// the Sampled status.
-		sp.raw.Context.TraceID = getRandomId()
+		sp.raw.Context.TraceID = getRandomUUID()
 		sp.raw.Context.SpanID = getRandomId()
 		sp.raw.Context.Sampled = t.options.ShouldSample(sp.raw.Context.TraceID)
 	}

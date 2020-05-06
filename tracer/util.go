@@ -2,12 +2,14 @@ package tracer
 
 import (
 	cryptorand "crypto/rand"
+	"encoding/hex"
 	"math"
 	"math/big"
 	"math/rand"
 	"sync"
 	"time"
 
+	"github.com/google/uuid"
 	"go.undefinedlabs.com/scopeagent/instrumentation"
 )
 
@@ -17,17 +19,25 @@ var (
 )
 
 func getRandomId() uint64 {
+	mu.Lock()
+	defer mu.Unlock()
 	ensureRandom()
 	return random.Uint64()
 }
 
-func ensureRandom() {
+func getRandomUUID() uuid.UUID {
 	mu.Lock()
 	defer mu.Unlock()
+	ensureRandom()
+	return uuid.New()
+}
+
+func ensureRandom() {
 	if random == nil {
 		random = rand.New(&safeSource{
 			source: rand.NewSource(getSeed()),
 		})
+		uuid.SetRand(random)
 	}
 }
 
@@ -74,4 +84,22 @@ func (rs *safeSource) Seed(seed int64) {
 	rs.Lock()
 	rs.source.Seed(seed)
 	rs.Unlock()
+}
+
+func UUIDToString(uuid uuid.UUID) string {
+	if val, err := uuid.MarshalBinary(); err != nil {
+		panic(err)
+	} else {
+		return hex.EncodeToString(val)
+	}
+}
+
+func StringToUUID(val string) (uuid.UUID, error) {
+	if data, err := hex.DecodeString(val); err != nil {
+		return uuid.UUID{}, err
+	} else {
+		res := uuid.UUID{}
+		err := res.UnmarshalBinary(data)
+		return res, err
+	}
 }
