@@ -7,12 +7,12 @@ import (
 	"strings"
 )
 
-var re = regexp.MustCompile(`(?mi)([a-z./0-9\-_+]*)@([a-z./0-9\-_+]*)$`)
+var re = regexp.MustCompile(`(?mi)([A-Za-z./0-9\-_+]*) ([A-Za-z./0-9\-_+]*)$`)
 
 // Gets the dependencies map
 func getDependencyMap() map[string]string {
 	deps := map[string][]string{}
-	if modGraphBytes, err := exec.Command("go", "mod", "graph").Output(); err == nil {
+	if modGraphBytes, err := exec.Command("go", "list", "-m", "all").Output(); err == nil {
 		strGraph := string(modGraphBytes)
 		for _, match := range re.FindAllStringSubmatch(strGraph, -1) {
 			if preValue, ok := deps[match[1]]; ok {
