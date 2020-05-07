@@ -87,19 +87,13 @@ func (rs *safeSource) Seed(seed int64) {
 }
 
 func UUIDToString(uuid uuid.UUID) string {
-	if val, err := uuid.MarshalBinary(); err != nil {
-		panic(err)
-	} else {
-		return hex.EncodeToString(val)
-	}
+	return hex.EncodeToString(uuid[:])
 }
 
 func StringToUUID(val string) (uuid.UUID, error) {
 	if data, err := hex.DecodeString(val); err != nil {
 		return uuid.UUID{}, err
 	} else {
-		res := uuid.UUID{}
-		err := res.UnmarshalBinary(data)
-		return res, err
+		return uuid.FromBytes(data)
 	}
 }
