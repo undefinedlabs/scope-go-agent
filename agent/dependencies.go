@@ -1,10 +1,21 @@
 package agent
 
 import (
+	"bytes"
+	"encoding/json"
 	"os/exec"
 	"regexp"
 	"sort"
 	"strings"
+)
+
+type (
+	dependency struct {
+		Path     string
+		Version  string
+		Main     bool
+		Indirect bool
+	}
 )
 
 var re = regexp.MustCompile(`(?mi)([A-Za-z./0-9\-_+]*) ([A-Za-z./0-9\-_+]*)$`)
@@ -12,14 +23,21 @@ var re = regexp.MustCompile(`(?mi)([A-Za-z./0-9\-_+]*) ([A-Za-z./0-9\-_+]*)$`)
 // Gets the dependencies map
 func getDependencyMap() map[string]string {
 	deps := map[string][]string{}
-	if modGraphBytes, err := exec.Command("go", "list", "-m", "all").Output(); err == nil {
-		strGraph := string(modGraphBytes)
-		for _, match := range re.FindAllStringSubmatch(strGraph, -1) {
-			if preValue, ok := deps[match[1]]; ok {
-				// We can have multiple versions of the same dependency by indirection
-				deps[match[1]] = unique(append(preValue, match[2]))
-			} else {
-				deps[match[1]] = []string{match[2]}
+	if modGraphBytes, err := exec.Command("go", "list", "-m", "-json", "all").Output(); err == nil {
+		depsItems := bytes.Split(modGraphBytes, []byte("}"))
+		for _, depItem := range depsItems {
+			depItem = append(depItem, byte('}'))
+			var depJson dependency
+			if err := json.Unmarshal(depItem, &depJson); err == nil {
+				if depJson.Main || depJson.Indirect {
+					continue
+				}
+				if preValue, ok := deps[depJson.Path]; ok {
+					// We can have multiple versions of the same dependency by indirection
+					deps[depJson.Path] = unique(append(preValue, depJson.Version))
+				} else {
+					deps[depJson.Path] = []string{depJson.Version}
+				}
 			}
 		}
 	}
