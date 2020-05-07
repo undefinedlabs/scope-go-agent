@@ -1,6 +1,5 @@
 # scope-go-agent
 
-
 [Scope](https://scope.dev) agent for Go
 
 
