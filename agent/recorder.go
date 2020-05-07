@@ -324,7 +324,7 @@ func (r *SpanRecorder) getPayloadComponents(span tracer.RawSpan) (PayloadSpan, [
 	}
 	payloadSpan := PayloadSpan{
 		"context": map[string]interface{}{
-			"trace_id": fmt.Sprintf("%x", span.Context.TraceID),
+			"trace_id": tracer.UUIDToString(span.Context.TraceID),
 			"span_id":  fmt.Sprintf("%x", span.Context.SpanID),
 			"baggage":  span.Context.Baggage,
 		},
@@ -345,7 +345,7 @@ func (r *SpanRecorder) getPayloadComponents(span tracer.RawSpan) (PayloadSpan, [
 		}
 		events = append(events, PayloadEvent{
 			"context": map[string]interface{}{
-				"trace_id": fmt.Sprintf("%x", span.Context.TraceID),
+				"trace_id": tracer.UUIDToString(span.Context.TraceID),
 				"span_id":  fmt.Sprintf("%x", span.Context.SpanID),
 				"event_id": eventId.String(),
 			},

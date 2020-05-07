@@ -2,10 +2,12 @@ package tracer
 
 import (
 	"fmt"
-	"github.com/opentracing/opentracing-go"
 	"os"
 	"strconv"
 	"strings"
+
+	"github.com/google/uuid"
+	"github.com/opentracing/opentracing-go"
 )
 
 const (
@@ -30,7 +32,8 @@ func (p *envVarPropagator) Inject(
 	if carrier == nil {
 		return opentracing.ErrInvalidCarrier
 	}
-	carrier.Set(fieldNameTraceID, strconv.FormatUint(sc.TraceID, 16))
+
+	carrier.Set(fieldNameTraceID, UUIDToString(sc.TraceID))
 	carrier.Set(fieldNameSpanID, strconv.FormatUint(sc.SpanID, 16))
 	carrier.Set(fieldNameSampled, strconv.FormatBool(sc.Sampled))
 	for k, v := range sc.Baggage {
@@ -50,14 +53,15 @@ func (p *envVarPropagator) Extract(
 		return nil, opentracing.ErrInvalidCarrier
 	}
 	requiredFieldCount := 0
-	var traceID, spanID uint64
+	var traceID uuid.UUID
+	var spanID uint64
 	var sampled bool
 	var err error
 	decodedBaggage := make(map[string]string)
 	err = carrier.ForeachKey(func(k, v string) error {
 		switch strings.ToLower(k) {
 		case fieldNameTraceID:
-			traceID, err = strconv.ParseUint(v, 16, 64)
+			traceID, err = StringToUUID(v)
 			if err != nil {
 				return opentracing.ErrSpanContextCorrupted
 			}
