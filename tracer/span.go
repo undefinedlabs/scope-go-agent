@@ -126,7 +126,7 @@ func (s *spanImpl) appendLog(lr opentracing.LogRecord) {
 			for idx, _ := range lr.Fields {
 				item := lr.Fields[idx]
 				if item.Key() == stag.EventMessage {
-					lr.Fields[idx] = log.String(item.Key(), util.RemoveNonGraphicChars(fmt.Sprint(item.Value())))
+					lr.Fields[idx] = log.String(item.Key(), util.SanitizeString(fmt.Sprint(item.Value())))
 				}
 			}
 		}

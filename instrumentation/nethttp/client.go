@@ -237,7 +237,7 @@ func getRequestPayload(req *http.Request, bufferSize int) string {
 		// GetBody is nil in server requests
 		nBody, payload := getBodyPayload(req.Body, bufferSize)
 		req.Body = nBody
-		return util.RemoveNonGraphicChars(payload)
+		return payload
 	}
 	rqBody, rqErr := req.GetBody()
 	if rqErr != nil {
@@ -248,7 +248,7 @@ func getRequestPayload(req *http.Request, bufferSize int) string {
 		if ln < bufferSize {
 			rqBodyBuffer = rqBodyBuffer[:ln]
 		}
-		return util.RemoveNonGraphicChars(string(bytes.Runes(rqBodyBuffer)))
+		return util.SanitizeByteString(rqBodyBuffer)
 	}
 	return ""
 }
@@ -266,7 +266,6 @@ func getBodyPayload(body io.ReadCloser, bufferSize int) (io.ReadCloser, string) 
 	if ln < bufferSize {
 		rsBodyBuffer = rsBodyBuffer[:ln]
 	}
-	rsPayload := string(bytes.Runes(rsBodyBuffer))
 	rBody := struct {
 		io.Reader
 		io.Closer
@@ -274,7 +273,7 @@ func getBodyPayload(body io.ReadCloser, bufferSize int) (io.ReadCloser, string) 
 		io.MultiReader(bytes.NewReader(rsBodyBuffer), body),
 		body,
 	}
-	return rBody, rsPayload
+	return rBody, util.SanitizeByteString(rsBodyBuffer)
 }
 
 // Gets the response payload
@@ -290,7 +289,6 @@ func getResponsePayload(resp *http.Response, bufferSize int) string {
 	if ln < bufferSize {
 		rsBodyBuffer = rsBodyBuffer[:ln]
 	}
-	rsPayload := string(bytes.Runes(rsBodyBuffer))
 	resp.Body = struct {
 		io.Reader
 		io.Closer
@@ -298,7 +296,7 @@ func getResponsePayload(resp *http.Response, bufferSize int) string {
 		io.MultiReader(bytes.NewReader(rsBodyBuffer), resp.Body),
 		resp.Body,
 	}
-	return util.RemoveNonGraphicChars(rsPayload)
+	return util.SanitizeByteString(rsBodyBuffer)
 }
 
 // Tracer holds tracing details for one HTTP request.

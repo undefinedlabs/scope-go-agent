@@ -1,12 +1,22 @@
 package util
 
 import (
+	"bytes"
 	"strings"
 	"unicode"
 )
 
-func RemoveNonGraphicChars(value string) string {
-	return strings.TrimFunc(value, func(r rune) bool {
-		return !unicode.IsGraphic(r)
+func SanitizeString(value string) string {
+	return SanitizeByteString([]byte(value))
+}
+
+func SanitizeByteString(value []byte) string {
+	str := string(bytes.Runes(value))
+	str = strings.TrimFunc(str, func(r rune) bool {
+		if r == '\t' {
+			return false
+		}
+		return unicode.IsControl(r)
 	})
+	return str
 }
