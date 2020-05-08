@@ -63,7 +63,7 @@ func (hook *ScopeHook) Fire(entry *log.Entry) error {
 			otLog.String(tags.LogEventLevel, logLevel),
 			otLog.String("log.logger", "logrus"),
 			otLog.String("log.level", entry.Level.String()),
-			otLog.String(tags.EventMessage, util.StringToValidUTF8(entry.Message, "")),
+			otLog.String(tags.EventMessage, entry.Message),
 		}
 
 		if entry.Caller != nil && entry.Caller.File != "" && entry.Caller.Line != 0 {

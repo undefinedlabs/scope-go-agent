@@ -14,7 +14,6 @@ import (
 	"github.com/opentracing/opentracing-go/log"
 
 	"go.undefinedlabs.com/scopeagent/tags"
-	"go.undefinedlabs.com/scopeagent/util"
 )
 
 const (
@@ -185,7 +184,7 @@ func (w *otWriter) storeLogRecord(item *logItem) {
 		log.String(tags.EventType, tags.LogEvent),
 		log.String(tags.LogEventLevel, tags.LogLevel_VERBOSE),
 		log.String("log.logger", "log.std"),
-		log.String(tags.EventMessage, util.StringToValidUTF8(item.message, "")),
+		log.String(tags.EventMessage, item.message),
 	}
 	if item.file != "" && item.lineNumber != "" {
 		item.file = filepath.Clean(item.file)
