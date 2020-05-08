@@ -237,7 +237,7 @@ func getRequestPayload(req *http.Request, bufferSize int) string {
 		// GetBody is nil in server requests
 		nBody, payload := getBodyPayload(req.Body, bufferSize)
 		req.Body = nBody
-		return util.StringToValidUTF8(payload, "")
+		return util.RemoveNonGraphicChars(payload)
 	}
 	rqBody, rqErr := req.GetBody()
 	if rqErr != nil {
@@ -248,7 +248,7 @@ func getRequestPayload(req *http.Request, bufferSize int) string {
 		if ln < bufferSize {
 			rqBodyBuffer = rqBodyBuffer[:ln]
 		}
-		return util.StringToValidUTF8(string(bytes.Runes(rqBodyBuffer)), "")
+		return util.RemoveNonGraphicChars(string(bytes.Runes(rqBodyBuffer)))
 	}
 	return ""
 }
@@ -298,7 +298,7 @@ func getResponsePayload(resp *http.Response, bufferSize int) string {
 		io.MultiReader(bytes.NewReader(rsBodyBuffer), resp.Body),
 		resp.Body,
 	}
-	return util.StringToValidUTF8(rsPayload, "")
+	return util.RemoveNonGraphicChars(rsPayload)
 }
 
 // Tracer holds tracing details for one HTTP request.
