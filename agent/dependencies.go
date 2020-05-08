@@ -26,6 +26,7 @@ func getDependencyMap() map[string]string {
 		lIdx := 0
 		remain := modGraphBytes
 		for {
+			// We have to parse this way because the tool returns multiple object but not in array format
 			if len(remain) == 0 {
 				break
 			}
