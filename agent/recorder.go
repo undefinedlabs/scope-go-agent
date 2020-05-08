@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"go.undefinedlabs.com/scopeagent/env"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -152,17 +153,9 @@ func (r *SpanRecorder) sendSpans() (error, bool) {
 			"events":     events,
 			tags.AgentID: r.agentId,
 		}
-
 		if atomic.LoadInt64(&r.stats.sendSpansOk) == 0 {
 			r.logger.Println("adding payload metadata")
 			payload["metadata"] = r.metadata
-		}
-
-		buf, err := msgPackEncodePayload(payload)
-		if err != nil {
-			atomic.AddInt64(&r.stats.sendSpansKo, 1)
-			atomic.AddInt64(&r.stats.spansNotSent, int64(len(spans)))
-			return err, false
 		}
 
 		var testSpans int64
@@ -173,7 +166,7 @@ func (r *SpanRecorder) sendSpans() (error, bool) {
 		}
 
 		r.logger.Printf("sending %d/%d spans with %d/%d events", len(spans), spTotal, len(events), evTotal)
-		statusCode, err := r.callIngest(buf)
+		statusCode, err := r.callIngest(payload)
 		if err != nil {
 			atomic.AddInt64(&r.stats.sendSpansKo, 1)
 			atomic.AddInt64(&r.stats.spansNotSent, int64(len(spans)))
@@ -242,8 +235,19 @@ func (r *SpanRecorder) writeStats() {
 }
 
 // Sends the encoded `payload` to the Scope ingest endpoint
-func (r *SpanRecorder) callIngest(payload *bytes.Buffer) (statusCode int, err error) {
-	payloadBytes := payload.Bytes()
+func (r *SpanRecorder) callIngest(payload map[string]interface{}) (statusCode int, err error) {
+	useJson := env.ScopeUseJson.Value
+	var buf *bytes.Buffer
+	if useJson {
+		buf, err = jsonEncodePayload(payload)
+	} else {
+		buf, err = msgPackEncodePayload(payload)
+	}
+	if err != nil {
+		return 0, err
+	}
+	payloadBytes := buf.Bytes()
+
 	var lastError error
 	for i := 0; i <= numOfRetries; i++ {
 		req, err := http.NewRequest("POST", r.url, bytes.NewBuffer(payloadBytes))
@@ -251,7 +255,11 @@ func (r *SpanRecorder) callIngest(payload *bytes.Buffer) (statusCode int, err er
 			return 0, err
 		}
 		req.Header.Set("User-Agent", r.userAgent)
-		req.Header.Set("Content-Type", "application/msgpack")
+		if useJson {
+			req.Header.Set("Content-Type", "application/json")
+		} else {
+			req.Header.Set("Content-Type", "application/msgpack")
+		}
 		req.Header.Set("Content-Encoding", "gzip")
 		req.Header.Set("X-Scope-ApiKey", r.apiKey)
 

@@ -27,4 +27,5 @@ var (
 	ScopeRunnerIncludeBranches            = newSliceEnvVar(nil, "SCOPE_RUNNER_INCLUDE_BRANCHES")
 	ScopeRunnerExcludeBranches            = newSliceEnvVar(nil, "SCOPE_RUNNER_EXCLUDE_BRANCHES")
 	ScopeDependenciesIndirect             = newBooleanEnvVar(false, "SCOPE_DEPENDENCIES_INDIRECT")
+	ScopeUseJson                          = newBooleanEnvVar(false, "SCOPE_USE_JSON")
 )

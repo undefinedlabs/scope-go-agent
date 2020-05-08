@@ -3,6 +3,7 @@ package agent
 import (
 	"bytes"
 	"compress/gzip"
+	"encoding/json"
 	"github.com/vmihailenco/msgpack"
 	"os"
 )
@@ -37,6 +38,26 @@ func getSourceRootFromEnv(key string) string {
 // Encodes `payload` using msgpack and compress it with gzip
 func msgPackEncodePayload(payload map[string]interface{}) (*bytes.Buffer, error) {
 	binaryPayload, err := msgpack.Marshal(payload)
+	if err != nil {
+		return nil, err
+	}
+
+	var buf bytes.Buffer
+	zw := gzip.NewWriter(&buf)
+	_, err = zw.Write(binaryPayload)
+	if err != nil {
+		return nil, err
+	}
+	if err := zw.Close(); err != nil {
+		return nil, err
+	}
+
+	return &buf, nil
+}
+
+// Encodes `payload` using json and compress it with gzip
+func jsonEncodePayload(payload map[string]interface{}) (*bytes.Buffer, error) {
+	binaryPayload, err := json.Marshal(payload)
 	if err != nil {
 		return nil, err
 	}
