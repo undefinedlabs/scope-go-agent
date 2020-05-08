@@ -2,6 +2,7 @@ package testing
 
 import (
 	"fmt"
+	"go.undefinedlabs.com/scopeagent/util"
 	"path/filepath"
 	"runtime"
 
@@ -28,7 +29,7 @@ func (test *Test) Error(args ...interface{}) {
 	if test.span != nil {
 		test.span.LogFields(
 			log.String(tags.EventType, tags.LogEvent),
-			log.String(tags.EventMessage, fmt.Sprint(args...)),
+			log.String(tags.EventMessage, util.StringToValidUTF8(fmt.Sprint(args...), "")),
 			log.String(tags.EventSource, getSourceFileAndNumber()),
 			log.String(tags.LogEventLevel, tags.LogLevel_ERROR),
 			log.String("log.internal_level", "Error"),
@@ -50,7 +51,7 @@ func (test *Test) Errorf(format string, args ...interface{}) {
 	if test.span != nil {
 		test.span.LogFields(
 			log.String(tags.EventType, tags.LogEvent),
-			log.String(tags.EventMessage, fmt.Sprintf(format, args...)),
+			log.String(tags.EventMessage, util.StringToValidUTF8(fmt.Sprintf(format, args...), "")),
 			log.String(tags.EventSource, getSourceFileAndNumber()),
 			log.String(tags.LogEventLevel, tags.LogLevel_ERROR),
 			log.String("log.internal_level", "Error"),
@@ -87,7 +88,7 @@ func (test *Test) Fatal(args ...interface{}) {
 	if test.span != nil {
 		test.span.LogFields(
 			log.String(tags.EventType, tags.EventTestFailure),
-			log.String(tags.EventMessage, fmt.Sprint(args...)),
+			log.String(tags.EventMessage, util.StringToValidUTF8(fmt.Sprint(args...), "")),
 			log.String(tags.EventSource, getSourceFileAndNumber()),
 			log.String("log.internal_level", "Fatal"),
 			log.String("log.logger", "testing"),
@@ -108,7 +109,7 @@ func (test *Test) Fatalf(format string, args ...interface{}) {
 	if test.span != nil {
 		test.span.LogFields(
 			log.String(tags.EventType, tags.EventTestFailure),
-			log.String(tags.EventMessage, fmt.Sprintf(format, args...)),
+			log.String(tags.EventMessage, util.StringToValidUTF8(fmt.Sprintf(format, args...), "")),
 			log.String(tags.EventSource, getSourceFileAndNumber()),
 			log.String("log.internal_level", "Fatal"),
 			log.String("log.logger", "testing"),
@@ -129,7 +130,7 @@ func (test *Test) Log(args ...interface{}) {
 	if test.span != nil {
 		test.span.LogFields(
 			log.String(tags.EventType, tags.LogEvent),
-			log.String(tags.EventMessage, fmt.Sprint(args...)),
+			log.String(tags.EventMessage, util.StringToValidUTF8(fmt.Sprint(args...), "")),
 			log.String(tags.EventSource, getSourceFileAndNumber()),
 			log.String(tags.LogEventLevel, tags.LogLevel_INFO),
 			log.String("log.internal_level", "Log"),
@@ -151,7 +152,7 @@ func (test *Test) Logf(format string, args ...interface{}) {
 	if test.span != nil {
 		test.span.LogFields(
 			log.String(tags.EventType, tags.LogEvent),
-			log.String(tags.EventMessage, fmt.Sprintf(format, args...)),
+			log.String(tags.EventMessage, util.StringToValidUTF8(fmt.Sprintf(format, args...), "")),
 			log.String(tags.EventSource, getSourceFileAndNumber()),
 			log.String(tags.LogEventLevel, tags.LogLevel_INFO),
 			log.String("log.internal_level", "Log"),
@@ -177,7 +178,7 @@ func (test *Test) Skip(args ...interface{}) {
 	if test.span != nil {
 		test.span.LogFields(
 			log.String(tags.EventType, tags.EventTestSkip),
-			log.String(tags.EventMessage, fmt.Sprint(args...)),
+			log.String(tags.EventMessage, util.StringToValidUTF8(fmt.Sprint(args...), "")),
 			log.String(tags.EventSource, getSourceFileAndNumber()),
 			log.String("log.internal_level", "Skip"),
 			log.String("log.logger", "testing"),
@@ -203,7 +204,7 @@ func (test *Test) Skipf(format string, args ...interface{}) {
 	if test.span != nil {
 		test.span.LogFields(
 			log.String(tags.EventType, tags.EventTestSkip),
-			log.String(tags.EventMessage, fmt.Sprintf(format, args...)),
+			log.String(tags.EventMessage, util.StringToValidUTF8(fmt.Sprintf(format, args...), "")),
 			log.String(tags.EventSource, getSourceFileAndNumber()),
 			log.String("log.internal_level", "Skip"),
 			log.String("log.logger", "testing"),

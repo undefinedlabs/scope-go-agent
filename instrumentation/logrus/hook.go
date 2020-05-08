@@ -11,6 +11,7 @@ import (
 
 	"go.undefinedlabs.com/scopeagent/tags"
 	"go.undefinedlabs.com/scopeagent/tracer"
+	"go.undefinedlabs.com/scopeagent/util"
 )
 
 type (
@@ -62,7 +63,7 @@ func (hook *ScopeHook) Fire(entry *log.Entry) error {
 			otLog.String(tags.LogEventLevel, logLevel),
 			otLog.String("log.logger", "logrus"),
 			otLog.String("log.level", entry.Level.String()),
-			otLog.String(tags.EventMessage, entry.Message),
+			otLog.String(tags.EventMessage, util.StringToValidUTF8(entry.Message, "")),
 		}
 
 		if entry.Caller != nil && entry.Caller.File != "" && entry.Caller.Line != 0 {

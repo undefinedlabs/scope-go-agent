@@ -12,6 +12,7 @@ import (
 
 	"go.undefinedlabs.com/scopeagent/instrumentation"
 	"go.undefinedlabs.com/scopeagent/tags"
+	"go.undefinedlabs.com/scopeagent/util"
 )
 
 type instrumentedIO struct {
@@ -127,11 +128,11 @@ func (i *instrumentedIO) ioHandler() {
 			now := time.Now()
 			if i.isError {
 				fields = append(fields,
-					log.String(tags.EventMessage, nLine),
+					log.String(tags.EventMessage, util.StringToValidUTF8(nLine, "")),
 					log.String(tags.LogEventLevel, tags.LogLevel_ERROR))
 			} else {
 				fields = append(fields,
-					log.String(tags.EventMessage, nLine),
+					log.String(tags.EventMessage, util.StringToValidUTF8(nLine, "")),
 					log.String(tags.LogEventLevel, tags.LogLevel_VERBOSE))
 			}
 			i.logRecordsMutex.Lock()
