@@ -1,32 +1,67 @@
 package agent
 
 import (
+	"bytes"
+	"encoding/json"
 	"os/exec"
-	"regexp"
 	"sort"
 	"strings"
+
+	"go.undefinedlabs.com/scopeagent/env"
 )
 
-var re = regexp.MustCompile(`(?mi)([a-z./0-9\-_+]*)@([a-z./0-9\-_+]*)$`)
+type (
+	dependency struct {
+		Path     string
+		Version  string
+		Main     bool
+		Indirect bool
+	}
+)
 
 // Gets the dependencies map
 func getDependencyMap() map[string]string {
 	deps := map[string][]string{}
-	if modGraphBytes, err := exec.Command("go", "mod", "graph").Output(); err == nil {
-		strGraph := string(modGraphBytes)
-		for _, match := range re.FindAllStringSubmatch(strGraph, -1) {
-			if preValue, ok := deps[match[1]]; ok {
-				// We can have multiple versions of the same dependency by indirection
-				deps[match[1]] = unique(append(preValue, match[2]))
-			} else {
-				deps[match[1]] = []string{match[2]}
+	if modGraphBytes, err := exec.Command("go", "list", "-m", "-json", "all").Output(); err == nil {
+		lIdx := 0
+		remain := modGraphBytes
+		for {
+			// We have to parse this way because the tool returns multiple object but not in array format
+			if len(remain) == 0 {
+				break
+			}
+			lIdx = bytes.IndexByte(remain, '}')
+			if lIdx == -1 {
+				break
+			}
+			item := remain[:lIdx+1]
+			remain = remain[lIdx+1:]
+
+			var depJson dependency
+			if err := json.Unmarshal(item, &depJson); err == nil {
+				if depJson.Main {
+					continue
+				}
+				if !env.ScopeDependenciesIndirect.Value && depJson.Indirect {
+					continue
+				}
+				if preValue, ok := deps[depJson.Path]; ok {
+					// We can have multiple versions of the same dependency by indirection
+					deps[depJson.Path] = unique(append(preValue, depJson.Version))
+				} else {
+					deps[depJson.Path] = []string{depJson.Version}
+				}
 			}
 		}
 	}
 	dependencies := map[string]string{}
 	for k, v := range deps {
-		sort.Strings(v)
-		dependencies[k] = strings.Join(v, ", ")
+		if len(v) > 0 {
+			sort.Strings(v)
+			dependencies[k] = strings.Join(v, ", ")
+		} else {
+			dependencies[k] = v[0]
+		}
 	}
 	return dependencies
 }

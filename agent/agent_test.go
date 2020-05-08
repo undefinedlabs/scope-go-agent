@@ -2,9 +2,7 @@ package agent
 
 import (
 	"fmt"
-	"os/exec"
 	"reflect"
-	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -38,31 +36,6 @@ func TestDsnParser(t *testing.T) {
 				st.FailNow()
 			}
 		})
-	}
-}
-
-func TestGetDependencies(t *testing.T) {
-	deps := getDependencyMap()
-	fmt.Printf("Dependency Map: %v\n", deps)
-	fmt.Printf("Number of dependencies got: %d\n", len(deps))
-	if modGraphBytes, err := exec.Command("go", "mod", "graph").Output(); err == nil {
-		strGraph := string(modGraphBytes)
-		lines := strings.Split(strGraph, "\n")
-		cDeps := map[string]bool{}
-		for _, line := range lines {
-			if line == "" {
-				continue
-			}
-			lArray := strings.Split(line, " ")
-			depName := strings.Split(lArray[1], "@")[0]
-			cDeps[depName] = true
-		}
-		fmt.Printf("Number of dependencies expected: %d\n", len(cDeps))
-		if len(cDeps) != len(deps) {
-			t.FailNow()
-		}
-	} else {
-		t.FailNow()
 	}
 }
 
