@@ -83,6 +83,11 @@ func NewSpanRecorder(agent *Agent) *SpanRecorder {
 	r.client = &http.Client{}
 	r.stats = &RecorderStats{}
 	r.t.Go(r.loop)
+	if env.ScopeUseJson.Value {
+		r.logger.Println("Recorder start with json encoding")
+	} else {
+		r.logger.Println("Recorder start with msgpack encoding")
+	}
 	return r
 }
 
