@@ -16,6 +16,7 @@ import (
 
 	scopeerrors "go.undefinedlabs.com/scopeagent/errors"
 	"go.undefinedlabs.com/scopeagent/instrumentation"
+	"go.undefinedlabs.com/scopeagent/util"
 )
 
 type contextKey int
@@ -236,7 +237,7 @@ func getRequestPayload(req *http.Request, bufferSize int) string {
 		// GetBody is nil in server requests
 		nBody, payload := getBodyPayload(req.Body, bufferSize)
 		req.Body = nBody
-		return payload
+		return util.StringToValidUTF8(payload, "")
 	}
 	rqBody, rqErr := req.GetBody()
 	if rqErr != nil {
@@ -247,7 +248,7 @@ func getRequestPayload(req *http.Request, bufferSize int) string {
 		if ln < bufferSize {
 			rqBodyBuffer = rqBodyBuffer[:ln]
 		}
-		return string(bytes.Runes(rqBodyBuffer))
+		return util.StringToValidUTF8(string(bytes.Runes(rqBodyBuffer)), "")
 	}
 	return ""
 }
@@ -297,7 +298,7 @@ func getResponsePayload(resp *http.Response, bufferSize int) string {
 		io.MultiReader(bytes.NewReader(rsBodyBuffer), resp.Body),
 		resp.Body,
 	}
-	return rsPayload
+	return util.StringToValidUTF8(rsPayload, "")
 }
 
 // Tracer holds tracing details for one HTTP request.
