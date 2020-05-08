@@ -16,7 +16,7 @@ func SanitizeByteString(value []byte) string {
 		if r == '\t' {
 			return false
 		}
-		return unicode.IsControl(r)
+		return unicode.IsControl(r) || r == '\u0000'
 	})
 	return str
 }
