@@ -1,10 +1,14 @@
 package tracer
 
 import (
+	"fmt"
 	"sync"
 	"time"
 
 	"github.com/go-errors/errors"
+
+	stag "go.undefinedlabs.com/scopeagent/tags"
+	"go.undefinedlabs.com/scopeagent/util"
 
 	"github.com/opentracing/opentracing-go"
 	"github.com/opentracing/opentracing-go/ext"
@@ -118,6 +122,14 @@ func (s *spanImpl) LogKV(keyValues ...interface{}) {
 func (s *spanImpl) appendLog(lr opentracing.LogRecord) {
 	maxLogs := s.tracer.options.MaxLogsPerSpan
 	if maxLogs == 0 || len(s.raw.Logs) < maxLogs {
+		if len(lr.Fields) > 0 {
+			for idx, _ := range lr.Fields {
+				item := lr.Fields[idx]
+				if item.Key() == stag.EventMessage {
+					lr.Fields[idx] = log.String(item.Key(), util.StringToValidUTF8(fmt.Sprint(item.Value()), ""))
+				}
+			}
+		}
 		s.raw.Logs = append(s.raw.Logs, lr)
 		return
 	}
