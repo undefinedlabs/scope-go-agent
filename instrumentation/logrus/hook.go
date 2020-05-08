@@ -11,7 +11,6 @@ import (
 
 	"go.undefinedlabs.com/scopeagent/tags"
 	"go.undefinedlabs.com/scopeagent/tracer"
-	"go.undefinedlabs.com/scopeagent/util"
 )
 
 type (

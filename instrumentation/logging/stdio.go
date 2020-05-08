@@ -12,7 +12,6 @@ import (
 
 	"go.undefinedlabs.com/scopeagent/instrumentation"
 	"go.undefinedlabs.com/scopeagent/tags"
-	"go.undefinedlabs.com/scopeagent/util"
 )
 
 type instrumentedIO struct {
