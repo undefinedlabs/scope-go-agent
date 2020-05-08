@@ -2,6 +2,7 @@ package util
 
 import (
 	"bytes"
+	"golang.org/x/text/unicode/norm"
 	"strings"
 	"unicode"
 )
@@ -16,7 +17,7 @@ func SanitizeByteString(value []byte) string {
 		if r == '\t' {
 			return false
 		}
-		return unicode.IsControl(r) || r == '\u0000'
+		return unicode.IsControl(r)
 	})
-	return str
+	return norm.NFKC.String(str)
 }
