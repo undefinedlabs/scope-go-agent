@@ -3,6 +3,7 @@ package agent
 import (
 	"crypto/sha1"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -69,7 +70,12 @@ func (a *Agent) getOrSetLocalCacheData(metadata map[string]interface{}, key stri
 	// Checks if the cache data is old
 	if useTimeout {
 		fInfo, err := file.Stat()
-		if err != nil || time.Now().Sub(fInfo.ModTime()) > cacheTimeout {
+		if err != nil {
+			return loaderFunc(metadata, err, fn)
+		}
+		sTime := time.Now().Sub(fInfo.ModTime())
+		if sTime > cacheTimeout {
+			err = errors.New(fmt.Sprintf("The local cache key '%s' has timeout: %v", path, sTime))
 			return loaderFunc(metadata, err, fn)
 		}
 	}

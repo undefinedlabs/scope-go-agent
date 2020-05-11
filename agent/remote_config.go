@@ -24,14 +24,9 @@ func (a *Agent) loadRemoteConfiguration() map[string]interface{} {
 		jsBytes, _ := json.Marshal(configRequest)
 		a.logger.Printf("Getting remote configuration for: %v", string(jsBytes))
 	}
-
-	a.getOrSetLocalCacheData(configRequest, "test", true, func(m map[string]interface{}) interface{} {
-		return "Hello World"
-	})
-
-	config := a.getOrSetLocalCacheData(configRequest, "remote", false, a.getRemoteConfiguration)
-	if config != nil {
-		return config.(map[string]interface{})
+	configResponse := a.getOrSetLocalCacheData(configRequest, "remote", false, a.getRemoteConfiguration)
+	if configResponse != nil {
+		return configResponse.(map[string]interface{})
 	}
 	return nil
 }
