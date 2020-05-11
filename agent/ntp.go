@@ -9,7 +9,7 @@ import (
 const (
 	server  = "pool.ntp.org"
 	retries = 5
-	timeout = 1 * time.Second
+	timeout = 2 * time.Second
 	backoff = 1 * time.Second
 )
 
