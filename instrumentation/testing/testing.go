@@ -60,59 +60,81 @@ func StartTest(t *testing.T, opts ...Option) *Test {
 
 // Starts a new test with and uses the caller pc info for Name and Suite
 func StartTestFromCaller(t *testing.T, pc uintptr, opts ...Option) *Test {
-	// Get or create a new Test struct
-	// If we get an old struct we replace the current span and context with a new one.
-	// Useful if we want to overwrite the Start call with options
-	test, exist := getOrCreateTest(t)
-	if exist {
-		// If there is already one we want to replace it, so we clear the context
-		test.ctx = context.Background()
-	}
-	test.codePC = pc
 
-	for _, opt := range opts {
-		opt(test)
-	}
-
-	// Extracting the testing func name (by removing any possible sub-test suffix `{test_func}/{sub_test}`)
-	// to search the func source code bounds and to calculate the package name.
-	fullTestName := runner.GetOriginalTestName(t.Name())
-	pName, _, testCode := getPackageAndNameAndBoundaries(pc)
-
-	testTags := opentracing.Tags{
-		"span.kind":      "test",
-		"test.name":      fullTestName,
-		"test.suite":     pName,
-		"test.framework": "testing",
-		"test.language":  "go",
-	}
-
-	if testCode != "" {
-		testTags["test.code"] = testCode
-	}
-
-	if test.ctx == nil {
-		test.ctx = context.Background()
-	}
-
-	span, ctx := opentracing.StartSpanFromContextWithTracer(test.ctx, instrumentation.Tracer(), fullTestName, testTags)
-	span.SetBaggageItem("trace.kind", "test")
-
+	// check if the test is cached
 	if isTestCached(t, pc) {
+
+		test := &Test{t: t, ctx: context.Background()}
+		for _, opt := range opts {
+			opt(test)
+		}
+
+		// Extracting the testing func name (by removing any possible sub-test suffix `{test_func}/{sub_test}`)
+		// to search the func source code bounds and to calculate the package name.
+		fullTestName := runner.GetOriginalTestName(t.Name())
+		pName, _ := getPackageAndName(pc)
+
+		testTags := opentracing.Tags{
+			"span.kind":      "test",
+			"test.name":      fullTestName,
+			"test.suite":     pName,
+			"test.framework": "testing",
+			"test.language":  "go",
+		}
+		span, _ := opentracing.StartSpanFromContextWithTracer(test.ctx, instrumentation.Tracer(), fullTestName, testTags)
+		span.SetBaggageItem("trace.kind", "test")
 		span.SetTag("test.status", tags.TestStatus_CACHE)
 		span.Finish()
-		// Remove the Test struct from the hash map, so a call to Start while we end this instance will create a new struct
-		removeTest(t)
 		t.SkipNow()
+		return test
+
+	} else {
+
+		// Get or create a new Test struct
+		// If we get an old struct we replace the current span and context with a new one.
+		// Useful if we want to overwrite the Start call with options
+		test, exist := getOrCreateTest(t)
+		if exist {
+			// If there is already one we want to replace it, so we clear the context
+			test.ctx = context.Background()
+		}
+		test.codePC = pc
+
+		for _, opt := range opts {
+			opt(test)
+		}
+
+		// Extracting the testing func name (by removing any possible sub-test suffix `{test_func}/{sub_test}`)
+		// to search the func source code bounds and to calculate the package name.
+		fullTestName := runner.GetOriginalTestName(t.Name())
+		pName, _, testCode := getPackageAndNameAndBoundaries(pc)
+
+		testTags := opentracing.Tags{
+			"span.kind":      "test",
+			"test.name":      fullTestName,
+			"test.suite":     pName,
+			"test.framework": "testing",
+			"test.language":  "go",
+		}
+
+		if testCode != "" {
+			testTags["test.code"] = testCode
+		}
+
+		if test.ctx == nil {
+			test.ctx = context.Background()
+		}
+
+		span, ctx := opentracing.StartSpanFromContextWithTracer(test.ctx, instrumentation.Tracer(), fullTestName, testTags)
+		span.SetBaggageItem("trace.kind", "test")
+		test.span = span
+		test.ctx = ctx
+
+		logging.Reset()
+		startCoverage()
+
+		return test
 	}
-
-	test.span = span
-	test.ctx = ctx
-
-	logging.Reset()
-	startCoverage()
-
-	return test
 }
 
 // Set test code

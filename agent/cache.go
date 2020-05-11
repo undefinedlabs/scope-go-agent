@@ -110,11 +110,7 @@ func (c *localCache) GetOrSet(key string, useTimeout bool, fn func(interface{}, 
 	if err := json.Unmarshal(fileBytes, &cItem); err != nil {
 		return loaderFunc(key, err, fn)
 	} else {
-		if c.debugMode {
-			c.logger.Printf("Local cache loading: %s => %s", path, string(fileBytes))
-		} else {
-			c.logger.Printf("Local cache loading: %s", path)
-		}
+		c.logger.Printf("Local cache loaded: %s (%d bytes)", path, len(fileBytes))
 		return cItem.Value
 	}
 }
