@@ -35,7 +35,7 @@ func getSourceRootFromEnv(key string) string {
 }
 
 // Encodes `payload` using msgpack and compress it with gzip
-func msgPackEncodePayload(payload map[string]interface{}) (*bytes.Buffer, error) {
+func msgPackEncodePayload(payload interface{}) (*bytes.Buffer, error) {
 	binaryPayload, err := msgpack.Marshal(payload)
 	if err != nil {
 		return nil, err

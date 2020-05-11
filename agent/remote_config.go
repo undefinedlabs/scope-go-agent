@@ -16,15 +16,10 @@ import (
 
 // Loads the remote agent configuration from local cache, if not exists then retrieve it from the server
 func (a *Agent) loadRemoteConfiguration() map[string]interface{} {
-	if a == nil || a.metadata == nil {
+	if a == nil {
 		return nil
 	}
-	configRequest := a.getRemoteConfigRequest()
-	if a.debugMode {
-		jsBytes, _ := json.Marshal(configRequest)
-		a.logger.Printf("Getting remote configuration for: %v", string(jsBytes))
-	}
-	configResponse := a.getOrSetLocalCacheData(configRequest, "remote", false, a.getRemoteConfiguration)
+	configResponse := a.cache.GetOrSet("remoteconfig", false, a.getRemoteConfiguration)
 	if configResponse != nil {
 		return configResponse.(map[string]interface{})
 	}
@@ -48,11 +43,15 @@ func (a *Agent) getRemoteConfigRequest() map[string]interface{} {
 			addElementToMapIfEmpty(configRequest, item, a.metadata[item])
 		}
 	}
+	if a.debugMode {
+		jsBytes, _ := json.Marshal(configRequest)
+		a.logger.Printf("Configuration request: %v", string(jsBytes))
+	}
 	return configRequest
 }
 
 // Gets the remote agent configuration from the endpoint + api/agent/config
-func (a *Agent) getRemoteConfiguration(cfgRequest map[string]interface{}) interface{} {
+func (a *Agent) getRemoteConfiguration(cfgRequest interface{}, key string) interface{} {
 	client := &http.Client{}
 	curl := a.getUrl("api/agent/config")
 	payload, err := msgPackEncodePayload(cfgRequest)
