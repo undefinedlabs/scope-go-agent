@@ -79,7 +79,7 @@ func (c *localCache) GetOrSet(key string, useTimeout bool, fn func(interface{}, 
 
 	path := fmt.Sprintf("%s.%s", c.basePath, key)
 
-	// We try to load the cached version of the remote configuration
+	// We try to load the cached value
 	file, err := os.Open(path)
 	if err != nil {
 		return loaderFunc(key, err, fn)
