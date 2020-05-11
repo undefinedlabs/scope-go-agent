@@ -19,7 +19,6 @@ import (
 )
 
 var (
-	defaultAgent *agent.Agent
 	runningMutex sync.RWMutex
 	running      bool
 )
@@ -57,7 +56,6 @@ func Run(m *testing.M, opts ...agent.Option) int {
 		os.Exit(1)
 	}()
 
-	defaultAgent = newAgent
 	return newAgent.Run(m)
 }
 
