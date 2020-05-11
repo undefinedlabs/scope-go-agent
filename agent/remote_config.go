@@ -19,6 +19,27 @@ func (a *Agent) loadRemoteConfiguration() map[string]interface{} {
 	if a == nil || a.metadata == nil {
 		return nil
 	}
+	configRequest := a.getRemoteConfigRequest()
+	if a.debugMode {
+		jsBytes, _ := json.Marshal(configRequest)
+		a.logger.Printf("Getting remote configuration for: %v", string(jsBytes))
+	}
+
+	a.getOrSetLocalCacheData(configRequest, "test", true, func(m map[string]interface{}) interface{} {
+		return "Hello World"
+	})
+
+	config := a.getOrSetLocalCacheData(configRequest, "remote", false, a.getRemoteConfiguration)
+	if config != nil {
+		return config.(map[string]interface{})
+	}
+	return nil
+}
+
+func (a *Agent) getRemoteConfigRequest() map[string]interface{} {
+	if a == nil || a.metadata == nil {
+		return nil
+	}
 	configRequest := map[string]interface{}{}
 	addElementToMapIfEmpty(configRequest, tags.Repository, a.metadata[tags.Repository])
 	addElementToMapIfEmpty(configRequest, tags.Commit, a.metadata[tags.Commit])
@@ -32,11 +53,7 @@ func (a *Agent) loadRemoteConfiguration() map[string]interface{} {
 			addElementToMapIfEmpty(configRequest, item, a.metadata[item])
 		}
 	}
-	if a.debugMode {
-		jsBytes, _ := json.Marshal(configRequest)
-		a.logger.Printf("Getting remote configuration for: %v", string(jsBytes))
-	}
-	return a.getOrSetLocalCacheData(configRequest, "remote", false, a.getRemoteConfiguration).(map[string]interface{})
+	return configRequest
 }
 
 // Gets the remote agent configuration from the endpoint + api/agent/config
