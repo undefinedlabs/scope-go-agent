@@ -38,12 +38,17 @@ func (r *SpanRecorder) applyNTPOffset(t time.Time) time.Time {
 		if r.debugMode {
 			r.logger.Println("calculating ntp offset.")
 		}
-		offset, err := getNTPOffset()
-		if err == nil {
-			ntpOffset = offset
+		offset := r.cache.GetOrSet("ntp", true, func(d interface{}, s string) interface{} {
+			oSet, err := getNTPOffset()
+			if err != nil {
+				r.logger.Printf("error calculating the ntp offset: %v\n", err)
+				return nil
+			}
+			return oSet
+		})
+		if offset != nil {
+			ntpOffset = offset.(time.Duration)
 			r.logger.Printf("ntp offset: %v\n", ntpOffset)
-		} else {
-			r.logger.Printf("error calculating the ntp offset: %v\n", err)
 		}
 	})
 	return t.Add(ntpOffset)

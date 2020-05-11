@@ -27,6 +27,9 @@ type (
 		debugMode bool
 		logger    *log.Logger
 	}
+	cacheItem struct {
+		Value interface{}
+	}
 )
 
 // Create a new local cache
@@ -59,8 +62,9 @@ func (c *localCache) GetOrSet(key string, useTimeout bool, fn func(interface{}, 
 
 		if resp != nil {
 			path := fmt.Sprintf("%s.%s", c.basePath, key)
+			cItem := &cacheItem{Value: resp}
 			// Save a local cache for the response
-			if data, err := json.Marshal(&resp); err == nil {
+			if data, err := json.Marshal(cItem); err == nil {
 				if c.debugMode {
 					c.logger.Printf("Local cache saving: %s => %s", path, string(data))
 				}
@@ -102,8 +106,8 @@ func (c *localCache) GetOrSet(key string, useTimeout bool, fn func(interface{}, 
 	}
 
 	// Unmarshal json data
-	var res map[string]interface{}
-	if err := json.Unmarshal(fileBytes, &res); err != nil {
+	var cItem cacheItem
+	if err := json.Unmarshal(fileBytes, &cItem); err != nil {
 		return loaderFunc(key, err, fn)
 	} else {
 		if c.debugMode {
@@ -111,7 +115,7 @@ func (c *localCache) GetOrSet(key string, useTimeout bool, fn func(interface{}, 
 		} else {
 			c.logger.Printf("Local cache loading: %s", path)
 		}
-		return res
+		return cItem.Value
 	}
 }
 
