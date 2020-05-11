@@ -47,7 +47,7 @@ func (r *SpanRecorder) applyNTPOffset(t time.Time) time.Time {
 			return oSet
 		})
 		if offset != nil {
-			ntpOffset = offset.(time.Duration)
+			ntpOffset = time.Duration(offset.(float64))
 			r.logger.Printf("ntp offset: %v\n", ntpOffset)
 		}
 	})
