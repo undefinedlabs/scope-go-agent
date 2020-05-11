@@ -2,7 +2,6 @@ package agent
 
 import (
 	"bytes"
-	"crypto/sha1"
 	"crypto/x509"
 	"encoding/json"
 	"errors"
@@ -10,12 +9,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/url"
-	"os"
-	"path/filepath"
-	"runtime"
 	"time"
-
-	"github.com/mitchellh/go-homedir"
 
 	"go.undefinedlabs.com/scopeagent/tags"
 )
@@ -42,11 +36,11 @@ func (a *Agent) loadRemoteConfiguration() map[string]interface{} {
 		jsBytes, _ := json.Marshal(configRequest)
 		a.logger.Printf("Getting remote configuration for: %v", string(jsBytes))
 	}
-	return a.getOrSetRemoteConfigurationCache(configRequest, a.getRemoteConfiguration)
+	return a.getOrSetLocalCacheData(configRequest, "remote", false, a.getRemoteConfiguration).(map[string]interface{})
 }
 
 // Gets the remote agent configuration from the endpoint + api/agent/config
-func (a *Agent) getRemoteConfiguration(cfgRequest map[string]interface{}) map[string]interface{} {
+func (a *Agent) getRemoteConfiguration(cfgRequest map[string]interface{}) interface{} {
 	client := &http.Client{}
 	curl := a.getUrl("api/agent/config")
 	payload, err := msgPackEncodePayload(cfgRequest)
@@ -137,94 +131,4 @@ func (a *Agent) getRemoteConfiguration(cfgRequest map[string]interface{}) map[st
 		}
 	}
 	return nil
-}
-
-// Gets or sets the remote agent configuration local cache
-func (a *Agent) getOrSetRemoteConfigurationCache(metadata map[string]interface{}, fn func(map[string]interface{}) map[string]interface{}) map[string]interface{} {
-	if metadata == nil {
-		return nil
-	}
-	var (
-		path string
-		err  error
-	)
-	path, err = getRemoteConfigurationCachePath(metadata)
-	if err == nil {
-		// We try to load the cached version of the remote configuration
-		file, lerr := os.Open(path)
-		err = lerr
-		if lerr == nil {
-			defer file.Close()
-			fileBytes, lerr := ioutil.ReadAll(file)
-			err = lerr
-			if lerr == nil {
-				var res map[string]interface{}
-				if lerr = json.Unmarshal(fileBytes, &res); lerr == nil {
-					if a.debugMode {
-						a.logger.Printf("Remote configuration cache: %v", string(fileBytes))
-					} else {
-						a.logger.Printf("Remote configuration cache: %v", path)
-					}
-					return res
-				} else {
-					err = lerr
-				}
-			}
-		}
-	}
-	if err != nil {
-		a.logger.Printf("Remote configuration cache: %v", err)
-	}
-
-	if fn == nil {
-		return nil
-	}
-
-	// Call the loader
-	resp := fn(metadata)
-
-	if resp != nil && path != "" {
-		// Save a local cache for the response
-		if data, err := json.Marshal(&resp); err == nil {
-			if a.debugMode {
-				a.logger.Printf("Saving Remote configuration cache: %v", string(data))
-			}
-			if err := ioutil.WriteFile(path, data, 0755); err != nil {
-				a.logger.Printf("Error writing json file: %v", err)
-			}
-		}
-	}
-	return resp
-}
-
-// Gets the remote agent configuration local cache path
-func getRemoteConfigurationCachePath(metadata map[string]interface{}) (string, error) {
-	homeDir, err := homedir.Dir()
-	if err != nil {
-		return "", err
-	}
-	data, err := json.Marshal(metadata)
-	if err != nil {
-		return "", err
-	}
-	hash := fmt.Sprintf("%x", sha1.Sum(data))
-
-	var folder string
-	if runtime.GOOS == "windows" {
-		folder = fmt.Sprintf("%s/AppData/Roaming/scope/cache", homeDir)
-	} else {
-		folder = fmt.Sprintf("%s/.scope/cache", homeDir)
-	}
-
-	if _, err := os.Stat(folder); err == nil {
-		return filepath.Join(folder, hash), nil
-	} else if os.IsNotExist(err) {
-		err = os.MkdirAll(folder, 0755)
-		if err != nil {
-			return "", err
-		}
-		return filepath.Join(folder, hash), nil
-	} else {
-		return "", err
-	}
 }
