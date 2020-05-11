@@ -33,7 +33,7 @@ type (
 )
 
 // Create a new local cache
-func newLocalCache(tenant map[string]interface{}, timeout time.Duration, debugMode bool, logger *log.Logger) *localCache {
+func newLocalCache(tenant interface{}, timeout time.Duration, debugMode bool, logger *log.Logger) *localCache {
 	lc := &localCache{
 		timeout:   timeout,
 		debugMode: debugMode,
