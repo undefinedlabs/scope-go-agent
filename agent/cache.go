@@ -16,7 +16,7 @@ import (
 	"github.com/mitchellh/go-homedir"
 )
 
-const cacheTimeout = 5 * time.Minute
+const cacheTimeout = 1 * time.Minute
 
 type (
 	localCache struct {
