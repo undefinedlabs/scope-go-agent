@@ -9,7 +9,7 @@ import (
 const (
 	server  = "pool.ntp.org"
 	retries = 5
-	timeout = 1 * time.Second
+	timeout = 2 * time.Second
 	backoff = 1 * time.Second
 )
 
@@ -38,12 +38,17 @@ func (r *SpanRecorder) applyNTPOffset(t time.Time) time.Time {
 		if r.debugMode {
 			r.logger.Println("calculating ntp offset.")
 		}
-		offset, err := getNTPOffset()
-		if err == nil {
-			ntpOffset = offset
+		offset := r.cache.GetOrSet("ntp", true, func(d interface{}, s string) interface{} {
+			oSet, err := getNTPOffset()
+			if err != nil {
+				r.logger.Printf("error calculating the ntp offset: %v\n", err)
+				return nil
+			}
+			return float64(oSet)
+		})
+		if offset != nil {
+			ntpOffset = time.Duration(offset.(float64))
 			r.logger.Printf("ntp offset: %v\n", ntpOffset)
-		} else {
-			r.logger.Printf("error calculating the ntp offset: %v\n", err)
 		}
 	})
 	return t.Add(ntpOffset)

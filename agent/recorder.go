@@ -46,6 +46,7 @@ type (
 		logger    *log.Logger
 		stats     *RecorderStats
 		statsOnce sync.Once
+		cache     *localCache
 	}
 	RecorderStats struct {
 		totalSpans        int64
@@ -76,6 +77,7 @@ func NewSpanRecorder(agent *Agent) *SpanRecorder {
 	r.debugMode = agent.debugMode
 	r.metadata = agent.metadata
 	r.logger = agent.logger
+	r.cache = agent.cache
 	r.flushFrequency = agent.flushFrequency
 	r.url = agent.getUrl("api/agent/ingest")
 	r.client = &http.Client{}

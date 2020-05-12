@@ -56,13 +56,15 @@ type (
 
 		logger          *log.Logger
 		printReportOnce sync.Once
+
+		cache *localCache
 	}
 
 	Option func(*Agent)
 )
 
 var (
-	version = "0.3.1-pre1"
+	version = "0.3.1-pre2"
 
 	testingModeFrequency    = time.Second
 	nonTestingModeFrequency = time.Minute
@@ -375,6 +377,9 @@ func NewAgent(options ...Option) (*Agent, error) {
 	if agent.debugMode {
 		agent.logMetadata()
 	}
+
+	//
+	agent.cache = newLocalCache(agent.getRemoteConfigRequest(), cacheTimeout, agent.debugMode, agent.logger)
 
 	agent.recorder = NewSpanRecorder(agent)
 	var recorder tracer.SpanRecorder = agent.recorder
