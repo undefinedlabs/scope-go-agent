@@ -163,17 +163,18 @@ func patch(methodName string, methodBody func(test *Test, argsValues []interface
 		methodBody(test, argIn)
 		return nil
 	})
-	logOnError(err)
-	if err == nil {
+	if !logOnError(err) {
 		patches[methodName] = methodPatch
 		patchPointers[reflect.ValueOf(methodBody).Pointer()] = true
 	}
 }
 
-func logOnError(err error) {
+func logOnError(err error) bool {
 	if err != nil {
 		instrumentation.Logger().Println(err)
+		return true
 	}
+	return false
 }
 
 func isAPatchPointer(ptr uintptr) bool {
