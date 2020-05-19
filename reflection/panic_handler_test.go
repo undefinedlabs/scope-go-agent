@@ -1,9 +1,9 @@
 package reflection_test
 
 import (
+	"sync"
 	"sync/atomic"
 	"testing"
-	"time"
 
 	_ "go.undefinedlabs.com/scopeagent/autoinstrument"
 	"go.undefinedlabs.com/scopeagent/reflection"
@@ -18,12 +18,15 @@ func TestPanicHandler(t *testing.T) {
 	})
 
 	t.Run("OnPanic", func(t2 *testing.T) {
-		go func() {
+		var wg = new(sync.WaitGroup)
+		wg.Add(1)
 
+		go func() {
 			defer func() {
 				if r := recover(); r != nil {
 					t.Log("PANIC RECOVERED")
 				}
+				wg.Done()
 			}()
 
 			t.Log("PANICKING!")
@@ -31,7 +34,7 @@ func TestPanicHandler(t *testing.T) {
 
 		}()
 
-		time.Sleep(1 * time.Second)
+		wg.Wait()
 	})
 
 	if atomic.LoadInt32(&panicHandlerVisit) != 1 {

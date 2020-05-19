@@ -1,7 +1,6 @@
 package reflection
 
 import (
-	"reflect"
 	"sync"
 	"unsafe"
 	_ "unsafe"
@@ -24,8 +23,7 @@ func AddPanicHandler(fn func(interface{})) {
 	mOnPanic.Lock()
 	defer mOnPanic.Unlock()
 	if patchOnPanic == nil {
-		gp := lgopanic
-		np, err := mpatch.PatchMethodByReflect(reflect.Method{Func: reflect.ValueOf(gp)}, gopanic)
+		np, err := mpatch.PatchMethod(lgopanic, gopanic)
 		if err == nil {
 			patchOnPanic = np
 		}
@@ -38,8 +36,7 @@ func AddOnPanicExitHandler(fn func(interface{})) {
 	mOnExit.Lock()
 	defer mOnExit.Unlock()
 	if patchOnExit == nil {
-		gp := lpreprintpanics
-		np, err := mpatch.PatchMethodByReflect(reflect.Method{Func: reflect.ValueOf(gp)}, preprintpanics)
+		np, err := mpatch.PatchMethod(lpreprintpanics, preprintpanics)
 		if err == nil {
 			patchOnExit = np
 		}
