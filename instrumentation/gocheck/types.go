@@ -4,12 +4,14 @@ import (
 	"io"
 	"reflect"
 	"sync"
+	"testing"
 	"time"
 	_ "unsafe"
 
 	"github.com/undefinedlabs/go-mpatch"
 
 	"go.undefinedlabs.com/scopeagent/instrumentation"
+	scopetesting "go.undefinedlabs.com/scopeagent/instrumentation/testing"
 
 	chk "gopkg.in/check.v1"
 )
@@ -62,18 +64,20 @@ type (
 //go:linkname nSRunner gopkg.in/check%2ev1.newSuiteRunner
 func nSRunner(suite interface{}, runConf *chk.RunConf) *suiteRunner
 
+//go:linkname lTestingT gopkg.in/check%2ev1.TestingT
+func lTestingT(testingT *testing.T)
+
 ///go:linkname nSRunnerRun gopkg.in/check%2ev1.(*suiteRunner).run
 //func nSRunnerRun(runner *suiteRunner) *chk.Result
 
 func init() {
-	var patch *mpatch.Patch
+	var nSRunnerPatch *mpatch.Patch
 	var err error
-	nsr := nSRunner
-	patch, err = mpatch.PatchMethod(nsr, func(suite interface{}, runConf *chk.RunConf) *suiteRunner {
-		patch.Unpatch()
-		defer patch.Patch()
+	nSRunnerPatch, err = mpatch.PatchMethod(nSRunner, func(suite interface{}, runConf *chk.RunConf) *suiteRunner {
+		nSRunnerPatch.Unpatch()
+		defer nSRunnerPatch.Patch()
 
-		r := nsr(suite, runConf)
+		r := nSRunner(suite, runConf)
 		for idx := range r.tests {
 			item := r.tests[idx]
 			nFunc := func(c *chk.C) {
@@ -84,6 +88,19 @@ func init() {
 			r.tests[idx] = &methodType{reflect.ValueOf(nFunc), item.Info}
 		}
 		return r
+	})
+	logOnError(err)
+
+	var lTestingTPatch *mpatch.Patch
+	lTestingTPatch, err = mpatch.PatchMethod(lTestingT, func(testingT *testing.T) {
+		lTestingTPatch.Unpatch()
+		defer lTestingTPatch.Patch()
+
+		// We get the instrumented test struct and clean it, that removes the results of that test to be sent to scope
+		*scopetesting.GetTest(testingT) = scopetesting.Test{}
+
+		// We call the original gochecks TestingT func
+		lTestingT(testingT)
 	})
 	logOnError(err)
 }

@@ -182,6 +182,11 @@ func (test *Test) Run(name string, f func(t *testing.T)) bool {
 
 // Ends the current test (this method is called from the auto-instrumentation)
 func (test *Test) end() {
+	// We check if we have a span to work with, if not span is found we exit
+	if test == nil || test.span == nil {
+		return
+	}
+
 	finishTime := time.Now()
 
 	// If we have our own implementation of the span, we can set the exact start time from the test
