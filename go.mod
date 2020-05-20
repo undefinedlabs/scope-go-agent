@@ -17,7 +17,7 @@ require (
 	github.com/stretchr/testify v1.5.1
 	github.com/undefinedlabs/go-mpatch v1.0.3
 	github.com/vmihailenco/msgpack v4.0.4+incompatible
-	golang.org/x/net v0.0.0-20200519113804-d87ec0cfa476
+	golang.org/x/net v0.0.0-20200520004742-59133d7f0dd7
 	golang.org/x/sys v0.0.0-20200519105757-fe76b779f299 // indirect
 	google.golang.org/appengine v1.6.6 // indirect
 	google.golang.org/grpc v1.29.1
