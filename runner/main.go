@@ -23,13 +23,14 @@ type (
 		failedLock sync.Mutex
 	}
 	testDescriptor struct {
-		runner  *testRunner
-		test    testing.InternalTest
-		ran     int
-		failed  bool
-		flaky   bool
-		error   bool
-		skipped bool
+		runner        *testRunner
+		test          testing.InternalTest
+		ran           int
+		failed        bool
+		flaky         bool
+		error         bool
+		skipped       bool
+		ignoreRetries bool
 	}
 	Options struct {
 		FailRetries int
@@ -39,8 +40,13 @@ type (
 	}
 )
 
-var runner *testRunner
-var runnerRegexName = regexp.MustCompile(`(?m)([\w -:_]*)\/\[runner.[\w:]*](\/[\w -:_]*)?`)
+var (
+	runner          *testRunner
+	runnerRegexName = regexp.MustCompile(`(?m)([\w -:_]*)\/\[runner.[\w:]*](\/[\w -:_]*)?`)
+
+	descByTestMutex = sync.RWMutex{}
+	descByTestMap   = map[*testing.T]*testDescriptor{}
+)
 
 // Gets the test name
 func GetOriginalTestName(name string) string {
@@ -131,9 +137,11 @@ func (td *testDescriptor) run(t *testing.T) {
 						innerError = goerrors.Wrap(rc, 2)
 						gt.FailNow()
 					}
+					unlinkTestDescriptor(gt)
 				}()
 				setChattyFlag(gt, true)                                       // enable inner test in stdout
 				setTestName(gt, strings.Replace(it.Name(), "[exec]", "", -1)) // removes [exec] from name
+				linkTestDescriptor(gt, td)
 				innerTest = gt
 				td.test.F(gt)
 			})
@@ -171,6 +179,9 @@ func (td *testDescriptor) run(t *testing.T) {
 		}
 
 		if run > options.FailRetries {
+			break
+		}
+		if td.ignoreRetries {
 			break
 		}
 		run++
@@ -258,5 +269,37 @@ func setTestName(t *testing.T, value string) {
 
 	if ptr, err := reflection.GetFieldPointerOf(t, "name"); err == nil {
 		*(*string)(ptr) = value
+	}
+}
+
+// links a child test to a test descriptor
+func linkTestDescriptor(t *testing.T, td *testDescriptor) {
+	descByTestMutex.Lock()
+	defer descByTestMutex.Unlock()
+	descByTestMap[t] = td
+}
+
+// unlink any descriptor of a child test
+func unlinkTestDescriptor(t *testing.T) {
+	descByTestMutex.Lock()
+	defer descByTestMutex.Unlock()
+	delete(descByTestMap, t)
+}
+
+// gets a test descriptor from a child test
+func getTestDescriptor(t *testing.T) *testDescriptor {
+	descByTestMutex.RLock()
+	defer descByTestMutex.RUnlock()
+	if td, ok := descByTestMap[t]; ok {
+		return td
+	}
+	return nil
+}
+
+// Ignore runner retries for this test
+func IgnoreRetries(t *testing.T) {
+	td := getTestDescriptor(t)
+	if td != nil {
+		td.ignoreRetries = true
 	}
 }

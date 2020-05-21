@@ -1,6 +1,7 @@
 package gocheck
 
 import (
+	"go.undefinedlabs.com/scopeagent/runner"
 	"io"
 	"reflect"
 	"sync"
@@ -95,6 +96,9 @@ func init() {
 	lTestingTPatch, err = mpatch.PatchMethod(lTestingT, func(testingT *testing.T) {
 		lTestingTPatch.Unpatch()
 		defer lTestingTPatch.Patch()
+
+		// We tell the runner to ignore retries on this testing.T
+		runner.IgnoreRetries(testingT)
 
 		// We get the instrumented test struct and clean it, that removes the results of that test to be sent to scope
 		*scopetesting.GetTest(testingT) = scopetesting.Test{}
