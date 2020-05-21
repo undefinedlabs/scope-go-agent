@@ -33,15 +33,14 @@ func (s *MySuite) TestSkip(c *C) {
 func (s *MySuite) TestFail(c *C) {
 	c.Fail()
 }
-
-/*
-
 func (s *MySuite) TestFatal(c *C) {
 	c.Fatal("fatal error")
 }
 func (s *MySuite) TestPanic(c *C) {
 	panic("Custom panic")
 }
+
+/*
 func (s *MySuite) TestExpected(c *C) {
 	c.ExpectFailure("expected failure")
 }

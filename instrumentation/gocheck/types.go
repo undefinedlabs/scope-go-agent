@@ -1,6 +1,7 @@
 package gocheck
 
 import (
+	"go.undefinedlabs.com/scopeagent/reflection"
 	"go.undefinedlabs.com/scopeagent/runner"
 	"io"
 	"reflect"
@@ -60,6 +61,17 @@ type (
 		benchTime                 time.Duration
 		benchMem                  bool
 	}
+
+	testStatus uint32
+)
+
+const (
+	testSucceeded testStatus = iota
+	testFailed
+	testSkipped
+	testPanicked
+	testFixturePanicked
+	testMissed
 )
 
 //go:linkname nSRunner gopkg.in/check%2ev1.newSuiteRunner
@@ -113,4 +125,22 @@ func logOnError(err error) {
 	if err != nil {
 		instrumentation.Logger().Println(err)
 	}
+}
+
+func getTestStatus(c *chk.C) testStatus {
+	var status uint32
+	if ptr, err := reflection.GetFieldPointerOf(c, "_status"); err == nil {
+		status = *(*uint32)(ptr)
+	}
+	return testStatus(status)
+}
+
+func shouldRetry(c *chk.C) bool {
+	switch status := getTestStatus(c); status {
+	case testFailed:
+	case testPanicked:
+	case testFixturePanicked:
+		return true
+	}
+	return false
 }

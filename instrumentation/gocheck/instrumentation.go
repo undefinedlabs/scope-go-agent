@@ -12,7 +12,6 @@ import (
 	"go.undefinedlabs.com/scopeagent/errors"
 	"go.undefinedlabs.com/scopeagent/instrumentation"
 	"go.undefinedlabs.com/scopeagent/instrumentation/logging"
-	"go.undefinedlabs.com/scopeagent/reflection"
 	"go.undefinedlabs.com/scopeagent/tags"
 
 	chk "gopkg.in/check.v1"
@@ -64,6 +63,7 @@ func startTest(method *methodType, c *chk.C) *Test {
 
 	return test
 }
+
 func (test *Test) end(c *chk.C) {
 	finishTime := time.Now()
 
@@ -88,23 +88,23 @@ func (test *Test) end(c *chk.C) {
 		panic(r)
 	}
 
-	var status uint32
-	if ptr, err := reflection.GetFieldPointerOf(c, "_status"); err == nil {
-		status = *(*uint32)(ptr)
-	}
-
-	if status == 0 {
+	switch status := getTestStatus(c); status {
+	case testSucceeded:
 		test.span.SetTag("test.status", tags.TestStatus_PASS)
-	} else if status == 1 {
+	case testFailed:
 		test.span.SetTag("test.status", tags.TestStatus_FAIL)
 		test.span.SetTag("error", true)
-	} else if status == 2 {
+	case testSkipped:
 		test.span.SetTag("test.status", tags.TestStatus_SKIP)
-	} else if status == 4 {
+	case testPanicked:
+	case testFixturePanicked:
 		test.span.SetTag("test.status", tags.TestStatus_FAIL)
 		test.span.SetTag("error", true)
-	} else if status == 5 {
+	case testMissed:
 		test.span.SetTag("test.status", tags.TestStatus_SKIP)
+	default:
+		test.span.SetTag("test.status", status)
+		test.span.SetTag("error", true)
 	}
 
 	test.span.FinishWithOptions(finishOptions)
