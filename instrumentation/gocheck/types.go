@@ -3,11 +3,15 @@ package gocheck
 import (
 	"fmt"
 	goerrors "github.com/go-errors/errors"
+	"github.com/opentracing/opentracing-go/log"
 	"go.undefinedlabs.com/scopeagent/instrumentation/testing/config"
 	"go.undefinedlabs.com/scopeagent/reflection"
 	"go.undefinedlabs.com/scopeagent/runner"
+	"go.undefinedlabs.com/scopeagent/tags"
 	"io"
 	"reflect"
+	"runtime"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -69,9 +73,15 @@ type (
 
 	testData struct {
 		c       *chk.C
-		test    func(*chk.C)
+		fn      func(*chk.C)
 		err     *goerrors.Error
 		options *runner.Options
+		test    *Test
+		writer  *testLogWriter
+	}
+
+	testLogWriter struct {
+		test *Test
 	}
 )
 
@@ -84,11 +94,19 @@ const (
 	testMissed
 )
 
+var (
+	testMap      = map[*chk.C]*testData{}
+	testMapMutex = sync.RWMutex{}
+)
+
 //go:linkname nSRunner gopkg.in/check%2ev1.newSuiteRunner
 func nSRunner(suite interface{}, runConf *chk.RunConf) *suiteRunner
 
 //go:linkname lTestingT gopkg.in/check%2ev1.TestingT
 func lTestingT(testingT *testing.T)
+
+//go:linkname writeLog gopkg.in/check%2ev1.(*C).writeLog
+func writeLog(c *chk.C, buf []byte)
 
 func init() {
 	var nSRunnerPatch *mpatch.Patch
@@ -98,21 +116,39 @@ func init() {
 		defer nSRunnerPatch.Patch()
 		runnerOptions := runner.GetRunnerOptions()
 
+		tWriter := &testLogWriter{}
+
 		r := nSRunner(suite, runConf)
 		for idx := range r.tests {
 			item := r.tests[idx]
+			tData := &testData{options: runnerOptions, writer: tWriter}
+
 			instTest := func(c *chk.C) {
 				if isTestCached(c) {
 					writeCachedResult(item)
 					return
 				}
+				tData.c = c
+				testMapMutex.Lock()
+				testMap[c] = tData
+				setLogWriter(c, tData.writer)
+				testMapMutex.Unlock()
+				defer func() {
+					testMapMutex.Lock()
+					delete(testMap, c)
+					testMapMutex.Unlock()
+				}()
+
 				test := startTest(item, c)
+				tData.test = test
+				tData.writer.test = test
 				defer test.end(c)
 				item.Call([]reflect.Value{reflect.ValueOf(c)})
 			}
+			tData.fn = instTest
 
 			if runnerOptions != nil {
-				instTest = getRunnerTestFunc(instTest, runnerOptions)
+				instTest = getRunnerTestFunc(tData)
 			}
 
 			r.tests[idx] = &methodType{reflect.ValueOf(instTest), item.Info}
@@ -177,6 +213,17 @@ func getTestMustFail(c *chk.C) bool {
 	return false
 }
 
+func setLogWriter(c *chk.C, w io.Writer) {
+	if ptr, err := reflection.GetFieldPointerOf(c, "logw"); err == nil {
+		cWriter := *(*io.Writer)(ptr)
+		if cWriter == nil {
+			*(*io.Writer)(ptr) = w
+		} else if cWriter != w {
+			*(*io.Writer)(ptr) = io.MultiWriter(cWriter, w)
+		}
+	}
+}
+
 // gets if the test should retry
 func shouldRetry(c *chk.C) bool {
 	switch status := getTestStatus(c); status {
@@ -193,11 +240,7 @@ func shouldRetry(c *chk.C) bool {
 }
 
 // gets the test func with the test runner algorithm
-func getRunnerTestFunc(tFunc func(*chk.C), options *runner.Options) func(*chk.C) {
-	tData := testData{
-		test:    tFunc,
-		options: options,
-	}
+func getRunnerTestFunc(tData *testData) func(*chk.C) {
 	runnerExecution := func(td *testData) {
 		defer func() {
 			if rc := recover(); rc != nil {
@@ -206,11 +249,11 @@ func getRunnerTestFunc(tFunc func(*chk.C), options *runner.Options) func(*chk.C)
 				td.c.Fail()
 			}
 		}()
-		td.test(td.c)
+		td.fn(td.c)
 	}
 	return func(c *chk.C) {
 		if isTestCached(c) {
-			tData.test(c)
+			tData.fn(c)
 			return
 		}
 		tData.c = c
@@ -220,7 +263,7 @@ func getRunnerTestFunc(tFunc func(*chk.C), options *runner.Options) func(*chk.C)
 			wg.Add(1)
 			go func() {
 				defer wg.Done()
-				runnerExecution(&tData)
+				runnerExecution(tData)
 			}()
 			wg.Wait()
 			if !shouldRetry(tData.c) {
@@ -255,4 +298,63 @@ func isTestCached(c *chk.C) bool {
 	}
 	instrumentation.Logger().Printf("Test '%v' is not cached.", fqn)
 	return false
+}
+
+// Write data to a test event
+func (w *testLogWriter) Write(p []byte) (n int, err error) {
+	if w.test == nil || w.test.span == nil {
+		return 0, nil
+	}
+
+	pcs := make([]uintptr, 6)
+	runtime.Callers(2, pcs)
+	frames := runtime.CallersFrames(pcs)
+	for {
+		frame, more := frames.Next()
+		name := frame.Function
+
+		// If the frame is not in the gopkg.in/check we skip it
+		if !strings.Contains(name, "gopkg.in/check") {
+			if !more {
+				break
+			}
+			continue
+		}
+
+		// we only log if in the stackframe we see the log or lof method
+		if strings.HasSuffix(name, "log") || strings.HasSuffix(name, "logf") {
+			frame, more = frames.Next()
+			if !more {
+				break
+			}
+			frame, more = frames.Next()
+			helperName := frame.Function
+			if strings.HasSuffix(helperName, "logCaller") {
+				break
+			}
+			eventType := tags.LogEvent
+			eventLevel := tags.LogLevel_INFO
+			if strings.HasSuffix(helperName, "Fatal") {
+				eventType = tags.EventTestFailure
+				eventLevel = tags.LogLevel_ERROR
+				frame, more = frames.Next()
+			} else if strings.HasSuffix(helperName, "Error") || strings.HasSuffix(helperName, "Errorf") {
+				eventLevel = tags.LogLevel_ERROR
+				frame, more = frames.Next()
+			}
+			w.test.span.LogFields(
+				log.String(tags.EventType, eventType),
+				log.String(tags.EventMessage, string(p)),
+				log.String(tags.EventSource, fmt.Sprintf("%s:%d", frame.File, frame.Line)),
+				log.String(tags.LogEventLevel, eventLevel),
+				log.String("log.internal_level", "Fatal"),
+				log.String("log.logger", "gopkg.in/check.v1"),
+			)
+			return len(p), nil
+		}
+		if !more {
+			break
+		}
+	}
+	return 0, nil
 }

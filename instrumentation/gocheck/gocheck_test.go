@@ -12,6 +12,7 @@ var (
 	fatalCount    = 0
 	panicCount    = 0
 	expectedCount = 0
+	errorCount    = 0
 )
 
 // Hook up gocheck into the "go test" runner.
@@ -24,6 +25,8 @@ type MySuite struct{}
 var _ = Suite(&MySuite{})
 
 func (s *MySuite) TestPass(c *C) {
+	c.Log("Hello", "World")
+	c.Logf("Hello: %v", "World 2")
 }
 func (s *MySuite) TestSkip(c *C) {
 	c.Skip("My skip reason")
@@ -51,5 +54,11 @@ func (s *MySuite) TestExpected(c *C) {
 	expectedCount++
 	if expectedCount > 2 {
 		c.Fail()
+	}
+}
+func (s *MySuite) TestError(c *C) {
+	if errorCount < 2 {
+		errorCount++
+		c.Error("This is an error")
 	}
 }

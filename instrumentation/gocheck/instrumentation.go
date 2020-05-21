@@ -114,8 +114,8 @@ func (test *Test) end(c *chk.C) {
 	}
 
 	reason := getTestReason(c)
-
-	switch status := getTestStatus(c); status {
+	status := getTestStatus(c)
+	switch status {
 	case testSucceeded:
 		if !getTestMustFail(c) {
 			test.span.SetTag("test.status", tags.TestStatus_PASS)
@@ -145,8 +145,12 @@ func (test *Test) end(c *chk.C) {
 	}
 
 	if reason != "" {
+		eventType := tags.EventTestFailure
+		if status == testSkipped {
+			eventType = tags.EventTestSkip
+		}
 		test.span.LogFields(
-			log.String(tags.EventType, tags.EventTestFailure),
+			log.String(tags.EventType, eventType),
 			log.String(tags.EventMessage, reason),
 			log.String("log.internal_level", "Fatal"),
 			log.String("log.logger", "testing"),
