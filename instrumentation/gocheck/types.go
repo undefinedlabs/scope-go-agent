@@ -162,9 +162,29 @@ func setTestStatus(c *chk.C, status testStatus) {
 	}
 }
 
+func getTestReason(c *chk.C) string {
+	if ptr, err := reflection.GetFieldPointerOf(c, "reason"); err == nil {
+		return *(*string)(ptr)
+	}
+	return ""
+}
+
+func getTestMustFail(c *chk.C) bool {
+	if ptr, err := reflection.GetFieldPointerOf(c, "mustFail"); err == nil {
+		return *(*bool)(ptr)
+	}
+	return false
+}
+
 func shouldRetry(c *chk.C) bool {
 	switch status := getTestStatus(c); status {
 	case testFailed, testPanicked, testFixturePanicked:
+		if getTestMustFail(c) {
+			return false
+		}
+		return true
+	}
+	if getTestMustFail(c) {
 		return true
 	}
 	return false

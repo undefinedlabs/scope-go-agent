@@ -2,6 +2,7 @@ package gocheck
 
 import (
 	"context"
+	"github.com/opentracing/opentracing-go/log"
 	"go.undefinedlabs.com/scopeagent/instrumentation/coverage"
 	"reflect"
 	"testing"
@@ -109,16 +110,28 @@ func (test *Test) end(c *chk.C) {
 		panic(r)
 	}
 
+	reason := getTestReason(c)
+
 	switch status := getTestStatus(c); status {
 	case testSucceeded:
-		test.span.SetTag("test.status", tags.TestStatus_PASS)
+		if !getTestMustFail(c) {
+			test.span.SetTag("test.status", tags.TestStatus_PASS)
+			reason = ""
+		} else {
+			test.span.SetTag("test.status", tags.TestStatus_FAIL)
+			test.span.SetTag("error", true)
+		}
 	case testFailed:
-		test.span.SetTag("test.status", tags.TestStatus_FAIL)
-		test.span.SetTag("error", true)
+		if getTestMustFail(c) {
+			test.span.SetTag("test.status", tags.TestStatus_PASS)
+			reason = ""
+		} else {
+			test.span.SetTag("test.status", tags.TestStatus_FAIL)
+			test.span.SetTag("error", true)
+		}
 	case testSkipped:
 		test.span.SetTag("test.status", tags.TestStatus_SKIP)
-	case testPanicked:
-	case testFixturePanicked:
+	case testPanicked, testFixturePanicked:
 		test.span.SetTag("test.status", tags.TestStatus_FAIL)
 		test.span.SetTag("error", true)
 	case testMissed:
@@ -126,6 +139,15 @@ func (test *Test) end(c *chk.C) {
 	default:
 		test.span.SetTag("test.status", status)
 		test.span.SetTag("error", true)
+	}
+
+	if reason != "" {
+		test.span.LogFields(
+			log.String(tags.EventType, tags.EventTestFailure),
+			log.String(tags.EventMessage, reason),
+			log.String("log.internal_level", "Fatal"),
+			log.String("log.logger", "testing"),
+		)
 	}
 
 	test.span.FinishWithOptions(finishOptions)
