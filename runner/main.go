@@ -65,7 +65,7 @@ func Run(m *testing.M, options Options) int {
 	if options.OnPanic == nil {
 		options.OnPanic = func(t *testing.T, err interface{}) {}
 	}
-	runner := &testRunner{
+	runner = &testRunner{
 		m:       m,
 		options: options,
 		failed:  false,
@@ -302,4 +302,12 @@ func IgnoreRetries(t *testing.T) {
 	if td != nil {
 		td.ignoreRetries = true
 	}
+}
+
+// Gets the runner options
+func GetRunnerOptions() *Options {
+	if runner == nil {
+		return nil
+	}
+	return &runner.options
 }

@@ -1,6 +1,7 @@
 package gocheck
 
 import (
+	"fmt"
 	"go.undefinedlabs.com/scopeagent/reflection"
 	"go.undefinedlabs.com/scopeagent/runner"
 	"io"
@@ -89,16 +90,22 @@ func init() {
 	nSRunnerPatch, err = mpatch.PatchMethod(nSRunner, func(suite interface{}, runConf *chk.RunConf) *suiteRunner {
 		nSRunnerPatch.Unpatch()
 		defer nSRunnerPatch.Patch()
+		runnerOptions := runner.GetRunnerOptions()
 
 		r := nSRunner(suite, runConf)
 		for idx := range r.tests {
 			item := r.tests[idx]
-			nFunc := func(c *chk.C) {
+			instTest := func(c *chk.C) {
 				test := startTest(item, c)
 				defer test.end(c)
 				item.Call([]reflect.Value{reflect.ValueOf(c)})
 			}
-			r.tests[idx] = &methodType{reflect.ValueOf(nFunc), item.Info}
+
+			if runnerOptions != nil {
+				instTest = getRunnerTest(instTest)
+			}
+
+			r.tests[idx] = &methodType{reflect.ValueOf(instTest), item.Info}
 		}
 		return r
 	})
@@ -115,7 +122,7 @@ func init() {
 		// We get the instrumented test struct and clean it, that removes the results of that test to be sent to scope
 		*scopetesting.GetTest(testingT) = scopetesting.Test{}
 
-		// We call the original gochecks TestingT func
+		// We call the original go-check TestingT func
 		lTestingT(testingT)
 	})
 	logOnError(err)
@@ -143,4 +150,19 @@ func shouldRetry(c *chk.C) bool {
 		return true
 	}
 	return false
+}
+
+func getRunnerTest(tFunc func(*chk.C)) func(*chk.C) {
+	instTest := tFunc
+
+	runnerExecution := func(c *chk.C) {
+		fmt.Println(c.TestName(), "Start Runner")
+		defer func() {
+			fmt.Println(c.TestName(), "End Runner")
+		}()
+		instTest(c)
+	}
+	return func(c *chk.C) {
+		runnerExecution(c)
+	}
 }
