@@ -27,7 +27,8 @@ type (
 	}
 )
 
-func writeCachedResult(method *methodType, c *chk.C) {
+// write cached result span
+func writeCachedResult(method *methodType) {
 	t := method.Info.Type.In(0)
 	if t.Kind() == reflect.Ptr {
 		t = t.Elem()
@@ -48,6 +49,7 @@ func writeCachedResult(method *methodType, c *chk.C) {
 	span.Finish()
 }
 
+// start test func
 func startTest(method *methodType, c *chk.C) *Test {
 	test := &Test{
 		method: method,
@@ -86,6 +88,7 @@ func startTest(method *methodType, c *chk.C) *Test {
 	return test
 }
 
+// end test func
 func (test *Test) end(c *chk.C) {
 	finishTime := time.Now()
 

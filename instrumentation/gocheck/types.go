@@ -90,9 +90,6 @@ func nSRunner(suite interface{}, runConf *chk.RunConf) *suiteRunner
 //go:linkname lTestingT gopkg.in/check%2ev1.TestingT
 func lTestingT(testingT *testing.T)
 
-///go:linkname nSRunnerRun gopkg.in/check%2ev1.(*suiteRunner).run
-//func nSRunnerRun(runner *suiteRunner) *chk.Result
-
 func init() {
 	var nSRunnerPatch *mpatch.Patch
 	var err error
@@ -106,7 +103,7 @@ func init() {
 			item := r.tests[idx]
 			instTest := func(c *chk.C) {
 				if isTestCached(c) {
-					writeCachedResult(item, c)
+					writeCachedResult(item)
 					return
 				}
 				test := startTest(item, c)
@@ -147,6 +144,7 @@ func logOnError(err error) {
 	}
 }
 
+// gets test status
 func getTestStatus(c *chk.C) testStatus {
 	var status uint32
 	if ptr, err := reflection.GetFieldPointerOf(c, "_status"); err == nil {
@@ -155,6 +153,7 @@ func getTestStatus(c *chk.C) testStatus {
 	return testStatus(status)
 }
 
+// sets test status
 func setTestStatus(c *chk.C, status testStatus) {
 	sValue := uint32(status)
 	if ptr, err := reflection.GetFieldPointerOf(c, "_status"); err == nil {
@@ -162,6 +161,7 @@ func setTestStatus(c *chk.C, status testStatus) {
 	}
 }
 
+// gets the test reason
 func getTestReason(c *chk.C) string {
 	if ptr, err := reflection.GetFieldPointerOf(c, "reason"); err == nil {
 		return *(*string)(ptr)
@@ -169,6 +169,7 @@ func getTestReason(c *chk.C) string {
 	return ""
 }
 
+// gets if the test must fail
 func getTestMustFail(c *chk.C) bool {
 	if ptr, err := reflection.GetFieldPointerOf(c, "mustFail"); err == nil {
 		return *(*bool)(ptr)
@@ -176,6 +177,7 @@ func getTestMustFail(c *chk.C) bool {
 	return false
 }
 
+// gets if the test should retry
 func shouldRetry(c *chk.C) bool {
 	switch status := getTestStatus(c); status {
 	case testFailed, testPanicked, testFixturePanicked:
@@ -190,6 +192,7 @@ func shouldRetry(c *chk.C) bool {
 	return false
 }
 
+// gets the test func with the test runner algorithm
 func getRunnerTestFunc(tFunc func(*chk.C), options *runner.Options) func(*chk.C) {
 	tData := testData{
 		test:    tFunc,
@@ -241,7 +244,7 @@ func getRunnerTestFunc(tFunc func(*chk.C), options *runner.Options) func(*chk.C)
 	}
 }
 
-// Get if the test is cached
+// gets if the test is cached
 func isTestCached(c *chk.C) bool {
 	fqn := c.TestName()
 	cachedMap := config.GetCachedTestsMap()
