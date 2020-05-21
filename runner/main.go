@@ -131,8 +131,7 @@ func (td *testDescriptor) run(t *testing.T) {
 			setChattyFlag(it, false) // avoid the [exec] subtest in stdout
 			it.Run("[exec]", func(gt *testing.T) {
 				defer func() {
-					rc := recover()
-					if rc != nil {
+					if rc := recover(); rc != nil {
 						// using go-errors to preserve stacktrace
 						innerError = goerrors.Wrap(rc, 2)
 						gt.FailNow()

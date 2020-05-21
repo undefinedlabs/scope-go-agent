@@ -7,6 +7,12 @@ import (
 	. "gopkg.in/check.v1"
 )
 
+var (
+	failCount  = 0
+	fatalCount = 0
+	panicCount = 0
+)
+
 // Hook up gocheck into the "go test" runner.
 func TestM(t *testing.T) {
 	TestingT(t)
@@ -31,13 +37,22 @@ func (s *MySuite) TestSkip(c *C) {
 	c.Skip("My skip reason")
 }
 func (s *MySuite) TestFail(c *C) {
-	c.Fail()
+	if failCount < 2 {
+		failCount++
+		c.Fail()
+	}
 }
 func (s *MySuite) TestFatal(c *C) {
-	c.Fatal("fatal error")
+	if fatalCount < 2 {
+		fatalCount++
+		c.Fatal("fatal error")
+	}
 }
 func (s *MySuite) TestPanic(c *C) {
-	panic("Custom panic")
+	if panicCount < 2 {
+		panicCount++
+		panic("Custom panic")
+	}
 }
 
 /*

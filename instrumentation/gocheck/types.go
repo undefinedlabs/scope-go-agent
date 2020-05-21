@@ -2,6 +2,8 @@ package gocheck
 
 import (
 	"fmt"
+	goerrors "github.com/go-errors/errors"
+	"go.undefinedlabs.com/scopeagent/instrumentation/testing/config"
 	"go.undefinedlabs.com/scopeagent/reflection"
 	"go.undefinedlabs.com/scopeagent/runner"
 	"io"
@@ -64,6 +66,13 @@ type (
 	}
 
 	testStatus uint32
+
+	testData struct {
+		c       *chk.C
+		test    func(*chk.C)
+		err     *goerrors.Error
+		options *runner.Options
+	}
 )
 
 const (
@@ -96,13 +105,17 @@ func init() {
 		for idx := range r.tests {
 			item := r.tests[idx]
 			instTest := func(c *chk.C) {
+				if isTestCached(c) {
+					writeCachedResult(item, c)
+					return
+				}
 				test := startTest(item, c)
 				defer test.end(c)
 				item.Call([]reflect.Value{reflect.ValueOf(c)})
 			}
 
 			if runnerOptions != nil {
-				instTest = getRunnerTest(instTest)
+				instTest = getRunnerTestFunc(instTest, runnerOptions)
 			}
 
 			r.tests[idx] = &methodType{reflect.ValueOf(instTest), item.Info}
@@ -142,27 +155,81 @@ func getTestStatus(c *chk.C) testStatus {
 	return testStatus(status)
 }
 
+func setTestStatus(c *chk.C, status testStatus) {
+	sValue := uint32(status)
+	if ptr, err := reflection.GetFieldPointerOf(c, "_status"); err == nil {
+		*(*uint32)(ptr) = sValue
+	}
+}
+
 func shouldRetry(c *chk.C) bool {
 	switch status := getTestStatus(c); status {
-	case testFailed:
-	case testPanicked:
-	case testFixturePanicked:
+	case testFailed, testPanicked, testFixturePanicked:
 		return true
 	}
 	return false
 }
 
-func getRunnerTest(tFunc func(*chk.C)) func(*chk.C) {
-	instTest := tFunc
-
-	runnerExecution := func(c *chk.C) {
-		fmt.Println(c.TestName(), "Start Runner")
+func getRunnerTestFunc(tFunc func(*chk.C), options *runner.Options) func(*chk.C) {
+	tData := testData{
+		test:    tFunc,
+		options: options,
+	}
+	runnerExecution := func(td *testData) {
 		defer func() {
-			fmt.Println(c.TestName(), "End Runner")
+			if rc := recover(); rc != nil {
+				// using go-errors to preserve stacktrace
+				td.err = goerrors.Wrap(rc, 2)
+				td.c.Fail()
+			}
 		}()
-		instTest(c)
+		td.test(td.c)
 	}
 	return func(c *chk.C) {
-		runnerExecution(c)
+		if isTestCached(c) {
+			tData.test(c)
+			return
+		}
+		tData.c = c
+		run := 1
+		for {
+			wg := new(sync.WaitGroup)
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				runnerExecution(&tData)
+			}()
+			wg.Wait()
+			if !shouldRetry(tData.c) {
+				break
+			}
+			if run > tData.options.FailRetries {
+				break
+			}
+			if tData.err != nil {
+				if !tData.options.PanicAsFail {
+					tData.options.OnPanic(nil, tData.err)
+					panic(tData.err.ErrorStack())
+				}
+				tData.options.Logger.Printf("test '%s' - panic recover: %v",
+					tData.c.TestName(), tData.err)
+			}
+			setTestStatus(tData.c, testSucceeded)
+			fmt.Printf("FAIL: Retrying '%s' [%d/%d]\n", c.TestName(), run, tData.options.FailRetries)
+			run++
+		}
 	}
+}
+
+// Get if the test is cached
+func isTestCached(c *chk.C) bool {
+	fqn := c.TestName()
+	cachedMap := config.GetCachedTestsMap()
+	if _, ok := cachedMap[fqn]; ok {
+		instrumentation.Logger().Printf("Test '%v' is cached.", fqn)
+		fmt.Print("[SCOPE CACHED] ")
+		return true
+	}
+	instrumentation.Logger().Printf("Test '%v' is not cached.", fqn)
+	return false
 }

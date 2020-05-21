@@ -26,6 +26,27 @@ type (
 	}
 )
 
+func writeCachedResult(method *methodType, c *chk.C) {
+	t := method.Info.Type.In(0)
+	if t.Kind() == reflect.Ptr {
+		t = t.Elem()
+	}
+	pName := t.Name()
+
+	testTags := opentracing.Tags{
+		"span.kind":      "test",
+		"test.name":      method.Info.Name,
+		"test.suite":     pName,
+		"test.framework": "gopkg.in/check.v1",
+		"test.language":  "go",
+	}
+
+	span, _ := opentracing.StartSpanFromContextWithTracer(context.Background(), instrumentation.Tracer(), method.Info.Name, testTags)
+	span.SetBaggageItem("trace.kind", "test")
+	span.SetTag("test.status", tags.TestStatus_CACHE)
+	span.Finish()
+}
+
 func startTest(method *methodType, c *chk.C) *Test {
 	test := &Test{
 		method: method,
