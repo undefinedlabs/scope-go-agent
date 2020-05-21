@@ -77,7 +77,7 @@ type (
 		err     *goerrors.Error
 		options *runner.Options
 		test    *Test
-		writer  *testLogWriter
+		writer  io.Writer
 	}
 
 	testLogWriter struct {
@@ -131,7 +131,7 @@ func init() {
 				tData.c = c
 				testMapMutex.Lock()
 				testMap[c] = tData
-				setLogWriter(c, tData.writer)
+				setLogWriter(c, &tData.writer)
 				testMapMutex.Unlock()
 				defer func() {
 					testMapMutex.Lock()
@@ -141,7 +141,7 @@ func init() {
 
 				test := startTest(item, c)
 				tData.test = test
-				tData.writer.test = test
+				tData.writer.(*testLogWriter).test = test
 				defer test.end(c)
 				item.Call([]reflect.Value{reflect.ValueOf(c)})
 			}
@@ -213,13 +213,14 @@ func getTestMustFail(c *chk.C) bool {
 	return false
 }
 
-func setLogWriter(c *chk.C, w io.Writer) {
+func setLogWriter(c *chk.C, w *io.Writer) {
 	if ptr, err := reflection.GetFieldPointerOf(c, "logw"); err == nil {
 		cWriter := *(*io.Writer)(ptr)
 		if cWriter == nil {
-			*(*io.Writer)(ptr) = w
-		} else if cWriter != w {
-			*(*io.Writer)(ptr) = io.MultiWriter(cWriter, w)
+			*(*io.Writer)(ptr) = *w
+		} else if cWriter != *w {
+			*w = io.MultiWriter(cWriter, *w)
+			*(*io.Writer)(ptr) = *w
 		}
 	}
 }

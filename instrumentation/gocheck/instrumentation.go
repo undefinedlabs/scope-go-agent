@@ -131,6 +131,9 @@ func (test *Test) end(c *chk.C) {
 		} else {
 			test.span.SetTag("test.status", tags.TestStatus_FAIL)
 			test.span.SetTag("error", true)
+			if reason == "" {
+				reason = "Test Failed"
+			}
 		}
 	case testSkipped:
 		test.span.SetTag("test.status", tags.TestStatus_SKIP)
