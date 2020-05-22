@@ -3,6 +3,7 @@ package gocheck
 import (
 	"fmt"
 	"io"
+	"path/filepath"
 	"reflect"
 	"runtime"
 	"strings"
@@ -307,8 +308,9 @@ func (w *testLogWriter) Write(p []byte) (n int, err error) {
 		return 0, nil
 	}
 
-	pcs := make([]uintptr, 6)
-	runtime.Callers(2, pcs)
+	pcs := make([]uintptr, 64)
+	count := runtime.Callers(2, pcs)
+	pcs = pcs[:count]
 	frames := runtime.CallersFrames(pcs)
 	for {
 		frame, more := frames.Next()
@@ -335,18 +337,23 @@ func (w *testLogWriter) Write(p []byte) (n int, err error) {
 			}
 			eventType := tags.LogEvent
 			eventLevel := tags.LogLevel_INFO
+			source := ""
 			if strings.HasSuffix(helperName, "Fatal") {
 				eventType = tags.EventTestFailure
 				eventLevel = tags.LogLevel_ERROR
-				frame, more = frames.Next()
+				_, file, line, _ := getCallerInsideSourceRoot(frame, more, frames)
+				source = fmt.Sprintf("%s:%d", file, line)
 			} else if strings.HasSuffix(helperName, "Error") || strings.HasSuffix(helperName, "Errorf") {
 				eventLevel = tags.LogLevel_ERROR
-				frame, more = frames.Next()
+				_, file, line, _ := getCallerInsideSourceRoot(frame, more, frames)
+				source = fmt.Sprintf("%s:%d", file, line)
+			} else {
+				source = fmt.Sprintf("%s:%d", frame.File, frame.Line)
 			}
 			w.test.span.LogFields(
 				log.String(tags.EventType, eventType),
 				log.String(tags.EventMessage, string(p)),
-				log.String(tags.EventSource, fmt.Sprintf("%s:%d", frame.File, frame.Line)),
+				log.String(tags.EventSource, source),
 				log.String(tags.LogEventLevel, eventLevel),
 				log.String("log.internal_level", "Fatal"),
 				log.String("log.logger", "gopkg.in/check.v1"),
@@ -358,4 +365,21 @@ func (w *testLogWriter) Write(p []byte) (n int, err error) {
 		}
 	}
 	return 0, nil
+}
+
+//go:noinline
+func getCallerInsideSourceRoot(frame runtime.Frame, more bool, frames *runtime.Frames) (pc uintptr, file string, line int, ok bool) {
+	sourceRoot := instrumentation.GetSourceRoot()
+	for {
+		file := filepath.Clean(frame.File)
+		dir := filepath.Dir(file)
+		if strings.Index(dir, sourceRoot) != -1 {
+			return frame.PC, file, frame.Line, true
+		}
+		if !more {
+			break
+		}
+		frame, more = frames.Next()
+	}
+	return
 }

@@ -80,7 +80,7 @@ func GetRemoteConfiguration() map[string]interface{} {
 func GetCallerInsideSourceRoot(skip int) (pc uintptr, file string, line int, ok bool) {
 	pcs := make([]uintptr, 64)
 	count := runtime.Callers(skip+2, pcs)
-	pcs = pcs[0:count]
+	pcs = pcs[:count]
 	frames := runtime.CallersFrames(pcs)
 	for {
 		frame, more := frames.Next()
