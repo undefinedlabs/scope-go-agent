@@ -2,12 +2,6 @@ package gocheck
 
 import (
 	"fmt"
-	goerrors "github.com/go-errors/errors"
-	"github.com/opentracing/opentracing-go/log"
-	"go.undefinedlabs.com/scopeagent/instrumentation/testing/config"
-	"go.undefinedlabs.com/scopeagent/reflection"
-	"go.undefinedlabs.com/scopeagent/runner"
-	"go.undefinedlabs.com/scopeagent/tags"
 	"io"
 	"reflect"
 	"runtime"
@@ -21,7 +15,13 @@ import (
 
 	"go.undefinedlabs.com/scopeagent/instrumentation"
 	scopetesting "go.undefinedlabs.com/scopeagent/instrumentation/testing"
+	"go.undefinedlabs.com/scopeagent/instrumentation/testing/config"
+	"go.undefinedlabs.com/scopeagent/reflection"
+	"go.undefinedlabs.com/scopeagent/runner"
+	"go.undefinedlabs.com/scopeagent/tags"
 
+	goerrors "github.com/go-errors/errors"
+	"github.com/opentracing/opentracing-go/log"
 	chk "gopkg.in/check.v1"
 )
 
@@ -108,7 +108,7 @@ func lTestingT(testingT *testing.T)
 //go:linkname writeLog gopkg.in/check%2ev1.(*C).writeLog
 func writeLog(c *chk.C, buf []byte)
 
-func init() {
+func Init() {
 	var nSRunnerPatch *mpatch.Patch
 	var err error
 	nSRunnerPatch, err = mpatch.PatchMethod(nSRunner, func(suite interface{}, runConf *chk.RunConf) *suiteRunner {

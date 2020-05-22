@@ -10,6 +10,7 @@ import (
 	"go.undefinedlabs.com/scopeagent"
 	"go.undefinedlabs.com/scopeagent/agent"
 	"go.undefinedlabs.com/scopeagent/instrumentation"
+	scopegocheck "go.undefinedlabs.com/scopeagent/instrumentation/gocheck"
 	scopetesting "go.undefinedlabs.com/scopeagent/instrumentation/testing"
 )
 
@@ -39,6 +40,8 @@ func init() {
 			return scopeagent.Run(m, agent.WithGlobalPanicHandler())
 		})
 		logOnError(err)
+
+		scopegocheck.Init()
 	})
 }
 

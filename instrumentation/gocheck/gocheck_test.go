@@ -1,10 +1,14 @@
 package gocheck
 
 import (
+	"os"
 	"testing"
 
-	_ "go.undefinedlabs.com/scopeagent/autoinstrument"
 	. "gopkg.in/check.v1"
+
+	"go.undefinedlabs.com/scopeagent"
+	"go.undefinedlabs.com/scopeagent/agent"
+	scopetesting "go.undefinedlabs.com/scopeagent/instrumentation/testing"
 )
 
 var (
@@ -14,6 +18,13 @@ var (
 	expectedCount = 0
 	errorCount    = 0
 )
+
+func TestMain(m *testing.M) {
+	scopetesting.PatchTestingLogger()
+	defer scopetesting.UnpatchTestingLogger()
+	Init()
+	os.Exit(scopeagent.Run(m, agent.WithGlobalPanicHandler()))
+}
 
 // Hook up gocheck into the "go test" runner.
 func TestM(t *testing.T) {

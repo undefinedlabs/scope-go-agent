@@ -2,16 +2,16 @@ package gocheck
 
 import (
 	"context"
-	"github.com/opentracing/opentracing-go/log"
-	"go.undefinedlabs.com/scopeagent/instrumentation/coverage"
 	"reflect"
 	"testing"
 	"time"
 
 	"github.com/opentracing/opentracing-go"
+	"github.com/opentracing/opentracing-go/log"
 
 	"go.undefinedlabs.com/scopeagent/errors"
 	"go.undefinedlabs.com/scopeagent/instrumentation"
+	"go.undefinedlabs.com/scopeagent/instrumentation/coverage"
 	"go.undefinedlabs.com/scopeagent/instrumentation/logging"
 	"go.undefinedlabs.com/scopeagent/tags"
 
