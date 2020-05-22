@@ -337,25 +337,20 @@ func (w *testLogWriter) Write(p []byte) (n int, err error) {
 			}
 			eventType := tags.LogEvent
 			eventLevel := tags.LogLevel_INFO
-			source := ""
+			_, file, line, _ := getCallerInsideSourceRoot(frame, more, frames)
+			source := fmt.Sprintf("%s:%d", file, line)
 			if strings.HasSuffix(helperName, "Fatal") {
 				eventType = tags.EventTestFailure
 				eventLevel = tags.LogLevel_ERROR
-				_, file, line, _ := getCallerInsideSourceRoot(frame, more, frames)
-				source = fmt.Sprintf("%s:%d", file, line)
+
 			} else if strings.HasSuffix(helperName, "Error") || strings.HasSuffix(helperName, "Errorf") {
 				eventLevel = tags.LogLevel_ERROR
-				_, file, line, _ := getCallerInsideSourceRoot(frame, more, frames)
-				source = fmt.Sprintf("%s:%d", file, line)
-			} else {
-				source = fmt.Sprintf("%s:%d", frame.File, frame.Line)
 			}
 			w.test.span.LogFields(
 				log.String(tags.EventType, eventType),
 				log.String(tags.EventMessage, string(p)),
 				log.String(tags.EventSource, source),
 				log.String(tags.LogEventLevel, eventLevel),
-				log.String("log.internal_level", "Fatal"),
 				log.String("log.logger", "gopkg.in/check.v1"),
 			)
 			return len(p), nil
