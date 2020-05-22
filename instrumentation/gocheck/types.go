@@ -346,13 +346,16 @@ func (w *testLogWriter) Write(p []byte) (n int, err error) {
 			} else if strings.HasSuffix(helperName, "Error") || strings.HasSuffix(helperName, "Errorf") {
 				eventLevel = tags.LogLevel_ERROR
 			}
-			w.test.span.LogFields(
+			fields := []log.Field{
 				log.String(tags.EventType, eventType),
 				log.String(tags.EventMessage, string(p)),
-				log.String(tags.EventSource, source),
 				log.String(tags.LogEventLevel, eventLevel),
 				log.String("log.logger", "gopkg.in/check.v1"),
-			)
+			}
+			if file != "" {
+				fields = append(fields, log.String(tags.EventSource, source))
+			}
+			w.test.span.LogFields(fields...)
 			return len(p), nil
 		}
 		if !more {
@@ -364,10 +367,17 @@ func (w *testLogWriter) Write(p []byte) (n int, err error) {
 
 //go:noinline
 func getCallerInsideSourceRoot(frame runtime.Frame, more bool, frames *runtime.Frames) (pc uintptr, file string, line int, ok bool) {
+	isWindows := runtime.GOOS == "windows"
 	sourceRoot := instrumentation.GetSourceRoot()
+	if isWindows {
+		sourceRoot = strings.ToLower(sourceRoot)
+	}
 	for {
 		file := filepath.Clean(frame.File)
 		dir := filepath.Dir(file)
+		if isWindows {
+			dir = strings.ToLower(dir)
+		}
 		if strings.Index(dir, sourceRoot) != -1 {
 			return frame.PC, file, frame.Line, true
 		}
