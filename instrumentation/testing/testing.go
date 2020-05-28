@@ -16,6 +16,7 @@ import (
 
 	"go.undefinedlabs.com/scopeagent/errors"
 	"go.undefinedlabs.com/scopeagent/instrumentation"
+	"go.undefinedlabs.com/scopeagent/instrumentation/coverage"
 	"go.undefinedlabs.com/scopeagent/instrumentation/logging"
 	"go.undefinedlabs.com/scopeagent/instrumentation/testing/config"
 	"go.undefinedlabs.com/scopeagent/reflection"
@@ -72,7 +73,7 @@ func StartTestFromCaller(t *testing.T, pc uintptr, opts ...Option) *Test {
 		// Extracting the testing func name (by removing any possible sub-test suffix `{test_func}/{sub_test}`)
 		// to search the func source code bounds and to calculate the package name.
 		fullTestName := runner.GetOriginalTestName(t.Name())
-		pName, _ := getPackageAndName(pc)
+		pName, _ := instrumentation.GetPackageAndName(pc)
 
 		testTags := opentracing.Tags{
 			"span.kind":      "test",
@@ -107,7 +108,7 @@ func StartTestFromCaller(t *testing.T, pc uintptr, opts ...Option) *Test {
 		// Extracting the testing func name (by removing any possible sub-test suffix `{test_func}/{sub_test}`)
 		// to search the func source code bounds and to calculate the package name.
 		fullTestName := runner.GetOriginalTestName(t.Name())
-		pName, _, testCode := getPackageAndNameAndBoundaries(pc)
+		pName, _, testCode := instrumentation.GetPackageAndNameAndBoundaries(pc)
 
 		testTags := opentracing.Tags{
 			"span.kind":      "test",
@@ -131,7 +132,7 @@ func StartTestFromCaller(t *testing.T, pc uintptr, opts ...Option) *Test {
 		test.ctx = ctx
 
 		logging.Reset()
-		startCoverage()
+		coverage.StartCoverage()
 
 		return test
 	}
@@ -143,7 +144,7 @@ func (test *Test) SetTestCode(pc uintptr) {
 	if test.span == nil {
 		return
 	}
-	pName, _, fBoundaries := getPackageAndNameAndBoundaries(pc)
+	pName, _, fBoundaries := instrumentation.GetPackageAndNameAndBoundaries(pc)
 	test.span.SetTag("test.suite", pName)
 	if fBoundaries != "" {
 		test.span.SetTag("test.code", fBoundaries)
@@ -181,6 +182,11 @@ func (test *Test) Run(name string, f func(t *testing.T)) bool {
 
 // Ends the current test (this method is called from the auto-instrumentation)
 func (test *Test) end() {
+	// We check if we have a span to work with, if not span is found we exit
+	if test == nil || test.span == nil {
+		return
+	}
+
 	finishTime := time.Now()
 
 	// If we have our own implementation of the span, we can set the exact start time from the test
@@ -206,8 +212,8 @@ func (test *Test) end() {
 		// Checks if the current test is running parallel to extract the coverage or not
 		if reflection.GetIsParallel(test.t) && parallel > 1 {
 			instrumentation.Logger().Printf("CodePath in parallel test is not supported: %v\n", test.t.Name())
-			restoreCoverageCounters()
-		} else if cov := endCoverage(); cov != nil {
+			coverage.RestoreCoverageCounters()
+		} else if cov := coverage.EndCoverage(); cov != nil {
 			test.span.SetTag(tags.Coverage, *cov)
 		}
 	}
@@ -315,7 +321,7 @@ func addAutoInstrumentedTest(t *testing.T) {
 
 // Get if the test is cached
 func isTestCached(t *testing.T, pc uintptr) bool {
-	pkgName, testName := getPackageAndName(pc)
+	pkgName, testName := instrumentation.GetPackageAndName(pc)
 	fqn := fmt.Sprintf("%s.%s", pkgName, testName)
 	cachedMap := config.GetCachedTestsMap()
 	if _, ok := cachedMap[fqn]; ok {

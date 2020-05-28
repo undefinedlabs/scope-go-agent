@@ -111,7 +111,7 @@ func startBenchmark(b *testing.B, pc uintptr, benchFunc func(b *testing.B)) {
 		fullTestName = strings.Join(nameSegments, "/")
 	}
 	packageName := reflection.GetBenchmarkSuiteName(b)
-	pName, _, tCode := getPackageAndNameAndBoundaries(pc)
+	pName, _, tCode := instrumentation.GetPackageAndNameAndBoundaries(pc)
 
 	if packageName == "" {
 		packageName = pName

@@ -1,4 +1,4 @@
-package testing
+package instrumentation
 
 import (
 	"fmt"
@@ -33,9 +33,9 @@ func TestGetTestCodeBoundaries(t *testing.T) {
 	func() { pc, _, _, _ = runtime.Caller(1) }()
 	testName := t.Name()
 
-	pkg, fname, bound := getPackageAndNameAndBoundaries(pc)
+	pkg, fname, bound := GetPackageAndNameAndBoundaries(pc)
 
-	if pkg != "go.undefinedlabs.com/scopeagent/instrumentation/testing" {
+	if pkg != "go.undefinedlabs.com/scopeagent/instrumentation" {
 		t.Fatalf("value '%s' not expected", pkg)
 	}
 	if fname != testName {

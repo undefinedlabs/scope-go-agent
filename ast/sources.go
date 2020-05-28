@@ -1,6 +1,7 @@
 package ast
 
 import (
+	"fmt"
 	"go/ast"
 	"go/parser"
 	"go/token"
@@ -84,9 +85,26 @@ func getCodesForFile(file string) (map[string]*MethodCodeBoundaries, error) {
 					if bPos.IsValid() && bEnd.IsValid() {
 						pos := fSet.PositionFor(bPos, true)
 						end := fSet.PositionFor(bEnd, true)
+						var instTypes []string
+						if fDecl.Recv != nil && fDecl.Recv.List != nil {
+							for _, recv := range fDecl.Recv.List {
+								if recVStarExpr, ok := recv.Type.(*ast.StarExpr); ok {
+									if recVStarExprIdent, ok := recVStarExpr.X.(*ast.Ident); ok {
+										instTypes = append(instTypes, fmt.Sprintf("*%s", recVStarExprIdent.Name))
+									}
+								} else if recVIdent, ok := recv.Type.(*ast.Ident); ok {
+									instTypes = append(instTypes, recVIdent.Name)
+								}
+							}
+						}
+						name := ""
+						if instTypes != nil {
+							name = fmt.Sprintf("(%s).", strings.Join(instTypes, ", "))
+						}
+						name = name + fDecl.Name.String()
 						methodCode := MethodCodeBoundaries{
 							Package: packageName,
-							Name:    fDecl.Name.String(),
+							Name:    name,
 							File:    file,
 							Start: CodePos{
 								Line:   pos.Line,

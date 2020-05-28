@@ -1,4 +1,4 @@
-package testing
+package coverage
 
 import (
 	"bytes"
@@ -80,7 +80,7 @@ func initCoverage() {
 }
 
 // Clean the counters for a new coverage session
-func startCoverage() {
+func StartCoverage() {
 	countersMutex.Lock()
 	defer countersMutex.Unlock()
 	if cover.Mode == "" {
@@ -97,7 +97,7 @@ func startCoverage() {
 }
 
 // Restore counters
-func restoreCoverageCounters() {
+func RestoreCoverageCounters() {
 	countersMutex.Lock()
 	defer countersMutex.Unlock()
 	if cover.Mode == "" {
@@ -111,7 +111,7 @@ func restoreCoverageCounters() {
 }
 
 // Get the counters values and extract the coverage info
-func endCoverage() *coverage {
+func EndCoverage() *coverage {
 	countersMutex.Lock()
 	defer countersMutex.Unlock()
 	if cover.Mode == "" {
