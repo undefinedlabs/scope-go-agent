@@ -2,10 +2,8 @@ package testing
 
 import (
 	"fmt"
-	"path/filepath"
-	"runtime"
-
 	"github.com/opentracing/opentracing-go/log"
+	"path/filepath"
 
 	"go.undefinedlabs.com/scopeagent/errors"
 	"go.undefinedlabs.com/scopeagent/instrumentation"
@@ -17,13 +15,6 @@ import (
 func (test *Test) private() {}
 
 func (test *Test) Error(args ...interface{}) {
-	methodPatch := getMethodPatch("Error")
-	if methodPatch != nil {
-		patchesMutex.Lock()
-		defer patchesMutex.Unlock()
-		methodPatch.Unpatch()
-		defer methodPatch.Patch()
-	}
 	test.t.Helper()
 	if test.span != nil {
 		test.span.LogFields(
@@ -39,13 +30,6 @@ func (test *Test) Error(args ...interface{}) {
 }
 
 func (test *Test) Errorf(format string, args ...interface{}) {
-	methodPatch := getMethodPatch("Errorf")
-	if methodPatch != nil {
-		patchesMutex.Lock()
-		defer patchesMutex.Unlock()
-		methodPatch.Unpatch()
-		defer methodPatch.Patch()
-	}
 	test.t.Helper()
 	if test.span != nil {
 		test.span.LogFields(
@@ -76,13 +60,6 @@ func (test *Test) Failed() bool {
 }
 
 func (test *Test) Fatal(args ...interface{}) {
-	methodPatch := getMethodPatch("Fatal")
-	if methodPatch != nil {
-		patchesMutex.Lock()
-		defer patchesMutex.Unlock()
-		methodPatch.Unpatch()
-		defer methodPatch.Patch()
-	}
 	test.t.Helper()
 	if test.span != nil {
 		test.span.LogFields(
@@ -97,13 +74,6 @@ func (test *Test) Fatal(args ...interface{}) {
 }
 
 func (test *Test) Fatalf(format string, args ...interface{}) {
-	methodPatch := getMethodPatch("Fatalf")
-	if methodPatch != nil {
-		patchesMutex.Lock()
-		defer patchesMutex.Unlock()
-		methodPatch.Unpatch()
-		defer methodPatch.Patch()
-	}
 	test.t.Helper()
 	if test.span != nil {
 		test.span.LogFields(
@@ -118,13 +88,6 @@ func (test *Test) Fatalf(format string, args ...interface{}) {
 }
 
 func (test *Test) Log(args ...interface{}) {
-	methodPatch := getMethodPatch("Log")
-	if methodPatch != nil {
-		patchesMutex.Lock()
-		defer patchesMutex.Unlock()
-		methodPatch.Unpatch()
-		defer methodPatch.Patch()
-	}
 	test.t.Helper()
 	if test.span != nil {
 		test.span.LogFields(
@@ -140,13 +103,6 @@ func (test *Test) Log(args ...interface{}) {
 }
 
 func (test *Test) Logf(format string, args ...interface{}) {
-	methodPatch := getMethodPatch("Logf")
-	if methodPatch != nil {
-		patchesMutex.Lock()
-		defer patchesMutex.Unlock()
-		methodPatch.Unpatch()
-		defer methodPatch.Patch()
-	}
 	test.t.Helper()
 	if test.span != nil {
 		test.span.LogFields(
@@ -166,13 +122,6 @@ func (test *Test) Name() string {
 }
 
 func (test *Test) Skip(args ...interface{}) {
-	methodPatch := getMethodPatch("Skip")
-	if methodPatch != nil {
-		patchesMutex.Lock()
-		defer patchesMutex.Unlock()
-		methodPatch.Unpatch()
-		defer methodPatch.Patch()
-	}
 	test.t.Helper()
 	if test.span != nil {
 		test.span.LogFields(
@@ -192,13 +141,6 @@ func (test *Test) SkipNow() {
 }
 
 func (test *Test) Skipf(format string, args ...interface{}) {
-	methodPatch := getMethodPatch("Skipf")
-	if methodPatch != nil {
-		patchesMutex.Lock()
-		defer patchesMutex.Unlock()
-		methodPatch.Unpatch()
-		defer methodPatch.Patch()
-	}
 	test.t.Helper()
 	if test.span != nil {
 		test.span.LogFields(
@@ -228,19 +170,9 @@ func (test *Test) LogPanic(recoverData interface{}, skipFrames int) {
 
 func getSourceFileAndNumber() string {
 	var source string
-	if pc, file, line, ok := instrumentation.GetCallerInsideSourceRoot(2); ok == true {
-		pcEntry := runtime.FuncForPC(pc).Entry()
-		// Try to detect the patch function
-		if isAPatchPointer(pcEntry) {
-			// The monkey patching version adds 4 frames to the stack.
-			if _, file, line, ok := instrumentation.GetCallerInsideSourceRoot(6); ok == true {
-				source = fmt.Sprintf("%s:%d", file, line)
-			}
-		} else {
-			// If we don't have monkey patching then we skip 2 frames
-			file = filepath.Clean(file)
-			source = fmt.Sprintf("%s:%d", file, line)
-		}
+	if _, file, line, ok := instrumentation.GetCallerInsideSourceRoot(2); ok == true {
+		file = filepath.Clean(file)
+		source = fmt.Sprintf("%s:%d", file, line)
 	}
 	return source
 }
