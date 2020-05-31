@@ -3,6 +3,7 @@ package nethttp
 import (
 	"bytes"
 	"fmt"
+	testing2 "go.undefinedlabs.com/scopeagent/instrumentation/testing"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -20,6 +21,7 @@ func TestMain(m *testing.M) {
 
 	// Test tracer
 	r = tracer.NewInMemoryRecorder()
+	testing2.PatchTestingLogger()
 	os.Exit(scopeagent.Run(m, agent.WithRecorders(r)))
 }
 
