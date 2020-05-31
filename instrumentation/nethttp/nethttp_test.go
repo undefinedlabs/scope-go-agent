@@ -52,6 +52,7 @@ func TestHttpClient(t *testing.T) {
 		"peer.hostname": "www.google.com",
 		"peer.port":     "443",
 	})
+	t.Log("all ok.")
 }
 
 func TestHttpServer(t *testing.T) {
@@ -105,6 +106,7 @@ func TestHttpServer(t *testing.T) {
 		"http.request_payload":  "Hello world request",
 		"http.response_payload": "Hello world",
 	})
+	t.Log("all ok.")
 }
 
 func checkTags(t *testing.T, tags map[string]interface{}, expected map[string]string) {
