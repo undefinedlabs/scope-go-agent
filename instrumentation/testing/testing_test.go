@@ -66,21 +66,16 @@ func BenchmarkLoggerPatcher(b *testing.B) {
 func TestLoggerPatcher(t *testing.T) {
 	tm := time.Now()
 	PatchTestingLogger()
-	//wg := sync.WaitGroup{}
+	wg := sync.WaitGroup{}
 	for i := 0; i < 10000; i++ {
-		//wg.Add(1)
+		wg.Add(1)
 		go func(x int) {
-			//defer wg.Done()
-			//for j:=0; j <100; j++ {
+			defer wg.Done()
 			t.Log(fmt.Sprintf("Hello world %d", x))
-			//t.Logf("Hello world %d", x)
-			//}
 		}(i)
 	}
-	//wg.Wait()
-	<-time.After(200 * time.Millisecond)
+	wg.Wait()
 	UnpatchTestingLogger()
-	<-time.After(200 * time.Millisecond)
 	if time.Since(tm) > 2*time.Second {
 		t.Fatal("Test is too slow")
 	}

@@ -3,7 +3,9 @@ package testing
 import (
 	"fmt"
 	"github.com/opentracing/opentracing-go/log"
+	"go.undefinedlabs.com/scopeagent/reflection"
 	"path/filepath"
+	"runtime"
 
 	"go.undefinedlabs.com/scopeagent/errors"
 	"go.undefinedlabs.com/scopeagent/instrumentation"
@@ -160,6 +162,10 @@ func (test *Test) Skipped() bool {
 
 // Deprecated: use `testing.T.Helper` instead
 func (test *Test) Helper() {
+	pc, _, _, _ := runtime.Caller(1)
+	reflection.AddToHelpersMap(test.t, []string{
+		runtime.FuncForPC(pc).Name(),
+	})
 	test.t.Helper()
 }
 
