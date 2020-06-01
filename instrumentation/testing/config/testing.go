@@ -6,14 +6,21 @@ import (
 	"sync"
 )
 
+type (
+	TestDescription struct {
+		Suite string
+		Name  string
+	}
+)
+
 var (
-	testsToSkip map[string]struct{}
+	testsToSkip map[string]TestDescription
 
 	m sync.Mutex
 )
 
 // Gets the map of cached tests
-func GetCachedTestsMap() map[string]struct{} {
+func GetCachedTestsMap() map[string]TestDescription {
 	m.Lock()
 	defer m.Unlock()
 
@@ -22,14 +29,19 @@ func GetCachedTestsMap() map[string]struct{} {
 	}
 
 	config := instrumentation.GetRemoteConfiguration()
-	testsToSkip = map[string]struct{}{}
+	testsToSkip = map[string]TestDescription{}
 	if config != nil {
 		if iCached, ok := config["cached"]; ok {
 			cachedTests := iCached.([]interface{})
 			for _, item := range cachedTests {
 				testItem := item.(map[string]interface{})
-				testFqn := fmt.Sprintf("%v.%v", testItem["test_suite"], testItem["test_name"])
-				testsToSkip[testFqn] = struct{}{}
+				suite := fmt.Sprint(testItem["test_suite"])
+				name := fmt.Sprint(testItem["test_name"])
+				testFqn := fmt.Sprintf("%s.%s", suite, name)
+				testsToSkip[testFqn] = TestDescription{
+					Suite: suite,
+					Name:  name,
+				}
 			}
 		}
 	}

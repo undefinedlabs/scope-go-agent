@@ -63,31 +63,30 @@ func StartTest(t *testing.T, opts ...Option) *Test {
 func StartTestFromCaller(t *testing.T, pc uintptr, opts ...Option) *Test {
 
 	// check if the test is cached
-	if isTestCached(t, pc) {
-
-		test := &Test{t: t, ctx: context.Background()}
-		for _, opt := range opts {
-			opt(test)
+	if ok, testsDescription := isTestCached(t, pc); ok {
+		ctx := context.Background()
+		tracer := instrumentation.Tracer()
+		for _, desc := range testsDescription {
+			startTime := time.Now()
+			options := []opentracing.StartSpanOption{
+				opentracing.Tags{
+					"span.kind":      "test",
+					"test.name":      desc.Name,
+					"test.suite":     desc.Suite,
+					"test.framework": "testing",
+					"test.language":  "go",
+				},
+				opentracing.StartTime(startTime),
+			}
+			span, _ := opentracing.StartSpanFromContextWithTracer(ctx, tracer, desc.Name, options...)
+			span.SetBaggageItem("trace.kind", "test")
+			span.SetTag("test.status", tags.TestStatus_CACHE)
+			span.FinishWithOptions(opentracing.FinishOptions{
+				FinishTime: startTime,
+			})
 		}
-
-		// Extracting the testing func name (by removing any possible sub-test suffix `{test_func}/{sub_test}`)
-		// to search the func source code bounds and to calculate the package name.
-		fullTestName := runner.GetOriginalTestName(t.Name())
-		pName, _ := instrumentation.GetPackageAndName(pc)
-
-		testTags := opentracing.Tags{
-			"span.kind":      "test",
-			"test.name":      fullTestName,
-			"test.suite":     pName,
-			"test.framework": "testing",
-			"test.language":  "go",
-		}
-		span, _ := opentracing.StartSpanFromContextWithTracer(test.ctx, instrumentation.Tracer(), fullTestName, testTags)
-		span.SetBaggageItem("trace.kind", "test")
-		span.SetTag("test.status", tags.TestStatus_CACHE)
-		span.Finish()
 		t.SkipNow()
-		return test
+		return nil
 
 	} else {
 
@@ -320,16 +319,22 @@ func addAutoInstrumentedTest(t *testing.T) {
 }
 
 // Get if the test is cached
-func isTestCached(t *testing.T, pc uintptr) bool {
-	pkgName, testName := instrumentation.GetPackageAndName(pc)
+func isTestCached(t *testing.T, pc uintptr) (bool, []config.TestDescription) {
+	pkgName, _ := instrumentation.GetPackageAndName(pc)
+	testName := runner.GetOriginalTestName(t.Name())
 	fqn := fmt.Sprintf("%s.%s", pkgName, testName)
 	cachedMap := config.GetCachedTestsMap()
 	if _, ok := cachedMap[fqn]; ok {
 		instrumentation.Logger().Printf("Test '%v' is cached.", fqn)
-		fmt.Print("[SCOPE CACHED] ")
+		var tests []config.TestDescription
+		for _, v := range cachedMap {
+			if v.Suite == pkgName && strings.HasPrefix(v.Name, testName) {
+				tests = append(tests, v)
+			}
+		}
 		reflection.SkipAndFinishTest(t)
-		return true
+		return true, tests
 	}
 	instrumentation.Logger().Printf("Test '%v' is not cached.", fqn)
-	return false
+	return false, nil
 }
