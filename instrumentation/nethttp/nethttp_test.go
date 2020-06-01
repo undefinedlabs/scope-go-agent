@@ -3,7 +3,6 @@ package nethttp
 import (
 	"bytes"
 	"fmt"
-	testing2 "go.undefinedlabs.com/scopeagent/instrumentation/testing"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -11,6 +10,7 @@ import (
 
 	"go.undefinedlabs.com/scopeagent"
 	"go.undefinedlabs.com/scopeagent/agent"
+	testing2 "go.undefinedlabs.com/scopeagent/instrumentation/testing"
 	"go.undefinedlabs.com/scopeagent/tracer"
 )
 
@@ -54,7 +54,6 @@ func TestHttpClient(t *testing.T) {
 		"peer.hostname": "www.google.com",
 		"peer.port":     "443",
 	})
-	t.Log("all ok.")
 }
 
 func TestHttpServer(t *testing.T) {
@@ -108,7 +107,6 @@ func TestHttpServer(t *testing.T) {
 		"http.request_payload":  "Hello world request",
 		"http.response_payload": "Hello world",
 	})
-	t.Log("all ok.")
 }
 
 func checkTags(t *testing.T, tags map[string]interface{}, expected map[string]string) {
@@ -121,6 +119,7 @@ func checkTags(t *testing.T, tags map[string]interface{}, expected map[string]st
 			}
 		}
 	}
+	t.Log("all tags ok.")
 }
 
 func checkTag(tags map[string]interface{}, key string, expectedValue string) (bool, string) {
