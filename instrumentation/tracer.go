@@ -51,7 +51,10 @@ func Logger() *log.Logger {
 func SetSourceRoot(root string) {
 	m.Lock()
 	defer m.Unlock()
-
+	// In windows the debug symbols and source root can be in different cases
+	if runtime.GOOS == "windows" {
+		root = strings.ToLower(root)
+	}
 	sourceRoot = root
 }
 
@@ -78,6 +81,7 @@ func GetRemoteConfiguration() map[string]interface{} {
 
 //go:noinline
 func GetCallerInsideSourceRoot(skip int) (pc uintptr, file string, line int, ok bool) {
+	isWindows := runtime.GOOS == "windows"
 	pcs := make([]uintptr, 64)
 	count := runtime.Callers(skip+2, pcs)
 	pcs = pcs[:count]
@@ -86,6 +90,10 @@ func GetCallerInsideSourceRoot(skip int) (pc uintptr, file string, line int, ok 
 		frame, more := frames.Next()
 		file := filepath.Clean(frame.File)
 		dir := filepath.Dir(file)
+		// In windows the debug symbols and source root can be in different cases
+		if isWindows {
+			dir = strings.ToLower(dir)
+		}
 		if strings.Index(dir, sourceRoot) != -1 {
 			return frame.PC, file, frame.Line, true
 		}
