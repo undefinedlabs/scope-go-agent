@@ -2,13 +2,14 @@ package testing
 
 import (
 	"fmt"
-	"github.com/opentracing/opentracing-go/log"
-	"go.undefinedlabs.com/scopeagent/reflection"
 	"path/filepath"
 	"runtime"
 
+	"github.com/opentracing/opentracing-go/log"
+
 	"go.undefinedlabs.com/scopeagent/errors"
 	"go.undefinedlabs.com/scopeagent/instrumentation"
+	"go.undefinedlabs.com/scopeagent/reflection"
 	"go.undefinedlabs.com/scopeagent/tags"
 )
 
@@ -22,7 +23,7 @@ func (test *Test) Error(args ...interface{}) {
 		test.span.LogFields(
 			log.String(tags.EventType, tags.LogEvent),
 			log.String(tags.EventMessage, fmt.Sprint(args...)),
-			log.String(tags.EventSource, getSourceFileAndNumber()),
+			log.String(tags.EventSource, getSourceFileAndNumber(1)),
 			log.String(tags.LogEventLevel, tags.LogLevel_ERROR),
 			log.String("log.internal_level", "Error"),
 			log.String("log.logger", "testing"),
@@ -37,7 +38,7 @@ func (test *Test) Errorf(format string, args ...interface{}) {
 		test.span.LogFields(
 			log.String(tags.EventType, tags.LogEvent),
 			log.String(tags.EventMessage, fmt.Sprintf(format, args...)),
-			log.String(tags.EventSource, getSourceFileAndNumber()),
+			log.String(tags.EventSource, getSourceFileAndNumber(1)),
 			log.String(tags.LogEventLevel, tags.LogLevel_ERROR),
 			log.String("log.internal_level", "Error"),
 			log.String("log.logger", "testing"),
@@ -67,7 +68,7 @@ func (test *Test) Fatal(args ...interface{}) {
 		test.span.LogFields(
 			log.String(tags.EventType, tags.EventTestFailure),
 			log.String(tags.EventMessage, fmt.Sprint(args...)),
-			log.String(tags.EventSource, getSourceFileAndNumber()),
+			log.String(tags.EventSource, getSourceFileAndNumber(1)),
 			log.String("log.internal_level", "Fatal"),
 			log.String("log.logger", "testing"),
 		)
@@ -81,7 +82,7 @@ func (test *Test) Fatalf(format string, args ...interface{}) {
 		test.span.LogFields(
 			log.String(tags.EventType, tags.EventTestFailure),
 			log.String(tags.EventMessage, fmt.Sprintf(format, args...)),
-			log.String(tags.EventSource, getSourceFileAndNumber()),
+			log.String(tags.EventSource, getSourceFileAndNumber(1)),
 			log.String("log.internal_level", "Fatal"),
 			log.String("log.logger", "testing"),
 		)
@@ -95,7 +96,7 @@ func (test *Test) Log(args ...interface{}) {
 		test.span.LogFields(
 			log.String(tags.EventType, tags.LogEvent),
 			log.String(tags.EventMessage, fmt.Sprint(args...)),
-			log.String(tags.EventSource, getSourceFileAndNumber()),
+			log.String(tags.EventSource, getSourceFileAndNumber(1)),
 			log.String(tags.LogEventLevel, tags.LogLevel_INFO),
 			log.String("log.internal_level", "Log"),
 			log.String("log.logger", "testing"),
@@ -110,7 +111,7 @@ func (test *Test) Logf(format string, args ...interface{}) {
 		test.span.LogFields(
 			log.String(tags.EventType, tags.LogEvent),
 			log.String(tags.EventMessage, fmt.Sprintf(format, args...)),
-			log.String(tags.EventSource, getSourceFileAndNumber()),
+			log.String(tags.EventSource, getSourceFileAndNumber(1)),
 			log.String(tags.LogEventLevel, tags.LogLevel_INFO),
 			log.String("log.internal_level", "Log"),
 			log.String("log.logger", "testing"),
@@ -129,7 +130,7 @@ func (test *Test) Skip(args ...interface{}) {
 		test.span.LogFields(
 			log.String(tags.EventType, tags.EventTestSkip),
 			log.String(tags.EventMessage, fmt.Sprint(args...)),
-			log.String(tags.EventSource, getSourceFileAndNumber()),
+			log.String(tags.EventSource, getSourceFileAndNumber(1)),
 			log.String("log.internal_level", "Skip"),
 			log.String("log.logger", "testing"),
 		)
@@ -148,7 +149,7 @@ func (test *Test) Skipf(format string, args ...interface{}) {
 		test.span.LogFields(
 			log.String(tags.EventType, tags.EventTestSkip),
 			log.String(tags.EventMessage, fmt.Sprintf(format, args...)),
-			log.String(tags.EventSource, getSourceFileAndNumber()),
+			log.String(tags.EventSource, getSourceFileAndNumber(1)),
 			log.String("log.internal_level", "Skip"),
 			log.String("log.logger", "testing"),
 		)
@@ -174,9 +175,9 @@ func (test *Test) LogPanic(recoverData interface{}, skipFrames int) {
 	errors.LogPanic(test.ctx, recoverData, skipFrames+1)
 }
 
-func getSourceFileAndNumber() string {
+func getSourceFileAndNumber(skip int) string {
 	var source string
-	if _, file, line, ok := instrumentation.GetCallerInsideSourceRoot(2); ok == true {
+	if _, file, line, ok := instrumentation.GetCallerInsideSourceRoot(1 + skip); ok == true {
 		file = filepath.Clean(file)
 		source = fmt.Sprintf("%s:%d", file, line)
 	}

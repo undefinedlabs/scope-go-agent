@@ -102,7 +102,7 @@ func patchError() {
 			test.span.LogFields(
 				log.String(tags.EventType, tags.LogEvent),
 				log.String(tags.EventMessage, s),
-				log.String(tags.EventSource, getSourceFileAndNumber()),
+				log.String(tags.EventSource, getSourceFileAndNumber(2)),
 				log.String(tags.LogEventLevel, tags.LogLevel_ERROR),
 				log.String("log.internal_level", "Error"),
 				log.String("log.logger", "testing"),
@@ -121,7 +121,7 @@ func patchErrorf() {
 			test.span.LogFields(
 				log.String(tags.EventType, tags.LogEvent),
 				log.String(tags.EventMessage, s),
-				log.String(tags.EventSource, getSourceFileAndNumber()),
+				log.String(tags.EventSource, getSourceFileAndNumber(2)),
 				log.String(tags.LogEventLevel, tags.LogLevel_ERROR),
 				log.String("log.internal_level", "Error"),
 				log.String("log.logger", "testing"),
@@ -140,7 +140,7 @@ func patchFatal() {
 			test.span.LogFields(
 				log.String(tags.EventType, tags.EventTestFailure),
 				log.String(tags.EventMessage, s),
-				log.String(tags.EventSource, getSourceFileAndNumber()),
+				log.String(tags.EventSource, getSourceFileAndNumber(2)),
 				log.String("log.internal_level", "Fatal"),
 				log.String("log.logger", "testing"),
 			)
@@ -158,7 +158,7 @@ func patchFatalf() {
 			test.span.LogFields(
 				log.String(tags.EventType, tags.EventTestFailure),
 				log.String(tags.EventMessage, s),
-				log.String(tags.EventSource, getSourceFileAndNumber()),
+				log.String(tags.EventSource, getSourceFileAndNumber(2)),
 				log.String("log.internal_level", "Fatal"),
 				log.String("log.logger", "testing"),
 			)
@@ -176,7 +176,7 @@ func patchLog() {
 			test.span.LogFields(
 				log.String(tags.EventType, tags.LogEvent),
 				log.String(tags.EventMessage, s),
-				log.String(tags.EventSource, getSourceFileAndNumber()),
+				log.String(tags.EventSource, getSourceFileAndNumber(2)),
 				log.String(tags.LogEventLevel, tags.LogLevel_INFO),
 				log.String("log.internal_level", "Log"),
 				log.String("log.logger", "testing"),
@@ -194,7 +194,7 @@ func patchLogf() {
 			test.span.LogFields(
 				log.String(tags.EventType, tags.LogEvent),
 				log.String(tags.EventMessage, s),
-				log.String(tags.EventSource, getSourceFileAndNumber()),
+				log.String(tags.EventSource, getSourceFileAndNumber(2)),
 				log.String(tags.LogEventLevel, tags.LogLevel_INFO),
 				log.String("log.internal_level", "Log"),
 				log.String("log.logger", "testing"),
@@ -212,7 +212,7 @@ func patchSkip() {
 			test.span.LogFields(
 				log.String(tags.EventType, tags.EventTestSkip),
 				log.String(tags.EventMessage, s),
-				log.String(tags.EventSource, getSourceFileAndNumber()),
+				log.String(tags.EventSource, getSourceFileAndNumber(2)),
 				log.String("log.internal_level", "Skip"),
 				log.String("log.logger", "testing"),
 			)
@@ -230,7 +230,7 @@ func patchSkipf() {
 			test.span.LogFields(
 				log.String(tags.EventType, tags.EventTestSkip),
 				log.String(tags.EventMessage, s),
-				log.String(tags.EventSource, getSourceFileAndNumber()),
+				log.String(tags.EventSource, getSourceFileAndNumber(2)),
 				log.String("log.internal_level", "Skip"),
 				log.String("log.logger", "testing"),
 			)
