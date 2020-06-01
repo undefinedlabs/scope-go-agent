@@ -2,6 +2,7 @@ package gocheck
 
 import (
 	"context"
+	"math"
 	"reflect"
 	"testing"
 	"time"
@@ -161,4 +162,87 @@ func (test *Test) end(c *chk.C) {
 	}
 
 	test.span.FinishWithOptions(finishOptions)
+}
+
+// write the benchmark result
+func writeBenchmarkResult(method *methodType, c *chk.C, tm timer) {
+	t := method.Info.Type.In(0)
+	if t.Kind() == reflect.Ptr {
+		t = t.Elem()
+	}
+	pName := t.Name()
+
+	opts := []opentracing.StartSpanOption{
+		opentracing.Tags{
+			"span.kind":      "test",
+			"test.name":      method.Info.Name,
+			"test.suite":     pName,
+			"test.framework": "gopkg.in/check.v1",
+			"test.language":  "go",
+			"test.type":      "benchmark",
+		},
+		opentracing.StartTime(tm.start),
+	}
+
+	span, _ := opentracing.StartSpanFromContextWithTracer(context.Background(), instrumentation.Tracer(), method.Info.Name, opts...)
+	span.SetBaggageItem("trace.kind", "test")
+	avg := math.Round((float64(tm.duration.Nanoseconds())/float64(c.N))*100) / 100
+	meanAllocsPerOp := math.Round((float64(tm.netAllocs)/float64(c.N))*100) / 100
+	meanAllocedBytesPerOp := math.Round((float64(tm.netBytes)/float64(c.N))*100) / 100
+
+	span.SetTag("benchmark.runs", c.N)
+	span.SetTag("benchmark.duration.mean", avg)
+	span.SetTag("benchmark.memory.mean_allocations", meanAllocsPerOp)
+	span.SetTag("benchmark.memory.mean_bytes_allocations", meanAllocedBytesPerOp)
+
+	reason := getTestReason(c)
+	status := getTestStatus(c)
+	switch status {
+	case testSucceeded:
+		if !getTestMustFail(c) {
+			span.SetTag("test.status", tags.TestStatus_PASS)
+			reason = ""
+		} else {
+			span.SetTag("test.status", tags.TestStatus_FAIL)
+			span.SetTag("error", true)
+		}
+	case testFailed:
+		if getTestMustFail(c) {
+			span.SetTag("test.status", tags.TestStatus_PASS)
+			reason = ""
+		} else {
+			span.SetTag("test.status", tags.TestStatus_FAIL)
+			span.SetTag("error", true)
+			if reason == "" {
+				reason = "Test failed"
+			}
+		}
+	case testSkipped:
+		span.SetTag("test.status", tags.TestStatus_SKIP)
+	case testPanicked, testFixturePanicked:
+		span.SetTag("test.status", tags.TestStatus_FAIL)
+		span.SetTag("error", true)
+	case testMissed:
+		span.SetTag("test.status", tags.TestStatus_SKIP)
+	default:
+		span.SetTag("test.status", status)
+		span.SetTag("error", true)
+	}
+
+	if reason != "" {
+		eventType := tags.EventTestFailure
+		if status == testSkipped {
+			eventType = tags.EventTestSkip
+		}
+		span.LogFields(
+			log.String(tags.EventType, eventType),
+			log.String(tags.EventMessage, reason),
+			log.String("log.internal_level", "Fatal"),
+			log.String("log.logger", "testing"),
+		)
+	}
+
+	span.FinishWithOptions(opentracing.FinishOptions{
+		FinishTime: tm.start.Add(tm.duration),
+	})
 }

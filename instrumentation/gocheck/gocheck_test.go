@@ -73,3 +73,8 @@ func (s *MySuite) TestError(c *C) {
 		c.Error("This is an error")
 	}
 }
+func (s *MySuite) BenchmarkLogic(c *C) {
+	for i := 0; i < c.N; i++ {
+		c.Assert("asd", Equals, "asd")
+	}
+}

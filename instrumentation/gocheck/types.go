@@ -70,6 +70,21 @@ type (
 		benchMem                  bool
 	}
 
+	timer struct {
+		start     time.Time // Time test or benchmark started
+		duration  time.Duration
+		N         int
+		bytes     int64
+		timerOn   bool
+		benchTime time.Duration
+		// The initial states of memStats.Mallocs and memStats.TotalAlloc.
+		startAllocs uint64
+		startBytes  uint64
+		// The net total of this test after being run.
+		netAllocs uint64
+		netBytes  uint64
+	}
+
 	testStatus uint32
 
 	testData struct {
@@ -109,6 +124,12 @@ func lTestingT(testingT *testing.T)
 //go:linkname writeLog gopkg.in/check%2ev1.(*C).writeLog
 func writeLog(c *chk.C, buf []byte)
 
+///go:linkname lrunTest gopkg.in/check%2ev1.(*suiteRunner).runTest
+//func lrunTest(runner *suiteRunner, method *methodType) *chk.C
+
+//go:linkname lreportCallDone gopkg.in/check%2ev1.(*suiteRunner).reportCallDone
+func lreportCallDone(runner *suiteRunner, c *chk.C)
+
 func Init() {
 	var nSRunnerPatch *mpatch.Patch
 	var err error
@@ -124,35 +145,38 @@ func Init() {
 			item := r.tests[idx]
 			tData := &testData{options: runnerOptions, writer: tWriter}
 
-			instTest := func(c *chk.C) {
-				if isTestCached(c) {
-					writeCachedResult(item)
-					return
-				}
-				tData.c = c
-				testMapMutex.Lock()
-				testMap[c] = tData
-				setLogWriter(c, &tData.writer)
-				testMapMutex.Unlock()
-				defer func() {
+			if !strings.HasPrefix(item.Info.Name, "Benchmark") {
+				instTest := func(c *chk.C) {
+					if isTestCached(c) {
+						writeCachedResult(item)
+						return
+					}
+					tData.c = c
 					testMapMutex.Lock()
-					delete(testMap, c)
+					testMap[c] = tData
+					setLogWriter(c, &tData.writer)
 					testMapMutex.Unlock()
-				}()
+					defer func() {
+						testMapMutex.Lock()
+						delete(testMap, c)
+						testMapMutex.Unlock()
+					}()
 
-				test := startTest(item, c)
-				tData.test = test
-				tData.writer.(*testLogWriter).test = test
-				defer test.end(c)
-				item.Call([]reflect.Value{reflect.ValueOf(c)})
+					test := startTest(item, c)
+					tData.test = test
+					tData.writer.(*testLogWriter).test = test
+					defer test.end(c)
+					item.Call([]reflect.Value{reflect.ValueOf(c)})
+				}
+				tData.fn = instTest
+
+				if runnerOptions != nil {
+					instTest = getRunnerTestFunc(tData)
+				}
+
+				r.tests[idx] = &methodType{reflect.ValueOf(instTest), item.Info}
 			}
-			tData.fn = instTest
 
-			if runnerOptions != nil {
-				instTest = getRunnerTestFunc(tData)
-			}
-
-			r.tests[idx] = &methodType{reflect.ValueOf(instTest), item.Info}
 		}
 		return r
 	})
@@ -171,6 +195,26 @@ func Init() {
 
 		// We call the original go-check TestingT func
 		lTestingT(testingT)
+	})
+	logOnError(err)
+
+	var lreportCallDonePatch *mpatch.Patch
+	lreportCallDonePatch, err = mpatch.PatchMethod(lreportCallDone, func(runner *suiteRunner, c *chk.C) {
+		lreportCallDonePatch.Unpatch()
+		defer lreportCallDonePatch.Patch()
+
+		if ptrMethod, err := reflection.GetFieldPointerOf(c, "method"); err == nil {
+			method := *(**methodType)(ptrMethod)
+
+			if strings.HasPrefix(method.Info.Name, "Benchmark") {
+				if ptr, err := reflection.GetFieldPointerOf(c, "timer"); err == nil {
+					tm := *(*timer)(ptr)
+					writeBenchmarkResult(method, c, tm)
+				}
+			}
+		}
+
+		lreportCallDone(runner, c)
 	})
 	logOnError(err)
 }
