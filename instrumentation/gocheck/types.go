@@ -124,9 +124,6 @@ func lTestingT(testingT *testing.T)
 //go:linkname writeLog gopkg.in/check%2ev1.(*C).writeLog
 func writeLog(c *chk.C, buf []byte)
 
-///go:linkname lrunTest gopkg.in/check%2ev1.(*suiteRunner).runTest
-//func lrunTest(runner *suiteRunner, method *methodType) *chk.C
-
 //go:linkname lreportCallDone gopkg.in/check%2ev1.(*suiteRunner).reportCallDone
 func lreportCallDone(runner *suiteRunner, c *chk.C)
 
