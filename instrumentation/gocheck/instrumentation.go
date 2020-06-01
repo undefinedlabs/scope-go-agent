@@ -166,22 +166,29 @@ func (test *Test) end(c *chk.C) {
 
 // write the benchmark result
 func writeBenchmarkResult(method *methodType, c *chk.C, tm timer) {
+	_, _, testCode := instrumentation.GetPackageAndNameAndBoundaries(method.Info.Func.Pointer())
+
 	t := method.Info.Type.In(0)
 	if t.Kind() == reflect.Ptr {
 		t = t.Elem()
 	}
 	pName := t.Name()
 
+	testTags := opentracing.Tags{
+		"span.kind":      "test",
+		"test.name":      method.Info.Name,
+		"test.suite":     pName,
+		"test.framework": "gopkg.in/check.v1",
+		"test.language":  "go",
+		"test.type":      "benchmark",
+	}
 	opts := []opentracing.StartSpanOption{
-		opentracing.Tags{
-			"span.kind":      "test",
-			"test.name":      method.Info.Name,
-			"test.suite":     pName,
-			"test.framework": "gopkg.in/check.v1",
-			"test.language":  "go",
-			"test.type":      "benchmark",
-		},
+		testTags,
 		opentracing.StartTime(tm.start),
+	}
+
+	if testCode != "" {
+		testTags["test.code"] = testCode
 	}
 
 	span, _ := opentracing.StartSpanFromContextWithTracer(context.Background(), instrumentation.Tracer(), method.Info.Name, opts...)

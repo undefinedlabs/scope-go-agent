@@ -37,6 +37,7 @@ jobs:
 
       - name: Go check benchmark
         run: go test ./instrumentation/gocheck -gocheck.b -v
+        if: matrix.os == 'ubuntu-latest'
         env:
           SCOPE_DSN: ${{ secrets.SCOPE_DSN }}
           SCOPE_LOGGER_ROOT: /home/runner/.scope-results
