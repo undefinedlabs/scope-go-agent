@@ -36,7 +36,7 @@ jobs:
           SCOPE_TESTING_PANIC_AS_FAIL: true
 
       - name: Go check benchmark
-        run: go test -gocheck.b
+        run: go test ./instrumentation/gocheck -gocheck.b -v
         env:
           SCOPE_DSN: ${{ secrets.SCOPE_DSN }}
           SCOPE_LOGGER_ROOT: /home/runner/.scope-results
