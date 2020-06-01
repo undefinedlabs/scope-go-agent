@@ -140,40 +140,41 @@ func Init() {
 		r := nSRunner(suite, runConf)
 		for idx := range r.tests {
 			item := r.tests[idx]
-			tData := &testData{options: runnerOptions, writer: tWriter}
 
-			if !strings.HasPrefix(item.Info.Name, "Benchmark") {
-				instTest := func(c *chk.C) {
-					if isTestCached(c) {
-						writeCachedResult(item)
-						return
-					}
-					tData.c = c
-					testMapMutex.Lock()
-					testMap[c] = tData
-					setLogWriter(c, &tData.writer)
-					testMapMutex.Unlock()
-					defer func() {
-						testMapMutex.Lock()
-						delete(testMap, c)
-						testMapMutex.Unlock()
-					}()
-
-					test := startTest(item, c)
-					tData.test = test
-					tData.writer.(*testLogWriter).test = test
-					defer test.end(c)
-					item.Call([]reflect.Value{reflect.ValueOf(c)})
-				}
-				tData.fn = instTest
-
-				if runnerOptions != nil {
-					instTest = getRunnerTestFunc(tData)
-				}
-
-				r.tests[idx] = &methodType{reflect.ValueOf(instTest), item.Info}
+			if strings.HasPrefix(item.Info.Name, "Benchmark") {
+				continue
 			}
 
+			tData := &testData{options: runnerOptions, writer: tWriter}
+			instTest := func(c *chk.C) {
+				if isTestCached(c) {
+					writeCachedResult(item)
+					return
+				}
+				tData.c = c
+				testMapMutex.Lock()
+				testMap[c] = tData
+				setLogWriter(c, &tData.writer)
+				testMapMutex.Unlock()
+				defer func() {
+					testMapMutex.Lock()
+					delete(testMap, c)
+					testMapMutex.Unlock()
+				}()
+
+				test := startTest(item, c)
+				tData.test = test
+				tData.writer.(*testLogWriter).test = test
+				defer test.end(c)
+				item.Call([]reflect.Value{reflect.ValueOf(c)})
+			}
+			tData.fn = instTest
+
+			if runnerOptions != nil {
+				instTest = getRunnerTestFunc(tData)
+			}
+
+			r.tests[idx] = &methodType{reflect.ValueOf(instTest), item.Info}
 		}
 		return r
 	})
