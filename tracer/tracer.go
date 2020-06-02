@@ -200,7 +200,7 @@ ReferencesLoop:
 	if sp.raw.Context.TraceID.String() == emptyUUID {
 		// No parent Span found; allocate new trace and span ids and determine
 		// the Sampled status.
-		sp.raw.Context.TraceID = getRandomUUID()
+		sp.raw.Context.TraceID = uuid.New()
 		sp.raw.Context.SpanID = getRandomId()
 		sp.raw.Context.Sampled = t.options.ShouldSample(sp.raw.Context.TraceID)
 	}

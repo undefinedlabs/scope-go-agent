@@ -25,12 +25,6 @@ func getRandomId() uint64 {
 	return random.Uint64()
 }
 
-func getRandomUUID() uuid.UUID {
-	mu.Lock()
-	defer mu.Unlock()
-	return uuid.New()
-}
-
 func ensureRandom() {
 	if random == nil {
 		random = rand.New(&safeSource{
