@@ -1,6 +1,7 @@
 package autoinstrument
 
 import (
+	"go.undefinedlabs.com/scopeagent/env"
 	"reflect"
 	"sync"
 	"testing"
@@ -35,8 +36,10 @@ func init() {
 			defer func() {
 				logOnError(runPatch.Patch())
 			}()
-			scopetesting.PatchTestingLogger()
-			defer scopetesting.UnpatchTestingLogger()
+			if env.ScopeInstrumentationTestingLogger.Value {
+				scopetesting.PatchTestingLogger()
+				defer scopetesting.UnpatchTestingLogger()
+			}
 			return scopeagent.Run(m, agent.WithGlobalPanicHandler())
 		})
 		logOnError(err)
