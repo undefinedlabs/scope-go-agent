@@ -5,7 +5,7 @@ go 1.13
 require (
 	github.com/beevik/ntp v0.3.0
 	github.com/davecgh/go-spew v1.1.1
-	github.com/go-errors/errors v1.0.2
+	github.com/go-errors/errors v1.1.0
 	github.com/gogo/protobuf v1.3.1
 	github.com/golang/protobuf v1.4.2 // indirect
 	github.com/google/uuid v1.1.1
@@ -15,12 +15,13 @@ require (
 	github.com/opentracing/opentracing-go v1.1.0
 	github.com/sirupsen/logrus v1.6.0
 	github.com/stretchr/testify v1.5.1
-	github.com/undefinedlabs/go-mpatch v1.0.3
+	github.com/undefinedlabs/go-mpatch v1.0.4-pre.1
 	github.com/vmihailenco/msgpack v4.0.4+incompatible
-	golang.org/x/net v0.0.0-20200520004742-59133d7f0dd7
-	golang.org/x/sys v0.0.0-20200519105757-fe76b779f299 // indirect
+	golang.org/x/net v0.0.0-20200602114024-627f9648deb9
+	golang.org/x/sys v0.0.0-20200602100848-8d3cce7afc34 // indirect
 	google.golang.org/appengine v1.6.6 // indirect
 	google.golang.org/grpc v1.29.1
+	google.golang.org/protobuf v1.24.0 // indirect
 	gopkg.in/check.v1 v1.0.0-20200227125254-8fa46927fb4f
 	gopkg.in/tomb.v2 v2.0.0-20161208151619-d5d1b5820637
 )
