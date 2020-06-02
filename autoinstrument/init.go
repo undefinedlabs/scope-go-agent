@@ -9,6 +9,7 @@ import (
 
 	"go.undefinedlabs.com/scopeagent"
 	"go.undefinedlabs.com/scopeagent/agent"
+	"go.undefinedlabs.com/scopeagent/env"
 	"go.undefinedlabs.com/scopeagent/instrumentation"
 	scopegocheck "go.undefinedlabs.com/scopeagent/instrumentation/gocheck"
 	scopetesting "go.undefinedlabs.com/scopeagent/instrumentation/testing"
@@ -35,8 +36,10 @@ func init() {
 			defer func() {
 				logOnError(runPatch.Patch())
 			}()
-			scopetesting.PatchTestingLogger()
-			defer scopetesting.UnpatchTestingLogger()
+			if env.ScopeInstrumentationTestingLogger.Value {
+				scopetesting.PatchTestingLogger()
+				defer scopetesting.UnpatchTestingLogger()
+			}
 			return scopeagent.Run(m, agent.WithGlobalPanicHandler())
 		})
 		logOnError(err)
