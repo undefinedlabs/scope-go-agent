@@ -1,7 +1,6 @@
 package autoinstrument
 
 import (
-	"go.undefinedlabs.com/scopeagent/env"
 	"reflect"
 	"sync"
 	"testing"
@@ -10,6 +9,7 @@ import (
 
 	"go.undefinedlabs.com/scopeagent"
 	"go.undefinedlabs.com/scopeagent/agent"
+	"go.undefinedlabs.com/scopeagent/env"
 	"go.undefinedlabs.com/scopeagent/instrumentation"
 	scopegocheck "go.undefinedlabs.com/scopeagent/instrumentation/gocheck"
 	scopetesting "go.undefinedlabs.com/scopeagent/instrumentation/testing"
