@@ -1,32 +1,57 @@
 package testing
 
 import (
-	"reflect"
+	"fmt"
 	"sync"
 	"testing"
-	"unsafe"
+	_ "unsafe"
 
+	"github.com/opentracing/opentracing-go/log"
 	"github.com/undefinedlabs/go-mpatch"
 
 	"go.undefinedlabs.com/scopeagent/instrumentation"
-	"go.undefinedlabs.com/scopeagent/reflection"
+	"go.undefinedlabs.com/scopeagent/tags"
 )
 
 var (
-	commonPtr          reflect.Type // *testing.common type
-	patchLock          sync.Mutex
-	patchesMutex       sync.RWMutex
-	patches            = map[string]*mpatch.Patch{} // patches
-	patchPointersMutex sync.RWMutex
-	patchPointers      = map[uintptr]bool{} // pointers of patch funcs
+	patchLock sync.Mutex
+
+	errorPatch  *mpatch.Patch
+	errorfPatch *mpatch.Patch
+	fatalPatch  *mpatch.Patch
+	fatalfPatch *mpatch.Patch
+	logPatch    *mpatch.Patch
+	logfPatch   *mpatch.Patch
+	skipPatch   *mpatch.Patch
+	skipfPatch  *mpatch.Patch
 )
 
-func init() {
-	// We get the *testing.common type to use in the patch method
-	if cPtr, err := reflection.GetTypePointer(testing.T{}, "common"); err == nil {
-		commonPtr = cPtr
-	}
-}
+//go:linkname llog testing.(*common).log
+func llog(t *testing.T, s string)
+
+//go:linkname lError testing.(*common).Error
+func lError(t *testing.T, args ...interface{})
+
+//go:linkname lErrorf testing.(*common).Errorf
+func lErrorf(t *testing.T, format string, args ...interface{})
+
+//go:linkname lFatal testing.(*common).Fatal
+func lFatal(t *testing.T, args ...interface{})
+
+//go:linkname lFatalf testing.(*common).Fatalf
+func lFatalf(t *testing.T, format string, args ...interface{})
+
+//go:linkname lLog testing.(*common).Log
+func lLog(t *testing.T, args ...interface{})
+
+//go:linkname lLogf testing.(*common).Logf
+func lLogf(t *testing.T, format string, args ...interface{})
+
+//go:linkname lSkip testing.(*common).Skip
+func lSkip(t *testing.T, args ...interface{})
+
+//go:linkname lSkipf testing.(*common).Skipf
+func lSkipf(t *testing.T, format string, args ...interface{})
 
 func PatchTestingLogger() {
 	patchError()
@@ -42,151 +67,217 @@ func PatchTestingLogger() {
 func UnpatchTestingLogger() {
 	patchLock.Lock()
 	defer patchLock.Unlock()
-	patchPointersMutex.Lock()
-	defer patchPointersMutex.Unlock()
-	for _, patch := range patches {
-		logOnError(patch.Unpatch())
+
+	if errorPatch != nil {
+		logOnError(errorPatch.Unpatch())
 	}
-	patches = map[string]*mpatch.Patch{}
-	patchPointers = map[uintptr]bool{}
+	if errorfPatch != nil {
+		logOnError(errorfPatch.Unpatch())
+	}
+	if fatalPatch != nil {
+		logOnError(fatalPatch.Unpatch())
+	}
+	if fatalfPatch != nil {
+		logOnError(fatalfPatch.Unpatch())
+	}
+	if logPatch != nil {
+		logOnError(logPatch.Unpatch())
+	}
+	if logfPatch != nil {
+		logOnError(logfPatch.Unpatch())
+	}
+	if skipPatch != nil {
+		logOnError(skipPatch.Unpatch())
+	}
+	if skipfPatch != nil {
+		logOnError(skipfPatch.Unpatch())
+	}
 }
 
 func patchError() {
-	patch("Error", func(test *Test, args []interface{}) {
+	patchWithArgs(&errorPatch, lError, func(test *Test, args ...interface{}) {
 		test.t.Helper()
-		test.Error(args...)
+		s := fmt.Sprintln(args...)
+		if test.span != nil {
+			test.span.LogFields(
+				log.String(tags.EventType, tags.LogEvent),
+				log.String(tags.EventMessage, s),
+				log.String(tags.EventSource, getSourceFileAndNumber(2)),
+				log.String(tags.LogEventLevel, tags.LogLevel_ERROR),
+				log.String("log.internal_level", "Error"),
+				log.String("log.logger", "testing"),
+			)
+		}
+		llog(test.t, s)
+		test.t.Fail()
 	})
 }
 
 func patchErrorf() {
-	patch("Errorf", func(test *Test, args []interface{}) {
+	patchWithFormatAndArgs(&errorfPatch, lErrorf, func(test *Test, format string, args ...interface{}) {
 		test.t.Helper()
-		format := args[0].(string)
-		test.Errorf(format, args[1:]...)
+		s := fmt.Sprintf(format, args...)
+		if test.span != nil {
+			test.span.LogFields(
+				log.String(tags.EventType, tags.LogEvent),
+				log.String(tags.EventMessage, s),
+				log.String(tags.EventSource, getSourceFileAndNumber(2)),
+				log.String(tags.LogEventLevel, tags.LogLevel_ERROR),
+				log.String("log.internal_level", "Error"),
+				log.String("log.logger", "testing"),
+			)
+		}
+		llog(test.t, s)
+		test.t.Fail()
 	})
 }
 
 func patchFatal() {
-	patch("Fatal", func(test *Test, args []interface{}) {
+	patchWithArgs(&fatalPatch, lFatal, func(test *Test, args ...interface{}) {
 		test.t.Helper()
-		test.Fatal(args...)
+		s := fmt.Sprintln(args...)
+		if test.span != nil {
+			test.span.LogFields(
+				log.String(tags.EventType, tags.EventTestFailure),
+				log.String(tags.EventMessage, s),
+				log.String(tags.EventSource, getSourceFileAndNumber(2)),
+				log.String("log.internal_level", "Fatal"),
+				log.String("log.logger", "testing"),
+			)
+		}
+		llog(test.t, s)
+		test.t.FailNow()
 	})
 }
 
 func patchFatalf() {
-	patch("Fatalf", func(test *Test, args []interface{}) {
+	patchWithFormatAndArgs(&fatalfPatch, lFatalf, func(test *Test, format string, args ...interface{}) {
 		test.t.Helper()
-		format := args[0].(string)
-		test.Fatalf(format, args[1:]...)
+		s := fmt.Sprintf(format, args...)
+		if test.span != nil {
+			test.span.LogFields(
+				log.String(tags.EventType, tags.EventTestFailure),
+				log.String(tags.EventMessage, s),
+				log.String(tags.EventSource, getSourceFileAndNumber(2)),
+				log.String("log.internal_level", "Fatal"),
+				log.String("log.logger", "testing"),
+			)
+		}
+		llog(test.t, s)
+		test.t.FailNow()
 	})
 }
 
 func patchLog() {
-	patch("Log", func(test *Test, args []interface{}) {
+	patchWithArgs(&logPatch, lLog, func(test *Test, args ...interface{}) {
 		test.t.Helper()
-		test.Log(args...)
+		s := fmt.Sprintln(args...)
+		if test.span != nil {
+			test.span.LogFields(
+				log.String(tags.EventType, tags.LogEvent),
+				log.String(tags.EventMessage, s),
+				log.String(tags.EventSource, getSourceFileAndNumber(2)),
+				log.String(tags.LogEventLevel, tags.LogLevel_INFO),
+				log.String("log.internal_level", "Log"),
+				log.String("log.logger", "testing"),
+			)
+		}
+		llog(test.t, s)
 	})
 }
 
 func patchLogf() {
-	patch("Logf", func(test *Test, args []interface{}) {
+	patchWithFormatAndArgs(&logfPatch, lLogf, func(test *Test, format string, args ...interface{}) {
 		test.t.Helper()
-		format := args[0].(string)
-		test.Logf(format, args[1:]...)
+		s := fmt.Sprintf(format, args...)
+		if test.span != nil {
+			test.span.LogFields(
+				log.String(tags.EventType, tags.LogEvent),
+				log.String(tags.EventMessage, s),
+				log.String(tags.EventSource, getSourceFileAndNumber(2)),
+				log.String(tags.LogEventLevel, tags.LogLevel_INFO),
+				log.String("log.internal_level", "Log"),
+				log.String("log.logger", "testing"),
+			)
+		}
+		llog(test.t, s)
 	})
 }
 
 func patchSkip() {
-	patch("Skip", func(test *Test, args []interface{}) {
+	patchWithArgs(&skipPatch, lSkip, func(test *Test, args ...interface{}) {
 		test.t.Helper()
-		test.Skip(args...)
+		s := fmt.Sprintln(args...)
+		if test.span != nil {
+			test.span.LogFields(
+				log.String(tags.EventType, tags.EventTestSkip),
+				log.String(tags.EventMessage, s),
+				log.String(tags.EventSource, getSourceFileAndNumber(2)),
+				log.String("log.internal_level", "Skip"),
+				log.String("log.logger", "testing"),
+			)
+		}
+		llog(test.t, s)
+		test.t.SkipNow()
 	})
 }
 
 func patchSkipf() {
-	patch("Skipf", func(test *Test, args []interface{}) {
+	patchWithFormatAndArgs(&skipfPatch, lSkipf, func(test *Test, format string, args ...interface{}) {
 		test.t.Helper()
-		format := args[0].(string)
-		test.Skipf(format, args[1:]...)
+		s := fmt.Sprintf(format, args...)
+		if test.span != nil {
+			test.span.LogFields(
+				log.String(tags.EventType, tags.EventTestSkip),
+				log.String(tags.EventMessage, s),
+				log.String(tags.EventSource, getSourceFileAndNumber(2)),
+				log.String("log.internal_level", "Skip"),
+				log.String("log.logger", "testing"),
+			)
+		}
+		llog(test.t, s)
+		test.t.SkipNow()
 	})
 }
 
-func createArgs(in []reflect.Value) []interface{} {
-	var args []interface{}
-	for _, item := range in {
-		if item.Kind() == reflect.Slice {
-			var itemArg []interface{}
-			for i := 0; i < item.Len(); i++ {
-				itemArg = append(itemArg, item.Index(i).Interface())
-			}
-			args = append(args, itemArg)
-		} else {
-			args = append(args, item.Interface())
-		}
-	}
-	return args
-}
-
-func patch(methodName string, methodBody func(test *Test, argsValues []interface{})) {
-	patchesMutex.Lock()
-	defer patchesMutex.Unlock()
-	patchPointersMutex.Lock()
-	defer patchPointersMutex.Unlock()
-
-	var method reflect.Method
-	var ok bool
-	if method, ok = commonPtr.MethodByName(methodName); !ok {
-		return
-	}
-
-	var methodPatch *mpatch.Patch
-	var err error
-	methodPatch, err = mpatch.PatchMethodWithMakeFunc(method, func(in []reflect.Value) []reflect.Value {
-		argIn := createArgs(in[1:])
-		t := (*testing.T)(unsafe.Pointer(in[0].Pointer()))
+func patchWithArgs(patchValue **mpatch.Patch, method interface{}, methodBody func(test *Test, args ...interface{})) {
+	lPatch, err := mpatch.PatchMethod(method, func(t *testing.T, args ...interface{}) {
 		if t == nil {
 			instrumentation.Logger().Println("testing.T is nil")
-			return nil
+			return
 		}
-
 		t.Helper()
-		reflection.AddToHelpersMap(t, []string{
-			"reflect.callReflect",
-			"reflect.makeFuncStub",
-		})
-
 		test := GetTest(t)
 		if test == nil {
 			instrumentation.Logger().Printf("test struct for %v doesn't exist\n", t.Name())
-			return nil
+			return
 		}
-		methodBody(test, argIn)
-		return nil
+		methodBody(test, args...)
 	})
 	logOnError(err)
-	if err == nil {
-		patches[methodName] = methodPatch
-		patchPointers[reflect.ValueOf(methodBody).Pointer()] = true
-	}
+	*patchValue = lPatch
+}
+
+func patchWithFormatAndArgs(patchValue **mpatch.Patch, method interface{}, methodBody func(test *Test, format string, args ...interface{})) {
+	lPatch, err := mpatch.PatchMethod(method, func(t *testing.T, format string, args ...interface{}) {
+		if t == nil {
+			instrumentation.Logger().Println("testing.T is nil")
+			return
+		}
+		t.Helper()
+		test := GetTest(t)
+		if test == nil {
+			instrumentation.Logger().Printf("test struct for %v doesn't exist\n", t.Name())
+			return
+		}
+		methodBody(test, format, args...)
+	})
+	logOnError(err)
+	*patchValue = lPatch
 }
 
 func logOnError(err error) {
 	if err != nil {
 		instrumentation.Logger().Println(err)
 	}
-}
-
-func isAPatchPointer(ptr uintptr) bool {
-	patchPointersMutex.RLock()
-	defer patchPointersMutex.RUnlock()
-	if _, ok := patchPointers[ptr]; ok {
-		return true
-	}
-	return false
-}
-
-func getMethodPatch(methodName string) *mpatch.Patch {
-	patchesMutex.RLock()
-	defer patchesMutex.RUnlock()
-	return patches[methodName]
 }

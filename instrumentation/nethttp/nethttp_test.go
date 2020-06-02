@@ -10,6 +10,7 @@ import (
 
 	"go.undefinedlabs.com/scopeagent"
 	"go.undefinedlabs.com/scopeagent/agent"
+	testing2 "go.undefinedlabs.com/scopeagent/instrumentation/testing"
 	"go.undefinedlabs.com/scopeagent/tracer"
 )
 
@@ -20,6 +21,7 @@ func TestMain(m *testing.M) {
 
 	// Test tracer
 	r = tracer.NewInMemoryRecorder()
+	testing2.PatchTestingLogger()
 	os.Exit(scopeagent.Run(m, agent.WithRecorders(r)))
 }
 
@@ -117,6 +119,7 @@ func checkTags(t *testing.T, tags map[string]interface{}, expected map[string]st
 			}
 		}
 	}
+	t.Log("all tags ok.")
 }
 
 func checkTag(tags map[string]interface{}, key string, expectedValue string) (bool, string) {

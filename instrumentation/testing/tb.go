@@ -9,6 +9,7 @@ import (
 
 	"go.undefinedlabs.com/scopeagent/errors"
 	"go.undefinedlabs.com/scopeagent/instrumentation"
+	"go.undefinedlabs.com/scopeagent/reflection"
 	"go.undefinedlabs.com/scopeagent/tags"
 )
 
@@ -17,19 +18,12 @@ import (
 func (test *Test) private() {}
 
 func (test *Test) Error(args ...interface{}) {
-	methodPatch := getMethodPatch("Error")
-	if methodPatch != nil {
-		patchesMutex.Lock()
-		defer patchesMutex.Unlock()
-		methodPatch.Unpatch()
-		defer methodPatch.Patch()
-	}
 	test.t.Helper()
 	if test.span != nil {
 		test.span.LogFields(
 			log.String(tags.EventType, tags.LogEvent),
 			log.String(tags.EventMessage, fmt.Sprint(args...)),
-			log.String(tags.EventSource, getSourceFileAndNumber()),
+			log.String(tags.EventSource, getSourceFileAndNumber(1)),
 			log.String(tags.LogEventLevel, tags.LogLevel_ERROR),
 			log.String("log.internal_level", "Error"),
 			log.String("log.logger", "testing"),
@@ -39,19 +33,12 @@ func (test *Test) Error(args ...interface{}) {
 }
 
 func (test *Test) Errorf(format string, args ...interface{}) {
-	methodPatch := getMethodPatch("Errorf")
-	if methodPatch != nil {
-		patchesMutex.Lock()
-		defer patchesMutex.Unlock()
-		methodPatch.Unpatch()
-		defer methodPatch.Patch()
-	}
 	test.t.Helper()
 	if test.span != nil {
 		test.span.LogFields(
 			log.String(tags.EventType, tags.LogEvent),
 			log.String(tags.EventMessage, fmt.Sprintf(format, args...)),
-			log.String(tags.EventSource, getSourceFileAndNumber()),
+			log.String(tags.EventSource, getSourceFileAndNumber(1)),
 			log.String(tags.LogEventLevel, tags.LogLevel_ERROR),
 			log.String("log.internal_level", "Error"),
 			log.String("log.logger", "testing"),
@@ -76,19 +63,12 @@ func (test *Test) Failed() bool {
 }
 
 func (test *Test) Fatal(args ...interface{}) {
-	methodPatch := getMethodPatch("Fatal")
-	if methodPatch != nil {
-		patchesMutex.Lock()
-		defer patchesMutex.Unlock()
-		methodPatch.Unpatch()
-		defer methodPatch.Patch()
-	}
 	test.t.Helper()
 	if test.span != nil {
 		test.span.LogFields(
 			log.String(tags.EventType, tags.EventTestFailure),
 			log.String(tags.EventMessage, fmt.Sprint(args...)),
-			log.String(tags.EventSource, getSourceFileAndNumber()),
+			log.String(tags.EventSource, getSourceFileAndNumber(1)),
 			log.String("log.internal_level", "Fatal"),
 			log.String("log.logger", "testing"),
 		)
@@ -97,19 +77,12 @@ func (test *Test) Fatal(args ...interface{}) {
 }
 
 func (test *Test) Fatalf(format string, args ...interface{}) {
-	methodPatch := getMethodPatch("Fatalf")
-	if methodPatch != nil {
-		patchesMutex.Lock()
-		defer patchesMutex.Unlock()
-		methodPatch.Unpatch()
-		defer methodPatch.Patch()
-	}
 	test.t.Helper()
 	if test.span != nil {
 		test.span.LogFields(
 			log.String(tags.EventType, tags.EventTestFailure),
 			log.String(tags.EventMessage, fmt.Sprintf(format, args...)),
-			log.String(tags.EventSource, getSourceFileAndNumber()),
+			log.String(tags.EventSource, getSourceFileAndNumber(1)),
 			log.String("log.internal_level", "Fatal"),
 			log.String("log.logger", "testing"),
 		)
@@ -118,19 +91,12 @@ func (test *Test) Fatalf(format string, args ...interface{}) {
 }
 
 func (test *Test) Log(args ...interface{}) {
-	methodPatch := getMethodPatch("Log")
-	if methodPatch != nil {
-		patchesMutex.Lock()
-		defer patchesMutex.Unlock()
-		methodPatch.Unpatch()
-		defer methodPatch.Patch()
-	}
 	test.t.Helper()
 	if test.span != nil {
 		test.span.LogFields(
 			log.String(tags.EventType, tags.LogEvent),
 			log.String(tags.EventMessage, fmt.Sprint(args...)),
-			log.String(tags.EventSource, getSourceFileAndNumber()),
+			log.String(tags.EventSource, getSourceFileAndNumber(1)),
 			log.String(tags.LogEventLevel, tags.LogLevel_INFO),
 			log.String("log.internal_level", "Log"),
 			log.String("log.logger", "testing"),
@@ -140,19 +106,12 @@ func (test *Test) Log(args ...interface{}) {
 }
 
 func (test *Test) Logf(format string, args ...interface{}) {
-	methodPatch := getMethodPatch("Logf")
-	if methodPatch != nil {
-		patchesMutex.Lock()
-		defer patchesMutex.Unlock()
-		methodPatch.Unpatch()
-		defer methodPatch.Patch()
-	}
 	test.t.Helper()
 	if test.span != nil {
 		test.span.LogFields(
 			log.String(tags.EventType, tags.LogEvent),
 			log.String(tags.EventMessage, fmt.Sprintf(format, args...)),
-			log.String(tags.EventSource, getSourceFileAndNumber()),
+			log.String(tags.EventSource, getSourceFileAndNumber(1)),
 			log.String(tags.LogEventLevel, tags.LogLevel_INFO),
 			log.String("log.internal_level", "Log"),
 			log.String("log.logger", "testing"),
@@ -166,19 +125,12 @@ func (test *Test) Name() string {
 }
 
 func (test *Test) Skip(args ...interface{}) {
-	methodPatch := getMethodPatch("Skip")
-	if methodPatch != nil {
-		patchesMutex.Lock()
-		defer patchesMutex.Unlock()
-		methodPatch.Unpatch()
-		defer methodPatch.Patch()
-	}
 	test.t.Helper()
 	if test.span != nil {
 		test.span.LogFields(
 			log.String(tags.EventType, tags.EventTestSkip),
 			log.String(tags.EventMessage, fmt.Sprint(args...)),
-			log.String(tags.EventSource, getSourceFileAndNumber()),
+			log.String(tags.EventSource, getSourceFileAndNumber(1)),
 			log.String("log.internal_level", "Skip"),
 			log.String("log.logger", "testing"),
 		)
@@ -192,19 +144,12 @@ func (test *Test) SkipNow() {
 }
 
 func (test *Test) Skipf(format string, args ...interface{}) {
-	methodPatch := getMethodPatch("Skipf")
-	if methodPatch != nil {
-		patchesMutex.Lock()
-		defer patchesMutex.Unlock()
-		methodPatch.Unpatch()
-		defer methodPatch.Patch()
-	}
 	test.t.Helper()
 	if test.span != nil {
 		test.span.LogFields(
 			log.String(tags.EventType, tags.EventTestSkip),
 			log.String(tags.EventMessage, fmt.Sprintf(format, args...)),
-			log.String(tags.EventSource, getSourceFileAndNumber()),
+			log.String(tags.EventSource, getSourceFileAndNumber(1)),
 			log.String("log.internal_level", "Skip"),
 			log.String("log.logger", "testing"),
 		)
@@ -218,6 +163,10 @@ func (test *Test) Skipped() bool {
 
 // Deprecated: use `testing.T.Helper` instead
 func (test *Test) Helper() {
+	pc, _, _, _ := runtime.Caller(1)
+	reflection.AddToHelpersMap(test.t, []string{
+		runtime.FuncForPC(pc).Name(),
+	})
 	test.t.Helper()
 }
 
@@ -226,21 +175,11 @@ func (test *Test) LogPanic(recoverData interface{}, skipFrames int) {
 	errors.LogPanic(test.ctx, recoverData, skipFrames+1)
 }
 
-func getSourceFileAndNumber() string {
+func getSourceFileAndNumber(skip int) string {
 	var source string
-	if pc, file, line, ok := instrumentation.GetCallerInsideSourceRoot(2); ok == true {
-		pcEntry := runtime.FuncForPC(pc).Entry()
-		// Try to detect the patch function
-		if isAPatchPointer(pcEntry) {
-			// The monkey patching version adds 4 frames to the stack.
-			if _, file, line, ok := instrumentation.GetCallerInsideSourceRoot(6); ok == true {
-				source = fmt.Sprintf("%s:%d", file, line)
-			}
-		} else {
-			// If we don't have monkey patching then we skip 2 frames
-			file = filepath.Clean(file)
-			source = fmt.Sprintf("%s:%d", file, line)
-		}
+	if _, file, line, ok := instrumentation.GetCallerInsideSourceRoot(1 + skip); ok == true {
+		file = filepath.Clean(file)
+		source = fmt.Sprintf("%s:%d", file, line)
 	}
 	return source
 }
