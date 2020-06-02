@@ -28,7 +28,6 @@ func getRandomId() uint64 {
 func getRandomUUID() uuid.UUID {
 	mu.Lock()
 	defer mu.Unlock()
-	ensureRandom()
 	return uuid.New()
 }
 
@@ -37,7 +36,6 @@ func ensureRandom() {
 		random = rand.New(&safeSource{
 			source: rand.NewSource(getSeed()),
 		})
-		uuid.SetRand(random)
 	}
 }
 
