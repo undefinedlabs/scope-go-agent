@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/opentracing/opentracing-go"
 	"gopkg.in/tomb.v2"
 
 	"go.undefinedlabs.com/scopeagent/tags"
@@ -80,7 +81,7 @@ func NewSpanRecorder(agent *Agent) *SpanRecorder {
 	r.cache = agent.cache
 	r.flushFrequency = agent.flushFrequency
 	r.url = agent.getUrl("api/agent/ingest")
-	r.client = &http.Client{}
+	r.client = &http.Client{Timeout: 60 * time.Second}
 	r.stats = &RecorderStats{}
 	r.t.Go(r.loop)
 	return r
@@ -168,7 +169,7 @@ func (r *SpanRecorder) sendSpans() (error, bool) {
 
 		var testSpans int64
 		for _, span := range spans {
-			if isTestSpan(span) {
+			if isTestSpan(span["tags"].(opentracing.Tags)) {
 				testSpans++
 			}
 		}
