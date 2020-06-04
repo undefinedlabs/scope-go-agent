@@ -113,7 +113,7 @@ func (s *spanImpl) UnsafeSetTag(key string, value interface{}) opentracing.Span 
 }
 
 func (s *spanImpl) SetTag(key string, value interface{}) opentracing.Span {
-	cValue, c := scopetags.GetValidStringValue(value)
+	cValue, c := scopetags.GetValidValue(value)
 	if c {
 		instrumentation.Logger().Printf("SetTag-ConvertedValue: %v", cValue)
 	}

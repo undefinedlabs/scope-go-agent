@@ -71,7 +71,7 @@ const (
 	Coverage = "test.coverage"
 )
 
-func GetValidStringValue(value interface{}) (interface{}, bool) {
+func GetValidValue(value interface{}) (interface{}, bool) {
 	if value == nil {
 		return nil, false
 	}
