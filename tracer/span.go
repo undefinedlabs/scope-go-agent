@@ -1,8 +1,6 @@
 package tracer
 
 import (
-	"go.undefinedlabs.com/scopeagent/instrumentation"
-	"go.undefinedlabs.com/scopeagent/tags"
 	"sync"
 	"time"
 
@@ -11,6 +9,9 @@ import (
 	"github.com/opentracing/opentracing-go"
 	"github.com/opentracing/opentracing-go/ext"
 	"github.com/opentracing/opentracing-go/log"
+
+	"go.undefinedlabs.com/scopeagent/instrumentation"
+	scopetags "go.undefinedlabs.com/scopeagent/tags"
 )
 
 // Span provides access to the essential details of the span, for use
@@ -112,7 +113,7 @@ func (s *spanImpl) UnsafeSetTag(key string, value interface{}) opentracing.Span 
 }
 
 func (s *spanImpl) SetTag(key string, value interface{}) opentracing.Span {
-	cValue, c := tags.GetValidStringValue(value)
+	cValue, c := scopetags.GetValidStringValue(value)
 	if c {
 		instrumentation.Logger().Printf("SetTag-ConvertedValue: %v", cValue)
 	}
