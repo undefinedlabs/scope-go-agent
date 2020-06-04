@@ -214,7 +214,11 @@ func (test *Test) end() {
 			instrumentation.Logger().Printf("CodePath in parallel test is not supported: %v\n", test.t.Name())
 			coverage.RestoreCoverageCounters()
 		} else if cov := coverage.EndCoverage(); cov != nil {
-			test.span.SetTag(tags.Coverage, *cov)
+			if sp, ok := test.span.(tracer.Span); ok {
+				sp.UnsafeSetTag(tags.Coverage, *cov)
+			} else {
+				test.span.SetTag(tags.Coverage, *cov)
+			}
 		}
 	}
 

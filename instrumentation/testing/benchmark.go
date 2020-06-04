@@ -2,6 +2,7 @@ package testing
 
 import (
 	"context"
+	"go.undefinedlabs.com/scopeagent/tags"
 	"math"
 	"regexp"
 	"runtime"
@@ -141,9 +142,9 @@ func startBenchmark(b *testing.B, pc uintptr, benchFunc func(b *testing.B)) {
 	span.SetTag("benchmark.memory.mean_allocations", results.AllocsPerOp())
 	span.SetTag("benchmark.memory.mean_bytes_allocations", results.AllocedBytesPerOp())
 	if result {
-		span.SetTag("test.status", "PASS")
+		span.SetTag("test.status", tags.TestStatus_PASS)
 	} else {
-		span.SetTag("test.status", "FAIL")
+		span.SetTag("test.status", tags.TestStatus_FAIL)
 	}
 	span.FinishWithOptions(opentracing.FinishOptions{
 		FinishTime: startTime.Add(results.T),

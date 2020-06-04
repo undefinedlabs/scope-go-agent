@@ -324,10 +324,12 @@ func (r *SpanRecorder) getPayloadComponents(span tracer.RawSpan) (PayloadSpan, [
 	if span.ParentSpanID != 0 {
 		parentSpanID = fmt.Sprintf("%x", span.ParentSpanID)
 	}
+	traceId := tracer.UUIDToString(span.Context.TraceID)
+	spanId := fmt.Sprintf("%x", span.Context.SpanID)
 	payloadSpan := PayloadSpan{
 		"context": map[string]interface{}{
-			"trace_id": tracer.UUIDToString(span.Context.TraceID),
-			"span_id":  fmt.Sprintf("%x", span.Context.SpanID),
+			"trace_id": traceId,
+			"span_id":  spanId,
 			"baggage":  span.Context.Baggage,
 		},
 		"parent_span_id": parentSpanID,
@@ -339,16 +341,14 @@ func (r *SpanRecorder) getPayloadComponents(span tracer.RawSpan) (PayloadSpan, [
 	for _, event := range span.Logs {
 		var fields = make(map[string]interface{})
 		for _, field := range event.Fields {
-			fields[field.Key()] = field.Value()
+			value := field.Value()
+			fields[field.Key()] = value
 		}
-		eventId, err := uuid.NewRandom()
-		if err != nil {
-			panic(err)
-		}
+		eventId := uuid.New()
 		events = append(events, PayloadEvent{
 			"context": map[string]interface{}{
-				"trace_id": tracer.UUIDToString(span.Context.TraceID),
-				"span_id":  fmt.Sprintf("%x", span.Context.SpanID),
+				"trace_id": traceId,
+				"span_id":  spanId,
 				"event_id": eventId.String(),
 			},
 			"timestamp": r.applyNTPOffset(event.Timestamp).Format(time.RFC3339Nano),

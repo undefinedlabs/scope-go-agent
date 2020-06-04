@@ -16,6 +16,7 @@ import (
 
 	scopeerrors "go.undefinedlabs.com/scopeagent/errors"
 	"go.undefinedlabs.com/scopeagent/instrumentation"
+	scopetracer "go.undefinedlabs.com/scopeagent/tracer"
 )
 
 type contextKey int
@@ -183,7 +184,9 @@ func (t *Transport) doRoundTrip(req *http.Request) (*http.Response, error) {
 	tracer.start(req)
 
 	if t.Stacktrace {
-		tracer.sp.SetTag("stacktrace", scopeerrors.GetCurrentStackTrace(2))
+		if span, ok := tracer.sp.(scopetracer.Span); ok {
+			span.UnsafeSetTag("stacktrace", scopeerrors.GetCurrentStackTrace(2))
+		}
 	}
 
 	ext.HTTPMethod.Set(tracer.sp, req.Method)
