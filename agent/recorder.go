@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/opentracing/opentracing-go"
 	"gopkg.in/tomb.v2"
 
 	"go.undefinedlabs.com/scopeagent/tags"
@@ -168,8 +169,10 @@ func (r *SpanRecorder) sendSpans() (error, bool) {
 
 		var testSpans int64
 		for _, span := range spans {
-			if isTestSpan(span) {
-				testSpans++
+			if tags, ok := span["tags"].(opentracing.Tags); ok {
+				if isTestSpan(tags) {
+					testSpans++
+				}
 			}
 		}
 
