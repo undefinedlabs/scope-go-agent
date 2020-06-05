@@ -31,7 +31,7 @@ jobs:
           SCOPE_LOGGER_ROOT: /home/runner/.scope-results
           SCOPE_DEBUG: true
           SCOPE_RUNNER_ENABLED: true
-          SCOPE_RUNNER_EXCLUDE_BRANCHES: master, complex-objects
+          SCOPE_RUNNER_EXCLUDE_BRANCHES: master
           SCOPE_TESTING_FAIL_RETRIES: 3
           SCOPE_TESTING_PANIC_AS_FAIL: true
 
