@@ -1,5 +1,10 @@
 package tags
 
+import (
+	"fmt"
+	"reflect"
+)
+
 const (
 	AgentType    = "agent.type"
 	AgentID      = "agent.id"
@@ -65,3 +70,25 @@ const (
 
 	Coverage = "test.coverage"
 )
+
+func GetValidValue(value interface{}) (interface{}, bool) {
+	if value == nil {
+		return nil, false
+	}
+	if vs, ok := value.(fmt.Stringer); ok {
+		return vs.String(), true
+	}
+	rValue := reflect.ValueOf(value)
+	for {
+		rKind := rValue.Kind()
+		if rKind == reflect.Ptr {
+			rValue = rValue.Elem()
+			continue
+		}
+		if (rKind < 1 || rKind > 16) && rKind != reflect.String {
+			return fmt.Sprint(value), true
+		}
+		break
+	}
+	return value, false
+}

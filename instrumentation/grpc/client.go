@@ -5,6 +5,7 @@ import (
 	"github.com/opentracing/opentracing-go/ext"
 	"github.com/opentracing/opentracing-go/log"
 	"go.undefinedlabs.com/scopeagent/instrumentation"
+	scopetracer "go.undefinedlabs.com/scopeagent/tracer"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
@@ -214,6 +215,8 @@ func (cs *openTracingClientStream) Header() (metadata.MD, error) {
 	md, err := cs.ClientStream.Header()
 	if err != nil {
 		cs.finishFunc(err)
+	} else if span, ok := cs.span.(scopetracer.Span); ok {
+		span.UnsafeSetTag(Headers, md)
 	} else {
 		cs.span.SetTag(Headers, md)
 	}

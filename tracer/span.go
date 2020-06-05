@@ -9,6 +9,9 @@ import (
 	"github.com/opentracing/opentracing-go"
 	"github.com/opentracing/opentracing-go/ext"
 	"github.com/opentracing/opentracing-go/log"
+
+	"go.undefinedlabs.com/scopeagent/instrumentation"
+	scopetags "go.undefinedlabs.com/scopeagent/tags"
 )
 
 // Span provides access to the essential details of the span, for use
@@ -28,6 +31,9 @@ type Span interface {
 
 	// Log fields with timestamp
 	LogFieldsWithTimestamp(t time.Time, fields ...log.Field)
+
+	// Set tag without validation
+	UnsafeSetTag(key string, value interface{}) opentracing.Span
 }
 
 // Implements the `Span` interface. Created via tracerImpl (see
@@ -85,7 +91,7 @@ func (s *spanImpl) SetStart(start time.Time) opentracing.Span {
 	return s
 }
 
-func (s *spanImpl) SetTag(key string, value interface{}) opentracing.Span {
+func (s *spanImpl) UnsafeSetTag(key string, value interface{}) opentracing.Span {
 	defer s.onTag(key, value)
 	s.Lock()
 	defer s.Unlock()
@@ -104,6 +110,14 @@ func (s *spanImpl) SetTag(key string, value interface{}) opentracing.Span {
 	}
 	s.raw.Tags[key] = value
 	return s
+}
+
+func (s *spanImpl) SetTag(key string, value interface{}) opentracing.Span {
+	cValue, c := scopetags.GetValidValue(value)
+	if c {
+		instrumentation.Logger().Printf("SetTag-ConvertedValue: %v", cValue)
+	}
+	return s.UnsafeSetTag(key, cValue)
 }
 
 func (s *spanImpl) LogKV(keyValues ...interface{}) {

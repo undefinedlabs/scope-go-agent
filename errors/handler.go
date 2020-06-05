@@ -16,14 +16,6 @@ import (
 	"go.undefinedlabs.com/scopeagent/tracer"
 )
 
-const (
-	EventType      = "event"
-	EventSource    = "source"
-	EventMessage   = "message"
-	EventStack     = "stack"
-	EventException = "exception"
-)
-
 type StackFrames struct {
 	File       string
 	LineNumber int
@@ -136,11 +128,11 @@ func getExceptionLogFields(eventType string, recoverData interface{}, skipFrames
 		}
 
 		fields := make([]log.Field, 5)
-		fields[0] = log.String(EventType, eventType)
-		fields[1] = log.String(EventSource, source)
-		fields[2] = log.String(EventMessage, errMessage)
-		fields[3] = log.String(EventStack, getStringStack(err, errStack))
-		fields[4] = log.Object(EventException, exceptionData)
+		fields[0] = log.String(tags.EventType, eventType)
+		fields[1] = log.String(tags.EventSource, source)
+		fields[2] = log.String(tags.EventMessage, errMessage)
+		fields[3] = log.String(tags.EventStack, getStringStack(err, errStack))
+		fields[4] = log.Object(tags.EventException, exceptionData)
 		return fields
 	}
 	return nil

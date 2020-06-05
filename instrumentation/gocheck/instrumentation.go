@@ -15,6 +15,7 @@ import (
 	"go.undefinedlabs.com/scopeagent/instrumentation/coverage"
 	"go.undefinedlabs.com/scopeagent/instrumentation/logging"
 	"go.undefinedlabs.com/scopeagent/tags"
+	scopetracer "go.undefinedlabs.com/scopeagent/tracer"
 
 	chk "gopkg.in/check.v1"
 )
@@ -103,7 +104,11 @@ func (test *Test) end(c *chk.C) {
 
 	if testing.CoverMode() != "" {
 		if cov := coverage.EndCoverage(); cov != nil {
-			test.span.SetTag(tags.Coverage, *cov)
+			if span, ok := test.span.(scopetracer.Span); ok {
+				span.UnsafeSetTag(tags.Coverage, *cov)
+			} else {
+				test.span.SetTag(tags.Coverage, *cov)
+			}
 		}
 	}
 

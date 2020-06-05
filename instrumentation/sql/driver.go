@@ -146,7 +146,7 @@ func (t *driverConfiguration) newSpan(operationName string, query string, args [
 			}
 			dbParams[name] = map[string]interface{}{
 				"type":  reflect.TypeOf(item.Value).String(),
-				"value": item.Value,
+				"value": fmt.Sprint(item.Value),
 			}
 		}
 		opts = append(opts, opentracing.Tags{
