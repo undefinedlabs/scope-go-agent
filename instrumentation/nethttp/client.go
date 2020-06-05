@@ -186,6 +186,8 @@ func (t *Transport) doRoundTrip(req *http.Request) (*http.Response, error) {
 	if t.Stacktrace {
 		if span, ok := tracer.sp.(scopetracer.Span); ok {
 			span.UnsafeSetTag("stacktrace", scopeerrors.GetCurrentStackTrace(2))
+		} else {
+			tracer.sp.SetTag("stacktrace", scopeerrors.GetCurrentStackTrace(2))
 		}
 	}
 
