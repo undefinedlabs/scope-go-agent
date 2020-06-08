@@ -5,7 +5,7 @@ go 1.13
 require (
 	github.com/beevik/ntp v0.3.0
 	github.com/davecgh/go-spew v1.1.1
-	github.com/go-errors/errors v1.0.2
+	github.com/go-errors/errors v1.1.1
 	github.com/gogo/protobuf v1.3.1
 	github.com/golang/protobuf v1.4.2 // indirect
 	github.com/google/uuid v1.1.1
