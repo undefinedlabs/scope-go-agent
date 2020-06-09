@@ -49,7 +49,7 @@ func getCIMetadata() map[string]interface{} {
 		ciMetadata[tags.Repository] = os.Getenv("GIT_URL")
 		ciMetadata[tags.Commit] = os.Getenv("GIT_COMMIT")
 		branch := os.Getenv("GIT_BRANCH")
-		if strings.Index("branch", "origin/") == 0 {
+		if strings.Index(branch, "origin/") == 0 {
 			// Removes the origin/ prefix
 			branch = branch[7:]
 		}
