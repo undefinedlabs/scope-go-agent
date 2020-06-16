@@ -15,7 +15,7 @@ require (
 	github.com/opentracing/opentracing-go v1.1.0
 	github.com/sirupsen/logrus v1.6.0
 	github.com/stretchr/testify v1.5.1
-	github.com/undefinedlabs/go-mpatch v1.0.5-0.20200616073547-71eaf2c51fc0
+	github.com/undefinedlabs/go-mpatch v1.0.5
 	github.com/vmihailenco/msgpack v4.0.4+incompatible
 	golang.org/x/net v0.0.0-20200520004742-59133d7f0dd7
 	golang.org/x/sys v0.0.0-20200519105757-fe76b779f299 // indirect
