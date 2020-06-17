@@ -329,6 +329,10 @@ func (r *SpanRecorder) getPayloadComponents(span tracer.RawSpan) (PayloadSpan, [
 	}
 	traceId := tracer.UUIDToString(span.Context.TraceID)
 	spanId := fmt.Sprintf("%x", span.Context.SpanID)
+	tags := opentracing.Tags{}
+	for key, value := range span.Tags {
+		tags[key] = value
+	}
 	payloadSpan := PayloadSpan{
 		"context": map[string]interface{}{
 			"trace_id": traceId,
@@ -339,7 +343,7 @@ func (r *SpanRecorder) getPayloadComponents(span tracer.RawSpan) (PayloadSpan, [
 		"operation":      span.Operation,
 		"start":          r.applyNTPOffset(span.Start).Format(time.RFC3339Nano),
 		"duration":       span.Duration.Nanoseconds(),
-		"tags":           span.Tags,
+		"tags":           tags,
 	}
 	for _, event := range span.Logs {
 		var fields = make(map[string]interface{})

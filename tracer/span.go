@@ -210,7 +210,7 @@ func (s *spanImpl) Finish() {
 	if s.tracer != nil && s.tracer.options.OnSpanFinishPanic != nil && s.raw.ParentSpanID != 0 {
 		if r := recover(); r != nil {
 			currentError = errors.Wrap(r, 1)
-			s.tracer.options.OnSpanFinishPanic(&s.raw, &currentError)
+			s.callFinishPanic(&currentError)
 		}
 	}
 
@@ -238,12 +238,18 @@ func rotateLogBuffer(buf []opentracing.LogRecord, pos int) {
 	}
 }
 
+func (s *spanImpl) callFinishPanic(err **errors.Error) {
+	s.Lock()
+	defer s.Unlock()
+	s.tracer.options.OnSpanFinishPanic(&s.raw, err)
+}
+
 func (s *spanImpl) FinishWithOptions(opts opentracing.FinishOptions) {
 	var currentError *errors.Error
 	if s.tracer != nil && s.tracer.options.OnSpanFinishPanic != nil && s.raw.ParentSpanID != 0 {
 		if r := recover(); r != nil {
 			currentError = errors.Wrap(r, 1)
-			s.tracer.options.OnSpanFinishPanic(&s.raw, &currentError)
+			s.callFinishPanic(&currentError)
 		}
 	}
 
