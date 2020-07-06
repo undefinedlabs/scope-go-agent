@@ -20,7 +20,7 @@ require (
 	golang.org/x/net v0.0.0-20200520004742-59133d7f0dd7
 	golang.org/x/sys v0.0.0-20200519105757-fe76b779f299 // indirect
 	google.golang.org/appengine v1.6.6 // indirect
-	google.golang.org/grpc v1.29.1
+	google.golang.org/grpc v1.30.0
 	gopkg.in/check.v1 v1.0.0-20200227125254-8fa46927fb4f
 	gopkg.in/tomb.v2 v2.0.0-20161208151619-d5d1b5820637
 )
